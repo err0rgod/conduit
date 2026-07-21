@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Conduit Extension</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        width: 250px;
+        padding: 10px;
+      }
+      .form-group {
+        margin-bottom: 10px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        background: #0366d6;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Conduit Settings</h3>
+    <div class="form-group">
+      <label>Daemon Port</label>
+      <input type="number" id="port" value="9222" />
+    </div>
+    <div class="form-group">
+      <label>Daemon Token</label>
+      <input type="password" id="token" placeholder="Enter token" />
+    </div>
+    <button id="save">Save & Connect</button>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

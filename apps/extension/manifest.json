@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Conduit Extension",
+  "version": "0.1.0",
+  "description": "Secure local-first browser control for AI agents.",
+  "permissions": ["tabs", "scripting", "activeTab", "storage", "debugger"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "dist/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Conduit"
+  }
+}
