@@ -1,0 +1,40 @@
+{
+  "name": "conduit-monorepo",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "install": "pnpm install",
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "clean": "pnpm -r clean",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test",
+    "test:security": "vitest run --config vitest.security.config.ts",
+    "test:coverage": "vitest run --coverage",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build",
+    "extension:dev": "pnpm --filter extension dev",
+    "extension:build": "pnpm --filter extension build",
+    "extension:package": "pnpm --filter extension package",
+    "daemon:start": "pnpm --filter daemon start",
+    "daemon:dev": "pnpm --filter daemon dev",
+    "mcp:start": "pnpm --filter mcp-server start",
+    "conduit:doctor": "node packages/cli/bin/doctor.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "prettier": "^3.2.5",
+    "eslint": "^8.57.0",
+    "@types/node": "^20.12.7",
+    "ts-node": "^10.9.2"
+  }
+}

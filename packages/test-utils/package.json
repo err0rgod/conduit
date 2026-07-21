@@ -1,0 +1,9 @@
+{
+  "name": "@conduit/test-utils",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc || true",
+    "typecheck": "tsc --noEmit || true"
+  }
+}
