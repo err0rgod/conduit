@@ -2,8 +2,15 @@
   "name": "@conduit/security",
   "version": "0.1.0",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc || true",
-    "typecheck": "tsc --noEmit || true"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.8"
   }
 }
