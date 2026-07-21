@@ -46,6 +46,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@conduit/browser-core':
+        specifier: workspace:*
+        version: link:../../packages/browser-core
       '@conduit/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -54,7 +57,15 @@ importers:
         specifier: ^0.0.268
         version: 0.0.268
 
-  packages/browser-core: {}
+  packages/browser-core:
+    dependencies:
+      '@conduit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      '@types/chrome':
+        specifier: ^0.0.268
+        version: 0.0.268
 
   packages/cli: {}
 

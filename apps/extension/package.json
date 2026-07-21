@@ -8,7 +8,8 @@
     "package": "node package.js"
   },
   "dependencies": {
-    "@conduit/protocol": "workspace:*"
+    "@conduit/protocol": "workspace:*",
+    "@conduit/browser-core": "workspace:*"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268"

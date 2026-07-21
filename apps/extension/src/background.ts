@@ -59,9 +59,27 @@ function connectDaemon() {
   });
 }
 
-function handleDaemonMessage(msg: any) {
-  // Skeleton for handling messages from daemon
-  console.log('Received message from daemon:', msg);
+import { ExtensionBrowserEngine } from '@conduit/browser-core';
+const browserEngine = new ExtensionBrowserEngine();
+
+async function handleDaemonMessage(msg: any) {
+  try {
+    switch (msg.type) {
+      case 'list_tabs':
+        const tabs = await browserEngine.listTabs();
+        daemonSocket?.send(JSON.stringify({ type: 'success', payload: { tabs } }));
+        break;
+      case 'open_tab':
+        const tab = await browserEngine.openTab(msg.payload?.url);
+        daemonSocket?.send(JSON.stringify({ type: 'success', payload: { tab } }));
+        break;
+      default:
+        console.log('Received unhandled message from daemon:', msg);
+        daemonSocket?.send(JSON.stringify({ type: 'error', error: { code: 'INVALID_REQUEST' } }));
+    }
+  } catch (e) {
+    daemonSocket?.send(JSON.stringify({ type: 'error', error: { code: 'INTERNAL_ERROR' } }));
+  }
 }
 
 // Initial connection attempt
