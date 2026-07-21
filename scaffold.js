@@ -12,50 +12,50 @@ const dirs = [
   'packages/cli',
   'packages/security',
   'packages/test-utils',
-  '.github/workflows'
+  '.github/workflows',
 ];
 
-dirs.forEach(d => fs.mkdirSync(path.join(root, d), { recursive: true }));
+dirs.forEach((d) => fs.mkdirSync(path.join(root, d), { recursive: true }));
 
 const rootPackage = {
-  name: "conduit-monorepo",
+  name: 'conduit-monorepo',
   private: true,
   engines: {
-    node: ">=20.0.0"
+    node: '>=20.0.0',
   },
   scripts: {
-    "install": "pnpm install",
-    "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
-    "clean": "pnpm -r clean",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "typecheck": "pnpm -r typecheck",
-    "test": "vitest run",
-    "test:unit": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
-    "test:security": "vitest run --config vitest.security.config.ts",
-    "test:coverage": "vitest run --coverage",
-    "docs:dev": "pnpm --filter docs dev",
-    "docs:build": "pnpm --filter docs build",
-    "extension:dev": "pnpm --filter extension dev",
-    "extension:build": "pnpm --filter extension build",
-    "extension:package": "pnpm --filter extension package",
-    "daemon:start": "pnpm --filter daemon start",
-    "daemon:dev": "pnpm --filter daemon dev",
-    "mcp:start": "pnpm --filter mcp-server start",
-    "conduit:doctor": "node packages/cli/bin/doctor.js"
+    install: 'pnpm install',
+    build: 'pnpm -r build',
+    dev: 'pnpm -r dev',
+    clean: 'pnpm -r clean',
+    lint: 'eslint .',
+    format: 'prettier --write .',
+    'format:check': 'prettier --check .',
+    typecheck: 'pnpm -r typecheck',
+    test: 'vitest run',
+    'test:unit': 'vitest run',
+    'test:integration': 'vitest run --config vitest.integration.config.ts',
+    'test:e2e': 'playwright test',
+    'test:security': 'vitest run --config vitest.security.config.ts',
+    'test:coverage': 'vitest run --coverage',
+    'docs:dev': 'pnpm --filter docs dev',
+    'docs:build': 'pnpm --filter docs build',
+    'extension:dev': 'pnpm --filter extension dev',
+    'extension:build': 'pnpm --filter extension build',
+    'extension:package': 'pnpm --filter extension package',
+    'daemon:start': 'pnpm --filter daemon start',
+    'daemon:dev': 'pnpm --filter daemon dev',
+    'mcp:start': 'pnpm --filter mcp-server start',
+    'conduit:doctor': 'node packages/cli/bin/doctor.js',
   },
   devDependencies: {
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0",
-    "prettier": "^3.2.5",
-    "eslint": "^8.57.0",
-    "@types/node": "^20.12.7",
-    "ts-node": "^10.9.2"
-  }
+    typescript: '^5.4.5',
+    vitest: '^1.6.0',
+    prettier: '^3.2.5',
+    eslint: '^8.57.0',
+    '@types/node': '^20.12.7',
+    'ts-node': '^10.9.2',
+  },
 };
 fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify(rootPackage, null, 2));
 
@@ -67,29 +67,29 @@ fs.writeFileSync(path.join(root, 'pnpm-workspace.yaml'), pnpmWorkspace);
 
 const tsconfig = {
   compilerOptions: {
-    target: "ES2022",
-    module: "CommonJS",
-    lib: ["ES2022", "DOM"],
+    target: 'ES2022',
+    module: 'CommonJS',
+    lib: ['ES2022', 'DOM'],
     strict: true,
     esModuleInterop: true,
     skipLibCheck: true,
-    forceConsistentCasingInFileNames: true
+    forceConsistentCasingInFileNames: true,
   },
-  exclude: ["node_modules", "dist"]
+  exclude: ['node_modules', 'dist'],
 };
 fs.writeFileSync(path.join(root, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2));
 
-dirs.forEach(d => {
+dirs.forEach((d) => {
   if (d.startsWith('apps/') || d.startsWith('packages/')) {
     const name = d.replace('apps/', '@conduit/').replace('packages/', '@conduit/');
     const pkg = {
       name,
-      version: "0.1.0",
-      main: "dist/index.js",
+      version: '0.1.0',
+      main: 'dist/index.js',
       scripts: {
-        build: "tsc || true",
-        typecheck: "tsc --noEmit || true"
-      }
+        build: 'tsc || true',
+        typecheck: 'tsc --noEmit || true',
+      },
     };
     fs.writeFileSync(path.join(root, d, 'package.json'), JSON.stringify(pkg, null, 2));
   }

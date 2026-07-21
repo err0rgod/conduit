@@ -6,12 +6,12 @@ You have access to the required development environment.
 
 Assume the following are already installed and authenticated:
 
-* Git
-* GitHub CLI (`gh`)
-* Node.js
-* pnpm or npm
-* Chromium-based browser
-* required build tools
+- Git
+- GitHub CLI (`gh`)
+- Node.js
+- pnpm or npm
+- Chromium-based browser
+- required build tools
 
 GitHub authentication is already configured.
 
@@ -67,58 +67,58 @@ Build a clean, understandable, secure, testable foundation that the maintainer c
 
 The system should allow authorized AI agents such as:
 
-* Claude Code
-* OpenCode
-* Codex
-* Hermes
-* OpenHands
-* MCP-compatible clients
-* CLI-capable agents
-* custom local agents
+- Claude Code
+- OpenCode
+- Codex
+- Hermes
+- OpenHands
+- MCP-compatible clients
+- CLI-capable agents
+- custom local agents
 
 to interact securely with the user’s existing Chromium browser.
 
 The system must remain:
 
-* model-agnostic;
-* agent-agnostic;
-* local-first;
-* secure by default;
-* extensible;
-* cross-platform;
-* well-tested;
-* thoroughly documented.
+- model-agnostic;
+- agent-agnostic;
+- local-first;
+- secure by default;
+- extensible;
+- cross-platform;
+- well-tested;
+- thoroughly documented.
 
 # Core browser capabilities
 
 Authorized agents should be able to:
 
-* list browser tabs;
-* identify the active tab;
-* open tabs;
-* close tabs;
-* focus tabs;
-* navigate URLs;
-* go backward;
-* go forward;
-* reload pages;
-* inspect a page;
-* read visible text;
-* obtain structured page snapshots;
-* identify interactive elements;
-* click elements;
-* type into inputs;
-* clear fields;
-* select options;
-* hover over elements;
-* scroll;
-* press keyboard keys;
-* wait for page conditions;
-* capture screenshots;
-* upload files after explicit authorization;
-* observe downloads;
-* manage browser sessions;
-* connect from another trusted device through secure pairing.
+- list browser tabs;
+- identify the active tab;
+- open tabs;
+- close tabs;
+- focus tabs;
+- navigate URLs;
+- go backward;
+- go forward;
+- reload pages;
+- inspect a page;
+- read visible text;
+- obtain structured page snapshots;
+- identify interactive elements;
+- click elements;
+- type into inputs;
+- clear fields;
+- select options;
+- hover over elements;
+- scroll;
+- press keyboard keys;
+- wait for page conditions;
+- capture screenshots;
+- upload files after explicit authorization;
+- observe downloads;
+- manage browser sessions;
+- connect from another trusted device through secure pairing.
 
 # Core engineering principles
 
@@ -186,17 +186,17 @@ Complete and validate this path before adding secondary features.
 
 Do not build unrelated systems such as:
 
-* billing;
-* subscriptions;
-* model routing;
-* hosted browser farms;
-* cloud dashboards;
-* workflow marketplaces;
-* social features;
-* mobile applications;
-* AI chat interfaces;
-* user analytics;
-* SaaS account systems.
+- billing;
+- subscriptions;
+- model routing;
+- hosted browser farms;
+- cloud dashboards;
+- workflow marketplaces;
+- social features;
+- mobile applications;
+- AI chat interfaces;
+- user analytics;
+- SaaS account systems.
 
 # Recommended technology
 
@@ -204,32 +204,32 @@ Prefer TypeScript throughout the project.
 
 Recommended stack:
 
-* Node.js LTS
-* TypeScript with strict mode
-* pnpm workspaces
-* Chrome Extension Manifest V3
-* WebSocket communication
-* Zod or equivalent runtime validation
-* official MCP TypeScript SDK
-* Vitest
-* Playwright
-* ESLint
-* Prettier
-* GitHub Actions
-* VitePress, Astro Starlight, or another lightweight maintained documentation framework
-* GitHub Pages for documentation hosting
+- Node.js LTS
+- TypeScript with strict mode
+- pnpm workspaces
+- Chrome Extension Manifest V3
+- WebSocket communication
+- Zod or equivalent runtime validation
+- official MCP TypeScript SDK
+- Vitest
+- Playwright
+- ESLint
+- Prettier
+- GitHub Actions
+- VitePress, Astro Starlight, or another lightweight maintained documentation framework
+- GitHub Pages for documentation hosting
 
 You may choose equivalent tools where technically justified.
 
 Before adding dependencies:
 
-* verify that they are actively maintained;
-* avoid unnecessary packages;
-* prefer focused libraries;
-* lock versions;
-* check licensing;
-* avoid libraries with questionable security history;
-* document important choices.
+- verify that they are actively maintained;
+- avoid unnecessary packages;
+- prefer focused libraries;
+- lock versions;
+- check licensing;
+- avoid libraries with questionable security history;
+- document important choices.
 
 # Repository and monorepo structure
 
@@ -286,9 +286,10 @@ If the current directory is not already associated with the correct repository:
 3. Use the name `conduit` if available.
 4. If that exact name is unavailable in the authenticated account, use a sensible alternative such as:
 
-   * `conduit-browser`
-   * `conduit-agent-bridge`
-   * `conduit-ai-browser`
+   - `conduit-browser`
+   - `conduit-agent-bridge`
+   - `conduit-ai-browser`
+
 5. Prefer a public repository unless existing context clearly requires private.
 6. Add a concise repository description.
 7. Add suitable topics.
@@ -354,21 +355,21 @@ Push after every meaningful tested milestone.
 
 Reasonable commit intervals include:
 
-* project foundation completed;
-* protocol package completed;
-* daemon authentication completed;
-* extension connection completed;
-* browser navigation completed;
-* page snapshot completed;
-* browser interactions completed;
-* MCP tools completed;
-* CLI completed;
-* permissions completed;
-* remote pairing completed;
-* tests completed;
-* documentation completed;
-* CI completed;
-* release preparation completed.
+- project foundation completed;
+- protocol package completed;
+- daemon authentication completed;
+- extension connection completed;
+- browser navigation completed;
+- page snapshot completed;
+- browser interactions completed;
+- MCP tools completed;
+- CLI completed;
+- permissions completed;
+- remote pairing completed;
+- tests completed;
+- documentation completed;
+- CI completed;
+- release preparation completed.
 
 Suggested commit sequence:
 
@@ -417,19 +418,19 @@ Do not rewrite public history.
 
 Do not commit:
 
-* `.env`;
-* secrets;
-* API keys;
-* authentication tokens;
-* private keys;
-* generated certificates containing private material;
-* browser profiles;
-* personal screenshots;
-* audit logs;
-* user data;
-* dependency directories;
-* temporary test output;
-* local configuration containing sensitive information.
+- `.env`;
+- secrets;
+- API keys;
+- authentication tokens;
+- private keys;
+- generated certificates containing private material;
+- browser profiles;
+- personal screenshots;
+- audit logs;
+- user data;
+- dependency directories;
+- temporary test output;
+- local configuration containing sensitive information.
 
 # GitHub project quality
 
@@ -437,21 +438,21 @@ Configure the repository professionally.
 
 Create:
 
-* clear README;
-* open-source license;
-* `.gitignore`;
-* `.editorconfig`;
-* issue templates;
-* bug report template;
-* feature request template;
-* pull request template;
-* security policy;
-* contributing guide;
-* code of conduct;
-* dependency update configuration if appropriate;
-* GitHub Actions;
-* repository topics;
-* homepage URL pointing to the deployed documentation website.
+- clear README;
+- open-source license;
+- `.gitignore`;
+- `.editorconfig`;
+- issue templates;
+- bug report template;
+- feature request template;
+- pull request template;
+- security policy;
+- contributing guide;
+- code of conduct;
+- dependency update configuration if appropriate;
+- GitHub Actions;
+- repository topics;
+- homepage URL pointing to the deployed documentation website.
 
 Use `gh` to configure repository metadata when possible.
 
@@ -477,16 +478,16 @@ MCP clients / CLI clients / remote clients
 
 Maintain strict separation between:
 
-* transport;
-* protocol;
-* authentication;
-* authorization;
-* browser actions;
-* storage;
-* logging;
-* MCP;
-* CLI;
-* remote-device connectivity.
+- transport;
+- protocol;
+- authentication;
+- authorization;
+- browser actions;
+- storage;
+- logging;
+- MCP;
+- CLI;
+- remote-device connectivity.
 
 # Shared protocol package
 
@@ -494,38 +495,38 @@ Create a single source of truth for all communication.
 
 The protocol must be used by:
 
-* extension;
-* daemon;
-* MCP server;
-* CLI;
-* remote clients;
-* integration tests.
+- extension;
+- daemon;
+- MCP server;
+- CLI;
+- remote clients;
+- integration tests.
 
 Define versioned runtime-validated schemas for:
 
-* request envelopes;
-* response envelopes;
-* events;
-* errors;
-* authentication;
-* protocol negotiation;
-* pairing;
-* permissions;
-* browser targets;
-* action parameters;
-* action results;
-* screenshots;
-* page snapshots;
-* confirmation requests;
-* confirmation responses.
+- request envelopes;
+- response envelopes;
+- events;
+- errors;
+- authentication;
+- protocol negotiation;
+- pairing;
+- permissions;
+- browser targets;
+- action parameters;
+- action results;
+- screenshots;
+- page snapshots;
+- confirmation requests;
+- confirmation responses.
 
 Use:
 
-* request IDs;
-* correlation IDs;
-* protocol version;
-* timestamps;
-* stable error codes.
+- request IDs;
+- correlation IDs;
+- protocol version;
+- timestamps;
+- stable error codes.
 
 Every inbound message must be validated at runtime.
 
@@ -566,19 +567,19 @@ Target current stable Chrome and Edge where practical.
 
 Include:
 
-* background service worker;
-* popup or control panel;
-* daemon connection status;
-* pairing or local authorization flow;
-* domain permission state;
-* active sessions;
-* current controlled tab;
-* visible control indicator;
-* emergency disconnect;
-* permission management;
-* audit log access;
-* extension settings;
-* content scripts where required.
+- background service worker;
+- popup or control panel;
+- daemon connection status;
+- pairing or local authorization flow;
+- domain permission state;
+- active sessions;
+- current controlled tab;
+- visible control indicator;
+- emergency disconnect;
+- permission management;
+- audit log access;
+- extension settings;
+- content scripts where required.
 
 Request the minimum permissions possible.
 
@@ -590,13 +591,13 @@ Ask for domain access only when required.
 
 Research and document the choice among:
 
-* Chrome Debugger API;
-* DevTools Protocol;
-* `chrome.scripting`;
-* `chrome.tabs`;
-* content scripts;
-* accessibility information;
-* combinations of these APIs.
+- Chrome Debugger API;
+- DevTools Protocol;
+- `chrome.scripting`;
+- `chrome.tabs`;
+- content scripts;
+- accessibility information;
+- combinations of these APIs.
 
 The extension must reject unauthenticated daemon connections.
 
@@ -608,22 +609,22 @@ Create a local service called the Conduit daemon.
 
 Responsibilities:
 
-* manage lifecycle;
-* accept authenticated extension connections;
-* expose MCP;
-* expose CLI-accessible operations;
-* optionally expose a local HTTP or WebSocket API;
-* manage sessions;
-* enforce permissions;
-* enforce domain policies;
-* coordinate confirmations;
-* manage audit logs;
-* maintain trusted-device records;
-* support secure remote pairing;
-* provide health checks;
-* provide diagnostics;
-* reconnect safely;
-* shut down gracefully.
+- manage lifecycle;
+- accept authenticated extension connections;
+- expose MCP;
+- expose CLI-accessible operations;
+- optionally expose a local HTTP or WebSocket API;
+- manage sessions;
+- enforce permissions;
+- enforce domain policies;
+- coordinate confirmations;
+- manage audit logs;
+- maintain trusted-device records;
+- support secure remote pairing;
+- provide health checks;
+- provide diagnostics;
+- reconnect safely;
+- shut down gracefully.
 
 Bind only to loopback by default:
 
@@ -682,12 +683,12 @@ Cookie access must be disabled by default and require elevated permission.
 
 File upload must require:
 
-* explicit authorization;
-* path allowlist;
-* path normalization;
-* traversal prevention;
-* file size limits;
-* clear audit logging.
+- explicit authorization;
+- path allowlist;
+- path normalization;
+- traversal prevention;
+- file size limits;
+- clear audit logging.
 
 Do not expose arbitrary filesystem access.
 
@@ -699,25 +700,25 @@ Do not rely only on fragile CSS selectors.
 
 Create structured snapshots containing:
 
-* URL;
-* title;
-* loading state;
-* visible text;
-* accessibility-related information;
-* interactive elements;
-* roles;
-* accessible names;
-* labels;
-* input types;
-* safe current values;
-* disabled states;
-* selected states;
-* bounding boxes where practical;
-* frame information;
-* links;
-* buttons;
-* form controls;
-* stable temporary element references.
+- URL;
+- title;
+- loading state;
+- visible text;
+- accessibility-related information;
+- interactive elements;
+- roles;
+- accessible names;
+- labels;
+- input types;
+- safe current values;
+- disabled states;
+- selected states;
+- bounding boxes where practical;
+- frame information;
+- links;
+- buttons;
+- form controls;
+- stable temporary element references.
 
 Do not return huge raw HTML by default.
 
@@ -764,26 +765,26 @@ Support fallback targeting by:
 
 Design for:
 
-* React rerenders;
-* Vue rerenders;
-* Angular rerenders;
-* delayed elements;
-* SPA navigation;
-* iframes;
-* nested frames;
-* shadow DOM;
-* popups;
-* new tabs;
-* downloads;
-* browser dialogs where supported.
+- React rerenders;
+- Vue rerenders;
+- Angular rerenders;
+- delayed elements;
+- SPA navigation;
+- iframes;
+- nested frames;
+- shadow DOM;
+- popups;
+- new tabs;
+- downloads;
+- browser dialogs where supported.
 
 Implement the reliable subset.
 
 For unsupported scenarios:
 
-* return a precise error;
-* document the limitation;
-* do not fake success.
+- return a precise error;
+- document the limitation;
+- do not fake success.
 
 # MCP server
 
@@ -820,24 +821,24 @@ browser_get_downloads
 
 Each tool description must explain:
 
-* what it does;
-* required inputs;
-* optional inputs;
-* returned structure;
-* required permissions;
-* risks;
-* likely errors;
-* safety behavior.
+- what it does;
+- required inputs;
+- optional inputs;
+- returned structure;
+- required permissions;
+- risks;
+- likely errors;
+- safety behavior.
 
 Do not expose unrestricted JavaScript execution by default.
 
 If JavaScript evaluation is implemented:
 
-* mark it experimental;
-* disable it by default;
-* require an explicit dangerous permission;
-* document the risk;
-* test the authorization boundary.
+- mark it experimental;
+- disable it by default;
+- require an explicit dangerous permission;
+- document the risk;
+- test the authorization boundary.
 
 # CLI
 
@@ -884,14 +885,14 @@ conduit browser screenshot
 
 The CLI must:
 
-* support human-readable output;
-* support JSON output;
-* use meaningful exit codes;
-* provide useful errors;
-* work in Windows PowerShell;
-* work on Linux;
-* work on macOS;
-* avoid Unix-only assumptions.
+- support human-readable output;
+- support JSON output;
+- use meaningful exit codes;
+- provide useful errors;
+- work in Windows PowerShell;
+- work on Linux;
+- work on macOS;
+- avoid Unix-only assumptions.
 
 # Secure remote-device connection
 
@@ -903,12 +904,12 @@ Never implement an unauthenticated LAN socket.
 
 ## Default behavior
 
-* loopback only;
-* no public exposure;
-* no automatic router configuration;
-* no automatic port forwarding;
-* no public relay;
-* no remote connectivity without explicit enablement.
+- loopback only;
+- no public exposure;
+- no automatic router configuration;
+- no automatic port forwarding;
+- no public relay;
+- no remote connectivity without explicit enablement.
 
 ## Pairing workflow
 
@@ -925,10 +926,11 @@ conduit pair
 4. Devices exchange public identities.
 5. Host displays:
 
-   * device name;
-   * device fingerprint;
-   * requested permissions;
-   * expiration.
+   - device name;
+   - device fingerprint;
+   - requested permissions;
+   - expiration.
+
 6. Host explicitly approves or denies.
 7. Revocable device credentials are stored locally.
 8. Future connections authenticate using device credentials.
@@ -941,22 +943,22 @@ Do not invent custom cryptography.
 
 Prefer mature approaches involving:
 
-* TLS;
-* mTLS;
-* Noise Protocol Framework;
-* libsodium;
-* WebCrypto;
-* authenticated key exchange.
+- TLS;
+- mTLS;
+- Noise Protocol Framework;
+- libsodium;
+- WebCrypto;
+- authenticated key exchange.
 
 Document:
 
-* threat model;
-* identity model;
-* credential storage;
-* replay protection;
-* expiry;
-* revocation;
-* transport security.
+- threat model;
+- identity model;
+- credential storage;
+- replay protection;
+- expiry;
+- revocation;
+- transport security.
 
 ## LAN connectivity
 
@@ -972,17 +974,17 @@ or another LAN interface.
 
 Implement:
 
-* authentication;
-* encryption;
-* rate limiting;
-* maximum payload size;
-* connection timeout;
-* heartbeat;
-* session expiration;
-* failed-authentication throttling;
-* device revocation;
-* audit logging;
-* replay protections where appropriate.
+- authentication;
+- encryption;
+- rate limiting;
+- maximum payload size;
+- connection timeout;
+- heartbeat;
+- session expiration;
+- failed-authentication throttling;
+- device revocation;
+- audit logging;
+- replay protections where appropriate.
 
 ## Internet connectivity
 
@@ -992,10 +994,10 @@ Create a clean transport abstraction.
 
 Document safe future options such as:
 
-* Tailscale;
-* WireGuard;
-* Cloudflare Tunnel with access controls;
-* a future self-hosted encrypted relay.
+- Tailscale;
+- WireGuard;
+- Cloudflare Tunnel with access controls;
+- a future self-hosted encrypted relay.
 
 The recommended initial internet-access method may be Tailscale or WireGuard.
 
@@ -1022,44 +1024,44 @@ browser.dangerous
 
 Support permission scopes:
 
-* per device;
-* per agent;
-* per session;
-* per domain;
-* temporary;
-* persistent;
-* one-time;
-* denied.
+- per device;
+- per agent;
+- per session;
+- per domain;
+- temporary;
+- persistent;
+- one-time;
+- denied.
 
 ## Low-risk examples
 
-* list tabs;
-* inspect page;
-* read visible text;
-* scroll;
-* take screenshot;
-* navigate to an allowed domain.
+- list tabs;
+- inspect page;
+- read visible text;
+- scroll;
+- take screenshot;
+- navigate to an allowed domain.
 
 ## Medium-risk examples
 
-* click UI;
-* type into non-sensitive fields;
-* open tabs;
-* download files.
+- click UI;
+- type into non-sensitive fields;
+- open tabs;
+- download files.
 
 ## High-risk examples
 
-* submit forms;
-* send messages;
-* publish posts;
-* apply for jobs;
-* upload files;
-* access cookies;
-* delete content;
-* make purchases;
-* enter credentials;
-* change account settings;
-* interact with financial services.
+- submit forms;
+- send messages;
+- publish posts;
+- apply for jobs;
+- upload files;
+- access cookies;
+- delete content;
+- make purchases;
+- enter credentials;
+- change account settings;
+- interact with financial services.
 
 High-risk operations must require explicit confirmation unless a narrow policy was deliberately configured.
 
@@ -1067,12 +1069,12 @@ Do not provide “allow everything forever” as the default.
 
 Include:
 
-* emergency disconnect;
-* revoke all sessions;
-* revoke individual devices;
-* expire temporary permissions;
-* confirmation timeout;
-* deny-by-default behavior.
+- emergency disconnect;
+- revoke all sessions;
+- revoke individual devices;
+- expire temporary permissions;
+- confirmation timeout;
+- deny-by-default behavior.
 
 # Prompt-injection resistance
 
@@ -1084,15 +1086,15 @@ Explicitly enforce and document:
 
 Where practical:
 
-* label browser-derived content as untrusted;
-* separate tool metadata from page content;
-* prevent webpages from escalating permissions;
-* prevent webpages from requesting filesystem access;
-* require confirmation for sensitive operations;
-* warn about likely prompt-injection text;
-* prevent automatic obedience to instructions embedded in a page;
-* redact secrets;
-* restrict cross-origin sensitive actions.
+- label browser-derived content as untrusted;
+- separate tool metadata from page content;
+- prevent webpages from escalating permissions;
+- prevent webpages from requesting filesystem access;
+- require confirmation for sensitive operations;
+- warn about likely prompt-injection text;
+- prevent automatic obedience to instructions embedded in a page;
+- redact secrets;
+- restrict cross-origin sensitive actions.
 
 Do not claim prompt injection can be fully solved.
 
@@ -1100,25 +1102,25 @@ Do not claim prompt injection can be fully solved.
 
 Support:
 
-* allowlist mode;
-* blocklist mode;
-* ask-on-first-use;
-* wildcard subdomains when explicitly configured;
-* protocol restrictions;
-* localhost policy;
-* private-network policy;
-* sensitive-domain warnings.
+- allowlist mode;
+- blocklist mode;
+- ask-on-first-use;
+- wildcard subdomains when explicitly configured;
+- protocol restrictions;
+- localhost policy;
+- private-network policy;
+- sensitive-domain warnings.
 
 Sensitive categories may include:
 
-* banking;
-* payments;
-* email;
-* cloud dashboards;
-* password managers;
-* identity providers;
-* healthcare;
-* government services.
+- banking;
+- payments;
+- email;
+- cloud dashboards;
+- password managers;
+- identity providers;
+- healthcare;
+- government services.
 
 Treat categorization as an additional warning layer, not a perfect security boundary.
 
@@ -1126,39 +1128,39 @@ Treat categorization as an additional warning layer, not a perfect security boun
 
 Log security and operational events:
 
-* daemon start and stop;
-* extension connection;
-* extension disconnection;
-* client connection;
-* authentication failures;
-* device pairing;
-* device revocation;
-* permission requests;
-* permission grants;
-* permission denials;
-* tab actions;
-* navigation;
-* clicks;
-* typing;
-* form submissions;
-* uploads;
-* downloads;
-* cookie access;
-* dangerous operations.
+- daemon start and stop;
+- extension connection;
+- extension disconnection;
+- client connection;
+- authentication failures;
+- device pairing;
+- device revocation;
+- permission requests;
+- permission grants;
+- permission denials;
+- tab actions;
+- navigation;
+- clicks;
+- typing;
+- form submissions;
+- uploads;
+- downloads;
+- cookie access;
+- dangerous operations.
 
 Logs must:
 
-* be structured;
-* support human-readable viewing;
-* contain timestamps;
-* contain correlation IDs;
-* rotate;
-* have configurable retention;
-* redact sensitive values;
-* never record raw passwords;
-* never record full cookies;
-* never record authentication tokens;
-* never record sensitive form content by default.
+- be structured;
+- support human-readable viewing;
+- contain timestamps;
+- contain correlation IDs;
+- rotate;
+- have configurable retention;
+- redact sensitive values;
+- never record raw passwords;
+- never record full cookies;
+- never record authentication tokens;
+- never record sensitive form content by default.
 
 Create and thoroughly test a redaction utility.
 
@@ -1168,21 +1170,21 @@ Create a validated, versioned configuration file.
 
 Support settings such as:
 
-* daemon port;
-* bind address;
-* remote mode;
-* log level;
-* log retention;
-* allowed domains;
-* blocked domains;
-* confirmation policy;
-* upload allowlist;
-* download behavior;
-* screenshot directory;
-* maximum message size;
-* session timeout;
-* trusted devices;
-* permission defaults.
+- daemon port;
+- bind address;
+- remote mode;
+- log level;
+- log retention;
+- allowed domains;
+- blocked domains;
+- confirmation policy;
+- upload allowlist;
+- download behavior;
+- screenshot directory;
+- maximum message size;
+- session timeout;
+- trusted devices;
+- permission defaults.
 
 Provide safe defaults.
 
@@ -1194,13 +1196,13 @@ Store local state securely.
 
 Potential state:
 
-* daemon identity;
-* local authentication token;
-* trusted-device public keys;
-* device grants;
-* domain policies;
-* user settings;
-* audit log metadata.
+- daemon identity;
+- local authentication token;
+- trusted-device public keys;
+- device grants;
+- domain policies;
+- user settings;
+- audit log metadata.
 
 Never store raw browser passwords.
 
@@ -1216,32 +1218,32 @@ Create a storage abstraction to support future improvements.
 
 Implement:
 
-* reconnection with exponential backoff;
-* request timeouts;
-* cancellation;
-* graceful shutdown;
-* stale-session cleanup;
-* queue limits;
-* payload limits;
-* heartbeat;
-* duplicate request protection where relevant;
-* health checks;
-* diagnostics;
-* structured errors.
+- reconnection with exponential backoff;
+- request timeouts;
+- cancellation;
+- graceful shutdown;
+- stale-session cleanup;
+- queue limits;
+- payload limits;
+- heartbeat;
+- duplicate request protection where relevant;
+- health checks;
+- diagnostics;
+- structured errors.
 
 `conduit doctor` should verify:
 
-* Node version;
-* package manager;
-* configuration validity;
-* storage permissions;
-* daemon port;
-* daemon reachability;
-* extension build;
-* extension connectivity;
-* MCP availability;
-* remote-mode safety;
-* documentation build state where practical.
+- Node version;
+- package manager;
+- configuration validity;
+- storage permissions;
+- daemon port;
+- daemon reachability;
+- extension build;
+- extension connectivity;
+- MCP availability;
+- remote-mode safety;
+- documentation build state where practical.
 
 # Testing requirements
 
@@ -1251,42 +1253,42 @@ Testing is mandatory.
 
 Test:
 
-* protocol validation;
-* error serialization;
-* permission evaluation;
-* domain matching;
-* configuration parsing;
-* log redaction;
-* local authentication;
-* pairing-code expiry;
-* trusted-device storage;
-* device revocation;
-* session expiry;
-* rate limiting;
-* element references;
-* command parsing;
-* path validation;
-* payload limits.
+- protocol validation;
+- error serialization;
+- permission evaluation;
+- domain matching;
+- configuration parsing;
+- log redaction;
+- local authentication;
+- pairing-code expiry;
+- trusted-device storage;
+- device revocation;
+- session expiry;
+- rate limiting;
+- element references;
+- command parsing;
+- path validation;
+- payload limits.
 
 ## Integration tests
 
 Test:
 
-* daemon startup;
-* daemon shutdown;
-* extension authentication;
-* extension rejection of invalid credentials;
-* request-response flow;
-* MCP invocation;
-* CLI-to-daemon operations;
-* reconnection;
-* permission denial;
-* malformed protocol messages;
-* unsupported protocol version;
-* remote authentication;
-* revoked device rejection;
-* configuration loading;
-* audit logging.
+- daemon startup;
+- daemon shutdown;
+- extension authentication;
+- extension rejection of invalid credentials;
+- request-response flow;
+- MCP invocation;
+- CLI-to-daemon operations;
+- reconnection;
+- permission denial;
+- malformed protocol messages;
+- unsupported protocol version;
+- remote authentication;
+- revoked device rejection;
+- configuration loading;
+- audit logging.
 
 ## Browser end-to-end tests
 
@@ -1294,22 +1296,22 @@ Use Playwright with a controlled browser profile and loaded extension where tech
 
 Create fixture pages covering:
 
-* buttons;
-* links;
-* text inputs;
-* forms;
-* dropdowns;
-* delayed elements;
-* dynamic DOM rerenders;
-* SPA navigation;
-* iframe;
-* shadow DOM;
-* popup;
-* new tab;
-* upload;
-* download;
-* blocked action;
-* high-risk confirmation.
+- buttons;
+- links;
+- text inputs;
+- forms;
+- dropdowns;
+- delayed elements;
+- dynamic DOM rerenders;
+- SPA navigation;
+- iframe;
+- shadow DOM;
+- popup;
+- new tab;
+- upload;
+- download;
+- blocked action;
+- high-risk confirmation.
 
 Test a real workflow:
 
@@ -1333,43 +1335,43 @@ Do not only assert that mocked methods were called.
 
 Test:
 
-* unauthenticated connection;
-* invalid local token;
-* expired pairing code;
-* reused pairing code;
-* revoked device;
-* unauthorized remote client;
-* oversized payload;
-* malformed message;
-* blocked domain;
-* unauthorized cookie access;
-* unauthorized file upload;
-* directory traversal;
-* unauthorized form submission;
-* log-secret redaction;
-* rate-limit enforcement;
-* disabled remote mode;
-* public binding warning;
-* stale session;
-* invalid permission escalation.
+- unauthenticated connection;
+- invalid local token;
+- expired pairing code;
+- reused pairing code;
+- revoked device;
+- unauthorized remote client;
+- oversized payload;
+- malformed message;
+- blocked domain;
+- unauthorized cookie access;
+- unauthorized file upload;
+- directory traversal;
+- unauthorized form submission;
+- log-secret redaction;
+- rate-limit enforcement;
+- disabled remote mode;
+- public binding warning;
+- stale session;
+- invalid permission escalation.
 
 ## Cross-platform CI
 
 Run:
 
-* formatting;
-* lint;
-* type checking;
-* unit tests;
-* integration tests;
-* build;
-* CLI smoke tests
+- formatting;
+- lint;
+- type checking;
+- unit tests;
+- integration tests;
+- build;
+- CLI smoke tests
 
 on:
 
-* Ubuntu;
-* Windows;
-* macOS.
+- Ubuntu;
+- Windows;
+- macOS.
 
 Run browser E2E tests on at least Ubuntu if running them on every platform is impractical.
 
@@ -1407,11 +1409,11 @@ Do not expose secrets to pull requests from forks.
 
 Upload useful artifacts such as:
 
-* packaged extension;
-* test results;
-* coverage;
-* documentation build;
-* Playwright reports when tests fail.
+- packaged extension;
+- test results;
+- coverage;
+- documentation build;
+- Playwright reports when tests fail.
 
 # Documentation website
 
@@ -1423,9 +1425,9 @@ apps/docs
 
 Use a maintained documentation framework, preferably:
 
-* VitePress;
-* Astro Starlight;
-* Docusaurus;
+- VitePress;
+- Astro Starlight;
+- Docusaurus;
 
 Choose the lightest option that fits the project.
 
@@ -1459,32 +1461,32 @@ Changelog
 
 The website should have:
 
-* clear navigation;
-* search if easily supported;
-* syntax-highlighted examples;
-* architecture diagrams;
-* Mermaid diagrams where useful;
-* responsive layout;
-* light and dark mode;
-* GitHub repository link;
-* edit-page links where supported;
-* version or project-status notice;
-* security warning;
-* installation commands;
-* working internal links;
-* no placeholder pages.
+- clear navigation;
+- search if easily supported;
+- syntax-highlighted examples;
+- architecture diagrams;
+- Mermaid diagrams where useful;
+- responsive layout;
+- light and dark mode;
+- GitHub repository link;
+- edit-page links where supported;
+- version or project-status notice;
+- security warning;
+- installation commands;
+- working internal links;
+- no placeholder pages.
 
 Create a useful home page with:
 
-* project tagline;
-* project explanation;
-* major features;
-* security-first positioning;
-* architecture diagram;
-* quick-start commands;
-* supported clients;
-* project status;
-* GitHub link.
+- project tagline;
+- project explanation;
+- major features;
+- security-first positioning;
+- architecture diagram;
+- quick-start commands;
+- supported clients;
+- project status;
+- GitHub link.
 
 # GitHub Pages deployment
 
@@ -1528,13 +1530,13 @@ Use `gh` to enable or inspect GitHub Pages where possible.
 
 After deployment:
 
-* verify the deployment workflow succeeded;
-* verify the website loads;
-* verify styles and assets load;
-* verify internal navigation;
-* update the repository homepage URL;
-* add the documentation URL to README;
-* report the final URL.
+- verify the deployment workflow succeeded;
+- verify the website loads;
+- verify styles and assets load;
+- verify internal navigation;
+- update the repository homepage URL;
+- add the documentation URL to README;
+- report the final URL.
 
 If immediate GitHub Pages enablement cannot be completed through CLI, configure the workflow fully and document the single required repository-setting step.
 
@@ -1578,32 +1580,32 @@ Ensure root commands work.
 
 Use:
 
-* TypeScript strict mode;
-* explicit public API types;
-* discriminated unions;
-* runtime validation at trust boundaries;
-* small focused modules;
-* descriptive names;
-* clear package boundaries;
-* dependency injection where useful;
-* comments explaining decisions;
-* structured errors;
-* deterministic tests.
+- TypeScript strict mode;
+- explicit public API types;
+- discriminated unions;
+- runtime validation at trust boundaries;
+- small focused modules;
+- descriptive names;
+- clear package boundaries;
+- dependency injection where useful;
+- comments explaining decisions;
+- structured errors;
+- deterministic tests.
 
 Avoid:
 
-* `any`;
-* hidden global state;
-* giant manager classes;
-* circular imports;
-* silent catches;
-* vague booleans;
-* huge source files;
-* unnecessary factories;
-* premature plugin systems;
-* copied code without adaptation;
-* unsafe type assertions;
-* unnecessary abstraction layers.
+- `any`;
+- hidden global state;
+- giant manager classes;
+- circular imports;
+- silent catches;
+- vague booleans;
+- huge source files;
+- unnecessary factories;
+- premature plugin systems;
+- copied code without adaptation;
+- unsafe type assertions;
+- unnecessary abstraction layers.
 
 # Documentation files
 
@@ -1613,72 +1615,72 @@ Create:
 
 Include:
 
-* project explanation;
-* current status;
-* feature summary;
-* architecture;
-* security warning;
-* prerequisites;
-* installation;
-* extension setup;
-* daemon usage;
-* MCP setup;
-* CLI usage;
-* remote pairing;
-* testing;
-* development setup;
-* known limitations;
-* documentation website link;
-* roadmap;
-* contributing;
-* license.
+- project explanation;
+- current status;
+- feature summary;
+- architecture;
+- security warning;
+- prerequisites;
+- installation;
+- extension setup;
+- daemon usage;
+- MCP setup;
+- CLI usage;
+- remote pairing;
+- testing;
+- development setup;
+- known limitations;
+- documentation website link;
+- roadmap;
+- contributing;
+- license.
 
 ## ARCHITECTURE.md
 
 Explain:
 
-* component boundaries;
-* data flow;
-* protocol;
-* daemon lifecycle;
-* extension lifecycle;
-* session lifecycle;
-* browser action engine;
-* permission system;
-* remote pairing;
-* storage;
-* threat boundaries;
-* tradeoffs.
+- component boundaries;
+- data flow;
+- protocol;
+- daemon lifecycle;
+- extension lifecycle;
+- session lifecycle;
+- browser action engine;
+- permission system;
+- remote pairing;
+- storage;
+- threat boundaries;
+- tradeoffs.
 
 ## SECURITY.md
 
 Explain:
 
-* threat model;
-* trusted components;
-* untrusted components;
-* webpage prompt injection;
-* local authentication;
-* remote authentication;
-* permission model;
-* credential handling;
-* logs;
-* reporting vulnerabilities;
-* supported versions.
+- threat model;
+- trusted components;
+- untrusted components;
+- webpage prompt injection;
+- local authentication;
+- remote authentication;
+- permission model;
+- credential handling;
+- logs;
+- reporting vulnerabilities;
+- supported versions.
 
 ## CONTRIBUTING.md
 
 Explain:
 
-* setup;
-* architecture expectations;
-* test expectations;
-* code style;
-* commit style;
-* pull requests;
-* adding browser tools;
-* updating protocol schemas;
-* security review requirements.
+- setup;
+- architecture expectations;
+- test expectations;
+- code style;
+- commit style;
+- pull requests;
+- adding browser tools;
+- updating protocol schemas;
+- security review requirements.
 
 # Autonomous execution phases
 
@@ -1706,15 +1708,15 @@ Do not destroy unrelated work.
 
 Create a concise implementation plan covering:
 
-* component structure;
-* browser-control method;
-* protocol;
-* authentication;
-* permissions;
-* storage;
-* testing;
-* remote pairing;
-* documentation deployment.
+- component structure;
+- browser-control method;
+- protocol;
+- authentication;
+- permissions;
+- storage;
+- testing;
+- remote pairing;
+- documentation deployment.
 
 Then proceed immediately.
 
@@ -1732,13 +1734,13 @@ Create and push the first stable commit.
 
 Create:
 
-* workspaces;
-* TypeScript configs;
-* linting;
-* formatting;
-* tests;
-* base scripts;
-* CI skeleton.
+- workspaces;
+- TypeScript configs;
+- linting;
+- formatting;
+- tests;
+- base scripts;
+- CI skeleton.
 
 Run checks.
 
@@ -1748,14 +1750,14 @@ Commit and push.
 
 Build:
 
-* versioned schemas;
-* requests;
-* responses;
-* errors;
-* authentication messages;
-* pairing messages;
-* permission messages;
-* tests.
+- versioned schemas;
+- requests;
+- responses;
+- errors;
+- authentication messages;
+- pairing messages;
+- permission messages;
+- tests.
 
 Commit and push.
 
@@ -1763,14 +1765,14 @@ Commit and push.
 
 Build:
 
-* daemon lifecycle;
-* local binding;
-* local authentication;
-* extension connection;
-* health checks;
-* logs;
-* shutdown;
-* tests.
+- daemon lifecycle;
+- local binding;
+- local authentication;
+- extension connection;
+- health checks;
+- logs;
+- shutdown;
+- tests.
 
 Commit and push.
 
@@ -1778,13 +1780,13 @@ Commit and push.
 
 Build:
 
-* Manifest V3 extension;
-* connection workflow;
-* UI;
-* permission controls;
-* emergency disconnect;
-* domain access;
-* tests.
+- Manifest V3 extension;
+- connection workflow;
+- UI;
+- permission controls;
+- emergency disconnect;
+- domain access;
+- tests.
 
 Commit and push.
 
@@ -1792,13 +1794,13 @@ Commit and push.
 
 Implement and prove:
 
-* list tabs;
-* open tab;
-* navigate;
-* snapshot;
-* click;
-* type;
-* screenshot.
+- list tabs;
+- open tab;
+- navigate;
+- snapshot;
+- click;
+- type;
+- screenshot.
 
 Run an actual browser test.
 
@@ -1816,13 +1818,13 @@ Commit and push.
 
 Implement:
 
-* risk levels;
-* domain policies;
-* confirmation;
-* temporary grants;
-* denial;
-* audit logging;
-* redaction.
+- risk levels;
+- domain policies;
+- confirmation;
+- temporary grants;
+- denial;
+- audit logging;
+- redaction.
 
 Commit and push.
 
@@ -1830,14 +1832,14 @@ Commit and push.
 
 Implement:
 
-* disabled-by-default remote mode;
-* secure pairing;
-* trusted identity;
-* permissions;
-* revocation;
-* expiry;
-* rate limiting;
-* tests.
+- disabled-by-default remote mode;
+- secure pairing;
+- trusted identity;
+- permissions;
+- revocation;
+- expiry;
+- rate limiting;
+- tests.
 
 Do not weaken local security.
 
@@ -1847,18 +1849,18 @@ Commit and push.
 
 Add reliable support for:
 
-* clear;
-* select;
-* hover;
-* scroll;
-* key presses;
-* waits;
-* navigation history;
-* uploads;
-* downloads;
-* frames;
-* shadow DOM where practical;
-* stale-reference recovery.
+- clear;
+- select;
+- hover;
+- scroll;
+- key presses;
+- waits;
+- navigation history;
+- uploads;
+- downloads;
+- frames;
+- shadow DOM where practical;
+- stale-reference recovery.
 
 Commit logical groups separately and push each stable group.
 
@@ -1928,22 +1930,22 @@ Review the project as an external maintainer.
 
 Look for:
 
-* weak authentication;
-* accidental public binding;
-* broad extension permissions;
-* secrets;
-* path traversal;
-* unsafe uploads;
-* race conditions;
-* flaky tests;
-* fake tests;
-* dead code;
-* misleading documentation;
-* broken website links;
-* Windows incompatibilities;
-* incomplete TODOs;
-* weak error messages;
-* dependency vulnerabilities.
+- weak authentication;
+- accidental public binding;
+- broad extension permissions;
+- secrets;
+- path traversal;
+- unsafe uploads;
+- race conditions;
+- flaky tests;
+- fake tests;
+- dead code;
+- misleading documentation;
+- broken website links;
+- Windows incompatibilities;
+- incomplete TODOs;
+- weak error messages;
+- dependency vulnerabilities.
 
 Run:
 
@@ -1967,42 +1969,42 @@ Commit and push final fixes.
 
 The initial milestone is complete only when:
 
-* GitHub repository exists;
-* repository remote is configured;
-* logical incremental commits exist;
-* stable milestones were pushed regularly;
-* `main` is not knowingly broken;
-* extension builds;
-* daemon starts;
-* extension authenticates;
-* tabs can be listed;
-* pages can be opened;
-* pages can be navigated;
-* structured snapshots work;
-* element clicking works;
-* text entry works;
-* screenshots work;
-* MCP tools work;
-* CLI commands work;
-* permissions are enforced;
-* high-risk actions are protected;
-* remote access is disabled by default;
-* secure remote pairing works or is clearly marked experimental;
-* device revocation works;
-* unit tests pass;
-* integration tests pass;
-* security tests pass;
-* browser E2E tests pass;
-* build passes;
-* packaged extension is generated;
-* documentation website builds;
-* GitHub Pages workflow exists;
-* documentation website is deployed or the only unavoidable manual step is clearly documented;
-* GitHub Actions pass;
-* README links to documentation;
-* repository homepage points to documentation;
-* known limitations are honest;
-* no secrets are committed.
+- GitHub repository exists;
+- repository remote is configured;
+- logical incremental commits exist;
+- stable milestones were pushed regularly;
+- `main` is not knowingly broken;
+- extension builds;
+- daemon starts;
+- extension authenticates;
+- tabs can be listed;
+- pages can be opened;
+- pages can be navigated;
+- structured snapshots work;
+- element clicking works;
+- text entry works;
+- screenshots work;
+- MCP tools work;
+- CLI commands work;
+- permissions are enforced;
+- high-risk actions are protected;
+- remote access is disabled by default;
+- secure remote pairing works or is clearly marked experimental;
+- device revocation works;
+- unit tests pass;
+- integration tests pass;
+- security tests pass;
+- browser E2E tests pass;
+- build passes;
+- packaged extension is generated;
+- documentation website builds;
+- GitHub Pages workflow exists;
+- documentation website is deployed or the only unavoidable manual step is clearly documented;
+- GitHub Actions pass;
+- README links to documentation;
+- repository homepage points to documentation;
+- known limitations are honest;
+- no secrets are committed.
 
 # Handling incomplete advanced features
 
@@ -2064,27 +2066,27 @@ Demonstrate that the system was built, run, tested, committed, pushed, and docum
 
 # Final behavioral requirements
 
-* Work autonomously.
-* Inspect before modifying.
-* Do not stop after scaffolding.
-* Do not ask unnecessary questions.
-* Make reasonable decisions and continue.
-* Build the vertical slice first.
-* Test every stable milestone.
-* Commit at meaningful intervals.
-* Push stable commits regularly.
-* Keep `main` working.
-* Use feature branches for unstable work when useful.
-* Monitor GitHub Actions.
-* Fix CI failures.
-* Build and deploy the documentation website.
-* Use GitHub Pages.
-* Do not expose secrets.
-* Do not expose unauthenticated ports.
-* Do not add arbitrary shell execution.
-* Do not allow arbitrary JavaScript execution by default.
-* Do not fake unsupported features.
-* Keep the code understandable for a maintainer who intends to study and expand it.
-* Prefer a smaller reliable system over a large unstable system.
+- Work autonomously.
+- Inspect before modifying.
+- Do not stop after scaffolding.
+- Do not ask unnecessary questions.
+- Make reasonable decisions and continue.
+- Build the vertical slice first.
+- Test every stable milestone.
+- Commit at meaningful intervals.
+- Push stable commits regularly.
+- Keep `main` working.
+- Use feature branches for unstable work when useful.
+- Monitor GitHub Actions.
+- Fix CI failures.
+- Build and deploy the documentation website.
+- Use GitHub Pages.
+- Do not expose secrets.
+- Do not expose unauthenticated ports.
+- Do not add arbitrary shell execution.
+- Do not allow arbitrary JavaScript execution by default.
+- Do not fake unsupported features.
+- Keep the code understandable for a maintainer who intends to study and expand it.
+- Prefer a smaller reliable system over a large unstable system.
 
 Begin by inspecting the environment, Git status, GitHub authentication, and existing files. Then create the architecture plan and immediately begin implementation.
