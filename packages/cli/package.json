@@ -2,8 +2,18 @@
   "name": "@conduit/cli",
   "version": "0.1.0",
   "main": "dist/index.js",
+  "bin": {
+    "conduit": "./bin/conduit.js"
+  },
   "scripts": {
-    "build": "tsc || true",
-    "typecheck": "tsc --noEmit || true"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "@conduit/security": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7"
   }
 }

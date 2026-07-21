@@ -2,8 +2,16 @@
   "name": "@conduit/mcp-server",
   "version": "0.1.0",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc || true",
-    "typecheck": "tsc --noEmit || true"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7"
   }
 }
