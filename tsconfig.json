@@ -8,5 +8,15 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol" },
+    { "path": "./packages/security" },
+    { "path": "./packages/browser-core" },
+    { "path": "./packages/cli" },
+    { "path": "./packages/mcp-server" },
+    { "path": "./apps/daemon" },
+    { "path": "./apps/extension" }
+  ],
   "exclude": ["node_modules", "dist"]
 }

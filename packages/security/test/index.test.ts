@@ -17,7 +17,7 @@ describe('LocalAuth', () => {
       fs.unlinkSync(testConfigPath);
     }
     if (fs.existsSync(testDir)) {
-      fs.rmdirSync(testDir, { recursive: true });
+      fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
 
@@ -26,7 +26,7 @@ describe('LocalAuth', () => {
       fs.unlinkSync(testConfigPath);
     }
     if (fs.existsSync(testDir)) {
-      fs.rmdirSync(testDir, { recursive: true });
+      fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
 

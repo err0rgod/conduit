@@ -3,7 +3,11 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "lib": ["DOM", "ES2022"]
+    "lib": ["DOM", "ES2022"],
+    "declaration": true,
+    "composite": true,
+    "types": ["chrome"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [{ "path": "../../packages/protocol" }, { "path": "../../packages/browser-core" }]
 }
