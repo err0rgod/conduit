@@ -1,55 +1,108 @@
-import { describe, it, expect } from 'vitest';
-import { RequestEnvelopeSchema, ResponseEnvelopeSchema } from '../src/index';
+import { describe, expect, it } from 'vitest';
+import {
+  BrowserRequestEnvelopeSchema,
+  PageSnapshotSchema,
+  RequestEnvelopeSchema,
+  ResponseEnvelopeSchema,
+  createErrorResponse,
+  createSuccessResponse,
+} from '../src/index';
 
-describe('Protocol Schemas', () => {
-  it('validates a correct request envelope', () => {
-    const data = {
-      id: '123e4567-e89b-12d3-a456-426614174000',
-      timestamp: Date.now(),
-      version: '1.0',
-      type: 'navigate',
+const baseEnvelope = {
+  id: '123e4567-e89b-12d3-a456-426614174000',
+  timestamp: 1_720_000_000_000,
+  version: '1.0',
+};
+
+describe('Protocol envelopes', () => {
+  it('validates a generic request envelope', () => {
+    const result = RequestEnvelopeSchema.safeParse({
+      ...baseEnvelope,
+      type: 'browser.navigate',
       payload: { url: 'https://example.com' },
-    };
-    const result = RequestEnvelopeSchema.safeParse(data);
+    });
+
     expect(result.success).toBe(true);
   });
 
-  it('rejects an invalid request envelope', () => {
-    const data = {
-      id: 'invalid-uuid',
-      timestamp: Date.now(),
-      version: '1.0',
-      type: 'navigate',
-      payload: {},
-    };
-    const result = RequestEnvelopeSchema.safeParse(data);
+  it('rejects an unsupported protocol version', () => {
+    const result = BrowserRequestEnvelopeSchema.safeParse({
+      ...baseEnvelope,
+      version: '2.0',
+      type: 'browser.list_tabs',
+    });
+
     expect(result.success).toBe(false);
   });
 
-  it('validates a success response envelope', () => {
-    const data = {
-      id: '123e4567-e89b-12d3-a456-426614174000',
-      timestamp: Date.now(),
-      version: '1.0',
-      success: true,
-      payload: { status: 'ok' },
-    };
-    const result = ResponseEnvelopeSchema.safeParse(data);
+  it('applies defaults for browser requests without payloads', () => {
+    const result = BrowserRequestEnvelopeSchema.parse({
+      ...baseEnvelope,
+      type: 'browser.list_tabs',
+    });
+
+    expect(result.payload).toEqual({});
+  });
+
+  it('rejects unexpected payload fields at trust boundaries', () => {
+    const result = BrowserRequestEnvelopeSchema.safeParse({
+      ...baseEnvelope,
+      type: 'browser.navigate',
+      payload: {
+        url: 'https://example.com',
+        dangerous: true,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('validates element-targeted interaction requests', () => {
+    const result = BrowserRequestEnvelopeSchema.safeParse({
+      ...baseEnvelope,
+      type: 'browser.type',
+      payload: {
+        tabId: 7,
+        target: { elementId: 'e4' },
+        text: 'hello',
+      },
+    });
+
     expect(result.success).toBe(true);
   });
 
-  it('validates an error response envelope', () => {
-    const data = {
-      id: '123e4567-e89b-12d3-a456-426614174000',
-      timestamp: Date.now(),
-      version: '1.0',
-      success: false,
-      error: {
-        code: 'PERMISSION_DENIED',
-        message: 'You cannot do this',
-      },
-    };
-    const result = ResponseEnvelopeSchema.safeParse(data);
+  it('serializes success and error responses', () => {
+    const success = createSuccessResponse({ ok: true }, baseEnvelope.id);
+    const failure = createErrorResponse('PERMISSION_DENIED', 'Denied by policy', baseEnvelope.id);
+
+    expect(ResponseEnvelopeSchema.safeParse(success).success).toBe(true);
+    expect(ResponseEnvelopeSchema.safeParse(failure).success).toBe(true);
+  });
+});
+
+describe('Page snapshots', () => {
+  it('validates a structured snapshot with interactive elements', () => {
+    const result = PageSnapshotSchema.safeParse({
+      url: 'https://example.com',
+      title: 'Example',
+      loadingState: 'complete',
+      mode: 'interactive',
+      capturedAt: 1_720_000_000_000,
+      visibleText: 'Example Domain',
+      elements: [
+        {
+          elementId: 'e1',
+          role: 'link',
+          name: 'More information',
+          tagName: 'a',
+          disabled: false,
+          href: 'https://www.iana.org/domains/example',
+          bounds: { x: 10, y: 20, width: 100, height: 30 },
+        },
+      ],
+      frames: [],
+    });
+
     expect(result.success).toBe(true);
   });
 });
