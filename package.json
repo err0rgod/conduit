@@ -29,11 +29,12 @@
     "conduit:doctor": "node packages/cli/bin/doctor.js"
   },
   "devDependencies": {
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0",
-    "prettier": "^3.2.5",
-    "eslint": "^8.57.0",
     "@types/node": "^20.12.7",
-    "ts-node": "^10.9.2"
+    "esbuild": "0.21.5",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
   }
 }

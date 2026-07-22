@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "main": "dist/background.js",
   "scripts": {
-    "build": "tsc",
+    "build": "node build.js",
     "typecheck": "tsc --noEmit",
-    "package": "node package.js"
+    "package": "node build.js && node package.js"
   },
   "dependencies": {
-    "@conduit/protocol": "workspace:*",
-    "@conduit/browser-core": "workspace:*"
+    "@conduit/browser-core": "workspace:*",
+    "@conduit/protocol": "workspace:*"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268"
+    "@types/chrome": "^0.0.268",
+    "esbuild": "0.21.5"
   }
 }
