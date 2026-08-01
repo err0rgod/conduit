@@ -219,6 +219,119 @@ describe('Daemon authorization', () => {
   });
 });
 
+describe('Daemon transport hardening', () => {
+  it('rejects deterministic startup when the configured port is unavailable', async () => {
+    const first = new Daemon();
+    const occupiedPort = await first.start(0);
+    const second = new Daemon({ audit: new AuditLogger({ sink: () => undefined }) });
+    try {
+      await expect(second.start(occupiedPort)).rejects.toMatchObject({ code: 'EADDRINUSE' });
+    } finally {
+      await first.stop();
+      await second.stop();
+    }
+  });
+
+  it('closes extension connections that do not authenticate in time', async () => {
+    const hardened = new Daemon({ authenticationTimeoutMs: 25 });
+    const hardenedPort = await hardened.start(0);
+    const ws = new WebSocket(`ws://127.0.0.1:${hardenedPort}`);
+    try {
+      const closeCode = await new Promise<number>((resolve) => {
+        ws.on('close', (code) => resolve(code));
+      });
+      expect(closeCode).toBe(4001);
+    } finally {
+      await hardened.stop();
+    }
+  });
+
+  it('throttles repeated failed HTTP authentication attempts', async () => {
+    const hardened = new Daemon({
+      maximumAuthenticationFailures: 1,
+      authenticationFailureWindowMs: 10_000,
+    });
+    const hardenedPort = await hardened.start(0);
+    try {
+      const request = () =>
+        fetch(`http://127.0.0.1:${hardenedPort}/api/confirmations`, {
+          headers: { Authorization: 'Bearer invalid' },
+        });
+      expect((await request()).status).toBe(401);
+      const limited = await request();
+      const body = (await limited.json()) as ResponseEnvelope;
+      expect(limited.status).toBe(429);
+      expect(body.success).toBe(false);
+      if (!body.success) expect(body.error.code).toBe('RATE_LIMITED');
+    } finally {
+      await hardened.stop();
+    }
+  });
+
+  it('bounds the action queue and rejects recently reused request IDs', async () => {
+    const hardened = new Daemon({ maximumPendingRequests: 1, requestTimeoutMs: 1_000 });
+    const hardenedPort = await hardened.start(0);
+    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    const firstAction = { ...createEnvelopeBase(), type: 'browser.list_tabs' };
+    try {
+      const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
+      const firstFetch = postAction(hardenedPort, hardened.getToken(), firstAction);
+      const extensionRequest = await extensionRequestPromise;
+
+      const queueFull = await postAction(hardenedPort, hardened.getToken(), {
+        ...createEnvelopeBase(),
+        type: 'browser.list_tabs',
+      });
+      expect(queueFull.status).toBe(429);
+
+      ws.send(JSON.stringify(createSuccessResponse({ tabs: [] }, extensionRequest.id)));
+      expect((await firstFetch).status).toBe(200);
+
+      const duplicate = await postAction(hardenedPort, hardened.getToken(), firstAction);
+      const duplicateBody = (await duplicate.json()) as ResponseEnvelope;
+      expect(duplicate.status).toBe(409);
+      expect(duplicateBody.success).toBe(false);
+      if (!duplicateBody.success) expect(duplicateBody.error.code).toBe('INVALID_REQUEST');
+    } finally {
+      ws.close();
+      await hardened.stop();
+    }
+  });
+
+  it('expires authenticated extension sessions', async () => {
+    const hardened = new Daemon({ heartbeatIntervalMs: 10, sessionTimeoutMs: 30 });
+    const hardenedPort = await hardened.start(0);
+    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    try {
+      const closeCode = await new Promise<number>((resolve) => {
+        ws.on('close', (code) => resolve(code));
+      });
+      expect(closeCode).toBe(4003);
+      expect(hardened.isExtensionConnected()).toBe(false);
+    } finally {
+      await hardened.stop();
+    }
+  });
+
+  it('returns a structured error to in-flight actions during shutdown', async () => {
+    const hardened = new Daemon({ requestTimeoutMs: 5_000 });
+    const hardenedPort = await hardened.start(0);
+    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
+    const responsePromise = postAction(hardenedPort, hardened.getToken(), {
+      ...createEnvelopeBase(),
+      type: 'browser.list_tabs',
+    });
+    await extensionRequestPromise;
+    await hardened.stop();
+    const response = await responsePromise;
+    const body = (await response.json()) as ResponseEnvelope;
+    expect(response.status).toBe(502);
+    expect(body.success).toBe(false);
+    if (!body.success) expect(body.error.code).toBe('DAEMON_UNAVAILABLE');
+  });
+});
+
 async function connectExtension(port: number, token: string): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
@@ -251,5 +364,13 @@ async function onceExtensionRequest(
       expect(message.type).toBe(expectedType);
       resolve(message);
     });
+  });
+}
+
+function postAction(port: number, token: string, body: unknown): Promise<Response> {
+  return fetch(`http://127.0.0.1:${port}/api/action`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 }
