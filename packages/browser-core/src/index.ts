@@ -44,6 +44,18 @@ interface InPageActionResult {
   message?: string;
 }
 
+type PageActionRequest =
+  | {
+      operation: 'snapshot';
+      mode: SnapshotRequest['mode'];
+      focusedElementId: string | null;
+      maxElements: number;
+      maxVisibleTextLength: number;
+    }
+  | { operation: 'visible-text' }
+  | { operation: 'click'; target: ElementTarget }
+  | { operation: 'type'; target: ElementTarget; text: string };
+
 const MAX_SNAPSHOT_ELEMENTS = 200;
 const MAX_VISIBLE_TEXT_LENGTH = 20_000;
 
@@ -91,29 +103,40 @@ export class ExtensionBrowserEngine implements BrowserActionEngine {
 
   public async getSnapshot(target: BrowserTarget, request: SnapshotRequest): Promise<PageSnapshot> {
     const tabId = await this.resolveTabId(target);
-    return this.runInTab(tabId, buildSnapshotInPage, [
-      request.mode,
-      request.elementId ?? null,
-      MAX_SNAPSHOT_ELEMENTS,
-      MAX_VISIBLE_TEXT_LENGTH,
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      {
+        operation: 'snapshot',
+        mode: request.mode,
+        focusedElementId: request.elementId ?? null,
+        maxElements: MAX_SNAPSHOT_ELEMENTS,
+        maxVisibleTextLength: MAX_VISIBLE_TEXT_LENGTH,
+      },
     ]);
+    return result as PageSnapshot;
   }
 
   public async getVisibleText(target: BrowserTarget): Promise<string> {
     const tabId = await this.resolveTabId(target);
-    return this.runInTab(tabId, () => document.body?.innerText ?? '', []);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'visible-text' },
+    ]);
+    return result as string;
   }
 
   public async click(target: BrowserTarget, action: ClickAction): Promise<void> {
     const tabId = await this.resolveTabId(target);
-    const result = await this.runInTab(tabId, clickInPage, [action.target]);
-    assertActionResult(result);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'click', target: action.target },
+    ]);
+    assertActionResult(result as InPageActionResult);
   }
 
   public async type(target: BrowserTarget, action: TypeAction): Promise<void> {
     const tabId = await this.resolveTabId(target);
-    const result = await this.runInTab(tabId, typeInPage, [action.target, action.text]);
-    assertActionResult(result);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'type', target: action.target, text: action.text },
+    ]);
+    assertActionResult(result as InPageActionResult);
   }
 
   public async screenshot(
@@ -152,7 +175,7 @@ export class ExtensionBrowserEngine implements BrowserActionEngine {
       args,
     });
     const first = results[0];
-    if (!first) {
+    if (!first || first.result === null || first.result === undefined) {
       throw new BrowserActionError(
         'FRAME_NOT_FOUND',
         'The target tab did not return a script result.',
@@ -200,6 +223,264 @@ function assertActionResult(result: InPageActionResult): void {
     result.code ?? 'INTERNAL_ERROR',
     result.message ?? 'Browser action failed.',
   );
+}
+
+// chrome.scripting serializes only the supplied function. Keep every browser-page
+// dependency inside this function so the real execution environment has no module closure.
+function executePageActionInPage(
+  request: PageActionRequest,
+): PageSnapshot | string | InPageActionResult {
+  const normalize = (value: string) => value.replace(/\s+/gu, ' ').trim();
+  const disabled = (element: Element) =>
+    ('disabled' in element && Boolean((element as { disabled?: boolean }).disabled)) ||
+    element.getAttribute('aria-disabled') === 'true';
+  const visible = (element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      style.visibility !== 'hidden' &&
+      style.display !== 'none' &&
+      style.opacity !== '0'
+    );
+  };
+  const roleOf = (element: Element): string | undefined => {
+    const explicit = element.getAttribute('role');
+    if (explicit) return explicit;
+    const tag = element.tagName.toLowerCase();
+    if (tag === 'a') return 'link';
+    if (tag === 'button') return 'button';
+    if (tag === 'select') return 'combobox';
+    if (tag === 'textarea') return 'textbox';
+    if (tag === 'summary') return 'button';
+    if (tag === 'input') {
+      const type = (element as HTMLInputElement).type;
+      if (type === 'checkbox') return 'checkbox';
+      if (type === 'radio') return 'radio';
+      if (type === 'submit' || type === 'button') return 'button';
+      return 'textbox';
+    }
+    return undefined;
+  };
+  const nameOf = (element: Element): string => {
+    const ariaLabel = element.getAttribute('aria-label');
+    if (ariaLabel) return normalize(ariaLabel);
+    const labelledBy = element.getAttribute('aria-labelledby');
+    if (labelledBy) {
+      const value = labelledBy
+        .split(/\s+/u)
+        .map((id) => document.getElementById(id)?.textContent ?? '')
+        .join(' ');
+      if (value.trim()) return normalize(value);
+    }
+    if (element instanceof HTMLInputElement && element.labels?.length) {
+      return normalize(
+        Array.from(element.labels)
+          .map((label) => label.textContent ?? '')
+          .join(' '),
+      );
+    }
+    const title = element.getAttribute('title');
+    if (title) return normalize(title);
+    return normalize((element as HTMLElement).innerText || element.textContent || '');
+  };
+  const safeValue = (element: Element): string | undefined => {
+    if (element instanceof HTMLInputElement) {
+      return element.type === 'password' ? '[redacted]' : element.value.slice(0, 200);
+    }
+    if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+      return element.value.slice(0, 200);
+    }
+    return undefined;
+  };
+  const escapeIdentifier = (value: string) =>
+    typeof CSS !== 'undefined' && CSS.escape
+      ? CSS.escape(value)
+      : value.replace(/[^a-zA-Z0-9_-]/gu, '\\$&');
+  const pathOf = (element: Element): string => {
+    const path: string[] = [];
+    let current: Element | null = element;
+    while (current && current !== document.body) {
+      const tag = current.tagName.toLowerCase();
+      if (current.id) {
+        path.unshift(`${tag}#${escapeIdentifier(current.id)}`);
+        break;
+      }
+      const parent: Element | null = current.parentElement;
+      if (!parent) {
+        path.unshift(tag);
+        break;
+      }
+      const siblings = Array.from(parent.children).filter(
+        (sibling) => sibling.tagName === current?.tagName,
+      );
+      path.unshift(`${tag}:nth-of-type(${siblings.indexOf(current) + 1})`);
+      current = parent;
+    }
+    return path.join(' > ');
+  };
+  const resolve = (target: ElementTarget): Element | null => {
+    if ('elementId' in target) {
+      return document.querySelector(`[data-conduit-ref="${target.elementId}"]`);
+    }
+    if ('selector' in target) return document.querySelector(target.selector);
+    if ('xpath' in target) {
+      return document.evaluate(target.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE)
+        .singleNodeValue as Element | null;
+    }
+    if ('coordinates' in target) {
+      return document.elementFromPoint(target.coordinates.x, target.coordinates.y);
+    }
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>('a,button,input,select,textarea,[role],[tabindex]'),
+    );
+    if ('role' in target) {
+      return (
+        candidates.find(
+          (element) => roleOf(element) === target.role && nameOf(element) === target.name,
+        ) ?? null
+      );
+    }
+    if ('label' in target)
+      return candidates.find((element) => nameOf(element) === target.label) ?? null;
+    return (
+      candidates.find(
+        (element) => normalize(element.innerText || element.textContent || '') === target.text,
+      ) ?? null
+    );
+  };
+
+  if (request.operation === 'visible-text') return document.body?.innerText ?? '';
+
+  if (request.operation === 'click') {
+    const element = resolve(request.target);
+    if (!element)
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_FOUND',
+        message: 'Could not resolve the target element.',
+      };
+    if (!(element instanceof HTMLElement) || disabled(element)) {
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_INTERACTABLE',
+        message: 'Target element is not clickable.',
+      };
+    }
+    element.scrollIntoView({ block: 'center', inline: 'center' });
+    element.focus();
+    element.click();
+    return { ok: true };
+  }
+
+  if (request.operation === 'type') {
+    const element = resolve(request.target);
+    if (!element)
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_FOUND',
+        message: 'Could not resolve the target element.',
+      };
+    if (disabled(element))
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_INTERACTABLE',
+        message: 'Target element is disabled.',
+      };
+    element.scrollIntoView({ block: 'center', inline: 'center' });
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.focus();
+      const prototype =
+        element instanceof HTMLInputElement
+          ? HTMLInputElement.prototype
+          : HTMLTextAreaElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+      if (setter) setter.call(element, request.text);
+      else element.value = request.text;
+      element.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType: 'insertText', data: request.text }),
+      );
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      return { ok: true };
+    }
+    if (element instanceof HTMLElement && element.isContentEditable) {
+      element.focus();
+      element.textContent = request.text;
+      element.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType: 'insertText', data: request.text }),
+      );
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      code: 'ELEMENT_NOT_INTERACTABLE',
+      message: 'Target element does not accept text input.',
+    };
+  }
+
+  const selector = [
+    'a[href]',
+    'button',
+    'input',
+    'select',
+    'textarea',
+    'summary',
+    '[role]',
+    '[tabindex]:not([tabindex="-1"])',
+    '[contenteditable="true"]',
+  ].join(',');
+  let candidates: HTMLElement[];
+  if (request.focusedElementId) {
+    candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-conduit-ref="${request.focusedElementId}"]`),
+    );
+  } else {
+    document
+      .querySelectorAll('[data-conduit-ref]')
+      .forEach((element) => element.removeAttribute('data-conduit-ref'));
+    candidates = Array.from(document.querySelectorAll<HTMLElement>(selector));
+  }
+  const elements =
+    request.mode === 'visible-text'
+      ? []
+      : candidates
+          .filter(visible)
+          .slice(0, request.maxElements)
+          .map((element, index) => {
+            const elementId = request.focusedElementId ?? `e${index + 1}`;
+            element.setAttribute('data-conduit-ref', elementId);
+            const rect = element.getBoundingClientRect();
+            const input = element instanceof HTMLInputElement ? element : null;
+            const anchor = element instanceof HTMLAnchorElement ? element : null;
+            return {
+              elementId,
+              role: roleOf(element),
+              name: nameOf(element),
+              text: normalize(element.innerText || element.textContent || ''),
+              tagName: element.tagName.toLowerCase(),
+              inputType: input?.type,
+              value: safeValue(element),
+              disabled: disabled(element),
+              selected: element instanceof HTMLOptionElement ? element.selected : undefined,
+              href: anchor?.href,
+              selector: pathOf(element),
+              bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            };
+          });
+  return {
+    url: document.URL,
+    title: document.title,
+    loadingState: document.readyState,
+    mode: request.mode,
+    capturedAt: Date.now(),
+    visibleText: normalize(document.body?.innerText ?? '').slice(0, request.maxVisibleTextLength),
+    elements,
+    frames: Array.from(document.querySelectorAll('iframe')).map((frame) => ({
+      url: frame.src,
+      title: frame.title || undefined,
+    })),
+  };
 }
 
 function buildSnapshotInPage(

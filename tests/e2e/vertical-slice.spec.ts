@@ -39,12 +39,12 @@ test.beforeAll(async () => {
   profilePath = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
   context = await chromium.launchPersistentContext(profilePath, {
     channel: 'chromium',
-    headless: true,
+    headless: false,
     args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
   });
 
   const worker = await extensionWorker(context);
-  await configureExtension(worker, daemonPort, token);
+  await configureExtension(context, worker, daemonPort, token);
   await expect.poll(async () => (await client().health()).extensionConnected).toBe(true);
 });
 
@@ -66,7 +66,8 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   await expect
     .poll(async () => {
       const response = await conduit.browser('browser.snapshot', { tabId, mode: 'interactive' });
-      return response.success ? snapshotFrom(response.payload).title : '';
+      if (!response.success) return `${response.error.code}: ${response.error.message}`;
+      return snapshotFrom(response.payload)?.title ?? JSON.stringify(response.payload);
     })
     .toBe('Conduit fixture');
 
@@ -77,6 +78,7 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   expect(snapshotResponse.success).toBe(true);
   if (!snapshotResponse.success) throw new Error(snapshotResponse.error.message);
   const snapshot = snapshotFrom(snapshotResponse.payload);
+  if (!snapshot) throw new Error('Snapshot response did not contain a snapshot.');
   const input = snapshot.elements.find((element) => element.name === 'Message');
   const button = snapshot.elements.find((element) => element.name === 'Activate');
   expect(input?.elementId).toBeTruthy();
@@ -103,7 +105,8 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   const finalText = await conduit.browser('browser.get_visible_text', { tabId });
   expect(finalText.success && textFrom(finalText.payload)).toContain('clicked');
   const screenshot = await conduit.browser('browser.screenshot', { tabId, format: 'png' });
-  expect(screenshot.success && screenshotData(screenshot.payload).length).toBeGreaterThan(100);
+  if (!screenshot.success) throw new Error(`${screenshot.error.code}: ${screenshot.error.message}`);
+  expect(screenshotData(screenshot.payload).length).toBeGreaterThan(100);
 });
 
 function client(): ConduitClient {
@@ -113,39 +116,32 @@ function client(): ConduitClient {
 async function grantFixtureHostPermission(extensionPath: string): Promise<void> {
   const manifestPath = path.join(extensionPath, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
-  manifest.host_permissions = ['http://127.0.0.1/*'];
+  // The production manifest keeps this optional. The controlled test build grants it
+  // so captureVisibleTab and scripting can be exercised without a manual Chrome prompt.
+  manifest.host_permissions = ['<all_urls>'];
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 async function extensionWorker(browserContext: BrowserContext): Promise<Worker> {
-  const existing = browserContext
-    .serviceWorkers()
-    .find((worker) => worker.url().startsWith('chrome-extension://'));
-  return (
-    existing ??
-    browserContext.waitForEvent('serviceworker', {
-      predicate: (worker) => worker.url().startsWith('chrome-extension://'),
-    })
-  );
+  const matches = (worker: Worker) =>
+    worker.url().startsWith('chrome-extension://') && worker.url().endsWith('/background.js');
+  const existing = browserContext.serviceWorkers().find(matches);
+  return existing ?? browserContext.waitForEvent('serviceworker', { predicate: matches });
 }
 
 async function configureExtension(
+  browserContext: BrowserContext,
   worker: Worker,
   port: number,
   daemonToken: string,
 ): Promise<void> {
-  await worker.evaluate(
-    ({ daemonPort, tokenValue }) =>
-      new Promise<void>((resolve) => {
-        const api = (
-          globalThis as unknown as {
-            chrome: { storage: { local: { set(value: unknown, done: () => void): void } } };
-          }
-        ).chrome;
-        api.storage.local.set({ daemonPort, daemonToken: tokenValue }, resolve);
-      }),
-    { daemonPort: port, tokenValue: daemonToken },
-  );
+  const extensionId = new URL(worker.url()).host;
+  const popup = await browserContext.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.locator('#port').fill(String(port));
+  await popup.locator('#token').fill(daemonToken);
+  await popup.locator('#save').click();
+  await popup.close();
 }
 
 function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): number {
@@ -159,10 +155,14 @@ function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): 
 function snapshotFrom(payload: unknown): {
   title: string;
   elements: Array<{ elementId: string; name: string }>;
-} {
+} | null {
   return (
-    payload as { snapshot: { title: string; elements: Array<{ elementId: string; name: string }> } }
-  ).snapshot;
+    (
+      payload as {
+        snapshot: { title: string; elements: Array<{ elementId: string; name: string }> };
+      }
+    ).snapshot ?? null
+  );
 }
 function textFrom(payload: unknown): string {
   return (payload as { text: string }).text;
