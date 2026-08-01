@@ -1,6 +1,8 @@
 import {
   BrowserRequestEnvelope,
   BrowserRequestEnvelopeSchema,
+  ConfirmationRequest,
+  ConfirmationRequestSchema,
   ResponseEnvelope,
   ResponseEnvelopeSchema,
   createEnvelopeBase,
@@ -17,6 +19,10 @@ export interface ConduitClientOptions {
 export interface DaemonHealth {
   status: 'ok';
   extensionConnected: boolean;
+}
+
+export interface BrowserRequestOptions {
+  confirmationId?: string;
 }
 
 export class ConduitClientError extends Error {
@@ -53,17 +59,22 @@ export class ConduitClient {
   public async browser(
     type: BrowserRequestEnvelope['type'],
     payload: unknown = {},
+    options: BrowserRequestOptions = {},
   ): Promise<ResponseEnvelope> {
     const request = BrowserRequestEnvelopeSchema.parse({ ...createEnvelopeBase(), type, payload });
-    return this.send(request);
+    return this.send(request, options);
   }
 
-  public async send(request: BrowserRequestEnvelope): Promise<ResponseEnvelope> {
+  public async send(
+    request: BrowserRequestEnvelope,
+    options: BrowserRequestOptions = {},
+  ): Promise<ResponseEnvelope> {
     const response = await this.fetchImplementation(`${this.baseUrl}/api/action`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.getToken()}`,
         'Content-Type': 'application/json',
+        ...(options.confirmationId ? { 'X-Conduit-Confirmation': options.confirmationId } : {}),
       },
       body: JSON.stringify(request),
     });
@@ -78,6 +89,38 @@ export class ConduitClient {
       throw new ConduitClientError('Daemon response failed protocol validation.');
     }
     return parsed.data;
+  }
+
+  public async listConfirmations(): Promise<ConfirmationRequest[]> {
+    const response = await this.fetchImplementation(`${this.baseUrl}/api/confirmations`, {
+      headers: { Authorization: `Bearer ${this.getToken()}` },
+    });
+    const value: unknown = await response.json();
+    if (typeof value !== 'object' || value === null || !('confirmations' in value)) {
+      throw new ConduitClientError('Daemon returned an invalid confirmation list.');
+    }
+    const parsed = ConfirmationRequestSchema.array().safeParse(value.confirmations);
+    if (!parsed.success) throw new ConduitClientError('Daemon returned invalid confirmations.');
+    return parsed.data;
+  }
+
+  public async respondToConfirmation(confirmationId: string, approved: boolean): Promise<boolean> {
+    const response = await this.fetchImplementation(`${this.baseUrl}/api/confirmations/respond`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.getToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirmationId, approved }),
+    });
+    const value: unknown = await response.json();
+    return (
+      response.ok &&
+      typeof value === 'object' &&
+      value !== null &&
+      'accepted' in value &&
+      value.accepted === true
+    );
   }
 }
 

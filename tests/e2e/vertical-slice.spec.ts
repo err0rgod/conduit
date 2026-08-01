@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Daemon } from '../../apps/daemon/src/index';
 import { ConduitClient } from '../../packages/daemon-client/src/index';
+import { SecurityPolicy } from '../../packages/security/src/policy';
 
 const token = 'e2e-token-'.padEnd(64, '0');
 let daemon: Daemon;
@@ -34,6 +35,12 @@ test.beforeAll(async () => {
       ensureToken: () => token,
       verifyToken: (candidate) => candidate === token,
     },
+    policy: new SecurityPolicy({
+      permissions: ['browser.read', 'browser.navigate', 'browser.interact', 'browser.forms'],
+      domainMode: 'allowlist',
+      allowedDomains: ['127.0.0.1'],
+      allowLocalhost: true,
+    }),
   });
   daemonPort = await daemon.start(0);
   profilePath = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));

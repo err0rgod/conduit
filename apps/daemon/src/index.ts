@@ -2,18 +2,22 @@ import * as http from 'http';
 import {
   AuthMessageSchema,
   BrowserRequestEnvelopeSchema,
+  ConfirmationResponseSchema,
   ResponseEnvelope,
   ResponseEnvelopeSchema,
   createErrorResponse,
   createSuccessResponse,
 } from '@conduit/protocol';
-import { LocalAuth } from '@conduit/security';
+import { AuditLogger, ConfirmationManager, LocalAuth, SecurityPolicy } from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
 
 export interface DaemonOptions {
   auth?: Authenticator;
   requestTimeoutMs?: number;
   maxBodyBytes?: number;
+  policy?: SecurityPolicy;
+  confirmations?: ConfirmationManager;
+  audit?: AuditLogger;
 }
 
 export interface Authenticator {
@@ -33,6 +37,11 @@ export class Daemon {
   private readonly auth: Authenticator;
   private readonly requestTimeoutMs: number;
   private readonly maxBodyBytes: number;
+  private readonly policy: SecurityPolicy;
+  private readonly confirmations: ConfirmationManager;
+  private readonly audit: AuditLogger;
+  private readonly tabUrls = new Map<number, string>();
+  private activeTabId: number | null = null;
   private activeExtension: WebSocket | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
   private server: http.Server | null = null;
@@ -42,6 +51,9 @@ export class Daemon {
     this.auth = options.auth ?? new LocalAuth();
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+    this.policy = options.policy ?? new SecurityPolicy();
+    this.confirmations = options.confirmations ?? new ConfirmationManager();
+    this.audit = options.audit ?? new AuditLogger();
   }
 
   public async start(port = 0): Promise<number> {
@@ -55,12 +67,14 @@ export class Daemon {
     return new Promise((resolve) => {
       this.server?.listen(port, '127.0.0.1', () => {
         const address = this.server?.address();
+        this.audit.log({ type: 'daemon.start', outcome: 'success' });
         resolve(typeof address === 'string' || !address ? 0 : address.port);
       });
     });
   }
 
   public async stop(): Promise<void> {
+    this.audit.log({ type: 'daemon.stop', outcome: 'success' });
     for (const pending of this.pendingRequests.values()) {
       clearTimeout(pending.timer);
     }
@@ -110,17 +124,32 @@ export class Daemon {
       return;
     }
 
-    if (req.method !== 'POST' || req.url !== '/api/action') {
+    const isAction = req.method === 'POST' && req.url === '/api/action';
+    const isConfirmationList = req.method === 'GET' && req.url === '/api/confirmations';
+    const isConfirmationResponse =
+      req.method === 'POST' && req.url === '/api/confirmations/respond';
+    if (!isAction && !isConfirmationList && !isConfirmationResponse) {
       this.writeJson(res, 404, createErrorResponse('INVALID_REQUEST', 'Unknown daemon endpoint.'));
       return;
     }
 
     if (!this.isAuthorizedHttpRequest(req)) {
+      this.audit.log({ type: 'client.authentication', outcome: 'denied' });
       this.writeJson(
         res,
         401,
         createErrorResponse('AUTHENTICATION_REQUIRED', 'A valid Conduit local token is required.'),
       );
+      return;
+    }
+
+    if (isConfirmationList) {
+      this.writeJson(res, 200, { confirmations: this.confirmations.list() });
+      return;
+    }
+
+    if (isConfirmationResponse) {
+      await this.handleConfirmationResponse(req, res);
       return;
     }
 
@@ -150,6 +179,57 @@ export class Daemon {
       return;
     }
 
+    const decision = this.policy.authorize(request.data, this.currentUrlFor(request.data));
+    if (decision.outcome === 'deny') {
+      this.audit.log({
+        type: 'permission.decision',
+        outcome: 'denied',
+        requestId: request.data.id,
+        operation: request.data.type,
+        domain: decision.domain,
+        details: { permission: decision.permission, reason: decision.reason },
+      });
+      this.writeJson(
+        res,
+        403,
+        createErrorResponse(
+          decision.domain ? 'DOMAIN_NOT_ALLOWED' : 'PERMISSION_DENIED',
+          decision.reason,
+          request.data.id,
+        ),
+      );
+      return;
+    }
+
+    if (decision.outcome === 'confirm') {
+      const header = req.headers['x-conduit-confirmation'];
+      const confirmationId = typeof header === 'string' ? header : '';
+      if (!this.confirmations.consume(confirmationId, request.data.type)) {
+        const confirmation = this.confirmations.create(
+          request.data.id,
+          request.data.type,
+          decision.risk,
+          decision.reason,
+          decision.domain,
+        );
+        this.audit.log({
+          type: 'confirmation.requested',
+          outcome: 'pending',
+          requestId: request.data.id,
+          operation: request.data.type,
+          domain: decision.domain,
+        });
+        this.writeJson(
+          res,
+          409,
+          createErrorResponse('USER_CONFIRMATION_REQUIRED', decision.reason, request.data.id, {
+            confirmation,
+          }),
+        );
+        return;
+      }
+    }
+
     if (!this.isExtensionConnected() || !this.activeExtension) {
       this.writeJson(
         res,
@@ -163,6 +243,16 @@ export class Daemon {
     }
 
     const response = await this.forwardToExtension(request.data);
+    this.recordBrowserState(request.data, response);
+    this.audit.log({
+      type: 'browser.action',
+      outcome: response.success ? 'success' : 'failure',
+      requestId: request.data.id,
+      correlationId: response.correlationId,
+      operation: request.data.type,
+      domain: decision.domain,
+      ...(!response.success ? { details: { errorCode: response.error.code } } : {}),
+    });
     this.writeJson(res, response.success ? 200 : 502, response);
   }
 
@@ -184,6 +274,7 @@ export class Daemon {
           authenticated = true;
           this.activeExtension = ws;
           ws.send(JSON.stringify({ type: 'auth_success' }));
+          this.audit.log({ type: 'extension.authentication', outcome: 'success' });
           return;
         }
 
@@ -194,6 +285,7 @@ export class Daemon {
           }),
         );
         ws.close();
+        this.audit.log({ type: 'extension.authentication', outcome: 'denied' });
         return;
       }
 
@@ -223,6 +315,7 @@ export class Daemon {
     ws.on('close', () => {
       if (this.activeExtension === ws) {
         this.activeExtension = null;
+        this.audit.log({ type: 'extension.disconnected', outcome: 'success' });
       }
     });
   }
@@ -266,6 +359,68 @@ export class Daemon {
     const token = bearerToken ?? (typeof headerToken === 'string' ? headerToken : undefined);
 
     return typeof token === 'string' && this.auth.verifyToken(token);
+  }
+
+  private async handleConfirmationResponse(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = ConfirmationResponseSchema.safeParse(body.value);
+    if (!parsed.success) {
+      this.writeJson(
+        res,
+        400,
+        createErrorResponse('INVALID_REQUEST', 'Invalid confirmation response.'),
+      );
+      return;
+    }
+    const accepted = this.confirmations.respond(parsed.data.confirmationId, parsed.data.approved);
+    this.audit.log({
+      type: 'confirmation.responded',
+      outcome: accepted && parsed.data.approved ? 'success' : 'denied',
+      details: { confirmationId: parsed.data.confirmationId, approved: parsed.data.approved },
+    });
+    this.writeJson(res, accepted ? 200 : 404, { accepted });
+  }
+
+  private currentUrlFor(
+    request: ReturnType<typeof BrowserRequestEnvelopeSchema.parse>,
+  ): string | undefined {
+    if (request.type === 'browser.navigate' || request.type === 'browser.open_tab')
+      return undefined;
+    const payload = request.payload as { tabId?: number };
+    const tabId = payload.tabId ?? this.activeTabId ?? undefined;
+    return tabId === undefined ? undefined : this.tabUrls.get(tabId);
+  }
+
+  private recordBrowserState(
+    request: ReturnType<typeof BrowserRequestEnvelopeSchema.parse>,
+    response: ResponseEnvelope,
+  ): void {
+    if (!response.success || typeof response.payload !== 'object' || response.payload === null)
+      return;
+    const payload = response.payload as {
+      tab?: { id?: unknown; url?: unknown; active?: unknown } | null;
+      tabs?: Array<{ id?: unknown; url?: unknown; active?: unknown }>;
+    };
+    const tabs = payload.tabs ?? (payload.tab ? [payload.tab] : []);
+    for (const tab of tabs) {
+      if (typeof tab.id !== 'number') continue;
+      if (typeof tab.url === 'string') this.tabUrls.set(tab.id, tab.url);
+      if (tab.active === true) this.activeTabId = tab.id;
+    }
+    if (request.type === 'browser.navigate') {
+      const responseTabId = typeof payload.tab?.id === 'number' ? payload.tab.id : undefined;
+      const tabId = request.payload.tabId ?? responseTabId ?? this.activeTabId ?? undefined;
+      if (tabId !== undefined) this.tabUrls.set(tabId, request.payload.url);
+    }
+    if (request.type === 'browser.close_tab') this.tabUrls.delete(request.payload.tabId);
+    if (request.type === 'browser.focus_tab') this.activeTabId = request.payload.tabId;
   }
 
   private async readBody(req: http.IncomingMessage): Promise<

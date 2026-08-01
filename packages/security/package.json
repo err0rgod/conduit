@@ -8,9 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "uuid": "^9.0.1"
+    "@conduit/protocol": "workspace:*"
   },
-  "devDependencies": {
-    "@types/uuid": "^9.0.8"
-  }
+  "devDependencies": {}
 }
