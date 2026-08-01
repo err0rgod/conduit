@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,6 +14,10 @@ export function getAppDataDir(): string {
   }
   return path.join(homedir, '.config', 'conduit');
 }
+
+export * from './audit';
+export * from './confirmation';
+export * from './policy';
 
 export function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');

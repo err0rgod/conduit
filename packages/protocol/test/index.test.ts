@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   BrowserRequestEnvelopeSchema,
+  ConfirmationRequestSchema,
+  ConfirmationResponseSchema,
   PageSnapshotSchema,
   RequestEnvelopeSchema,
   ResponseEnvelopeSchema,
@@ -77,6 +79,26 @@ describe('Protocol envelopes', () => {
 
     expect(ResponseEnvelopeSchema.safeParse(success).success).toBe(true);
     expect(ResponseEnvelopeSchema.safeParse(failure).success).toBe(true);
+  });
+});
+
+describe('Confirmations', () => {
+  it('validates expiring confirmation requests and user responses', () => {
+    expect(
+      ConfirmationRequestSchema.safeParse({
+        id: baseEnvelope.id,
+        requestId: '223e4567-e89b-12d3-a456-426614174000',
+        operation: 'browser.navigate',
+        risk: 'medium',
+        summary: 'Approve example.com',
+        domain: 'example.com',
+        expiresAt: Date.now() + 60_000,
+      }).success,
+    ).toBe(true);
+    expect(
+      ConfirmationResponseSchema.safeParse({ confirmationId: baseEnvelope.id, approved: true })
+        .success,
+    ).toBe(true);
   });
 });
 

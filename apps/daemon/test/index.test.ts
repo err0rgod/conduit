@@ -7,6 +7,7 @@ import {
   createSuccessResponse,
 } from '@conduit/protocol';
 import WebSocket from 'ws';
+import { AuditLogger, SecurityPolicy } from '@conduit/security';
 
 describe('Daemon', () => {
   let daemon: Daemon;
@@ -123,6 +124,98 @@ describe('Daemon', () => {
     }
 
     ws.close();
+  });
+});
+
+describe('Daemon authorization', () => {
+  it('denies ungranted browser permissions before forwarding', async () => {
+    const events: Array<{ type: string; outcome: string }> = [];
+    const secured = new Daemon({
+      policy: new SecurityPolicy({ permissions: ['browser.read'] }),
+      audit: new AuditLogger({ sink: (event) => events.push(event) }),
+    });
+    const securedPort = await secured.start(0);
+    try {
+      const response = await fetch(`http://127.0.0.1:${securedPort}/api/action`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secured.getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...createEnvelopeBase(),
+          type: 'browser.click',
+          payload: { target: { elementId: 'e1' } },
+        }),
+      });
+      const body = (await response.json()) as ResponseEnvelope;
+      expect(response.status).toBe(403);
+      expect(body.success).toBe(false);
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: 'permission.decision', outcome: 'denied' }),
+      );
+    } finally {
+      await secured.stop();
+    }
+  });
+
+  it('requires, approves, and consumes a one-time domain confirmation', async () => {
+    const secured = new Daemon({
+      policy: new SecurityPolicy({ permissions: ['browser.navigate'], domainMode: 'ask' }),
+      audit: new AuditLogger({ sink: () => undefined }),
+    });
+    const securedPort = await secured.start(0);
+    const token = secured.getToken();
+    const action = {
+      ...createEnvelopeBase(),
+      type: 'browser.navigate',
+      payload: { url: 'https://example.com' },
+    };
+    try {
+      const pending = await fetch(`http://127.0.0.1:${securedPort}/api/action`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(action),
+      });
+      const pendingBody = (await pending.json()) as ResponseEnvelope;
+      expect(pending.status).toBe(409);
+      if (pendingBody.success) throw new Error('Expected a confirmation response.');
+      const confirmation = pendingBody.error.details?.confirmation as { id: string };
+
+      const approval = await fetch(`http://127.0.0.1:${securedPort}/api/confirmations/respond`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmationId: confirmation.id, approved: true }),
+      });
+      expect(approval.status).toBe(200);
+
+      const approvedAction = await fetch(`http://127.0.0.1:${securedPort}/api/action`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Conduit-Confirmation': confirmation.id,
+        },
+        body: JSON.stringify(action),
+      });
+      const approvedBody = (await approvedAction.json()) as ResponseEnvelope;
+      expect(approvedAction.status).toBe(503);
+      expect(approvedBody.success).toBe(false);
+      if (!approvedBody.success) expect(approvedBody.error.code).toBe('EXTENSION_DISCONNECTED');
+
+      const reused = await fetch(`http://127.0.0.1:${securedPort}/api/action`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'X-Conduit-Confirmation': confirmation.id,
+        },
+        body: JSON.stringify(action),
+      });
+      expect(reused.status).toBe(409);
+    } finally {
+      await secured.stop();
+    }
   });
 });
 

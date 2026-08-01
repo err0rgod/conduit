@@ -102,6 +102,27 @@ export const PermissionSchema = z.enum([
   'browser.dangerous',
 ]);
 
+export const RiskLevelSchema = z.enum(['low', 'medium', 'high']);
+
+export const ConfirmationRequestSchema = z
+  .object({
+    id: z.string().uuid(),
+    requestId: z.string().uuid(),
+    operation: z.string().min(1),
+    risk: RiskLevelSchema,
+    summary: z.string().min(1).max(500),
+    domain: z.string().optional(),
+    expiresAt: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const ConfirmationResponseSchema = z
+  .object({
+    confirmationId: z.string().uuid(),
+    approved: z.boolean(),
+  })
+  .strict();
+
 export const BrowserOperationSchema = z.enum([
   'browser.list_tabs',
   'browser.get_active_tab',
@@ -356,6 +377,9 @@ export type ResponseEnvelope = z.infer<typeof ResponseEnvelopeSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type PairingRequest = z.infer<typeof PairingRequestSchema>;
 export type Permission = z.infer<typeof PermissionSchema>;
+export type RiskLevel = z.infer<typeof RiskLevelSchema>;
+export type ConfirmationRequest = z.infer<typeof ConfirmationRequestSchema>;
+export type ConfirmationResponse = z.infer<typeof ConfirmationResponseSchema>;
 export type BrowserOperation = z.infer<typeof BrowserOperationSchema>;
 export type BrowserRequestEnvelope = z.infer<typeof BrowserRequestEnvelopeSchema>;
 export type BrowserTab = z.infer<typeof BrowserTabSchema>;
