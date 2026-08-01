@@ -62,4 +62,15 @@ describe('Conduit configuration', () => {
     fs.writeFileSync(configPath, JSON.stringify({ surprise: true }));
     expect(() => store.load()).toThrowError('Configuration failed validation');
   });
+
+  it('supports an explicit configuration path for isolated profiles', () => {
+    const previous = process.env.CONDUIT_CONFIG_PATH;
+    process.env.CONDUIT_CONFIG_PATH = configPath;
+    try {
+      expect(new ConfigStore().getPath()).toBe(configPath);
+    } finally {
+      if (previous === undefined) delete process.env.CONDUIT_CONFIG_PATH;
+      else process.env.CONDUIT_CONFIG_PATH = previous;
+    }
+  });
 });

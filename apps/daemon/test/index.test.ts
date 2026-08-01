@@ -231,6 +231,25 @@ describe('Daemon authorization', () => {
 });
 
 describe('Daemon transport hardening', () => {
+  it('accepts locally authenticated graceful shutdown requests', async () => {
+    let resolveShutdown: (() => void) | undefined;
+    const shutdownRequested = new Promise<void>((resolve) => {
+      resolveShutdown = resolve;
+    });
+    const managed = new Daemon({ shutdownHandler: () => resolveShutdown?.() });
+    const managedPort = await managed.start(0);
+    try {
+      const response = await fetch(`http://127.0.0.1:${managedPort}/api/shutdown`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${managed.getToken()}` },
+      });
+      expect(response.status).toBe(202);
+      await shutdownRequested;
+    } finally {
+      await managed.stop();
+    }
+  });
+
   it('rejects deterministic startup when the configured port is unavailable', async () => {
     const first = new Daemon();
     const occupiedPort = await first.start(0);

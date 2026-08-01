@@ -26,7 +26,7 @@
     "daemon:start": "pnpm --filter @conduit/daemon start",
     "daemon:dev": "pnpm --filter @conduit/daemon dev",
     "mcp:start": "pnpm --filter @conduit/mcp-server start",
-    "conduit:doctor": "node packages/cli/bin/conduit.js doctor --json"
+    "conduit:doctor": "node packages/cli/bin/conduit.js --json doctor"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

@@ -103,7 +103,11 @@ export class ConfigStore {
   private readonly configPath: string;
 
   public constructor(options: ConfigStoreOptions = {}) {
-    this.configPath = options.configPath ?? path.join(getAppDataDir(), 'config.json');
+    this.configPath =
+      options.configPath ??
+      (process.env.CONDUIT_CONFIG_PATH
+        ? path.resolve(process.env.CONDUIT_CONFIG_PATH)
+        : path.join(getAppDataDir(), 'config.json'));
   }
 
   public load(): ConduitConfig {
