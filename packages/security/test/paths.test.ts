@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { FileAccessError, validateUploadPaths } from '../src/paths';
@@ -15,11 +15,11 @@ describe('upload path validation', () => {
     directories.push(parent);
     const allowed = path.join(parent, 'allowed');
     const outside = path.join(parent, 'outside.txt');
-    require('node:fs').mkdirSync(allowed);
+    mkdirSync(allowed);
     writeFileSync(path.join(allowed, 'inside.txt'), 'ok');
     writeFileSync(outside, 'no');
     expect(validateUploadPaths([path.join(allowed, '.', 'inside.txt')], [allowed])).toEqual([
-      path.join(allowed, 'inside.txt'),
+      realpathSync(path.join(allowed, 'inside.txt')),
     ]);
     expect(() => validateUploadPaths([path.join(allowed, '..', 'outside.txt')], [allowed])).toThrow(
       FileAccessError,

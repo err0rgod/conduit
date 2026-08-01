@@ -51,6 +51,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace dependencies
+        run: pnpm build
       - name: Install Chromium dependencies
         run: pnpm exec playwright install --with-deps chromium
       - name: Run extension E2E

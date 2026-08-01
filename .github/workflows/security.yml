@@ -32,6 +32,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Build workspace dependencies
+        run: pnpm build
       - run: pnpm test:security
       - run: pnpm test:coverage
       - name: Upload coverage
