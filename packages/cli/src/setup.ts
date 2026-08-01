@@ -47,7 +47,7 @@ export class SetupManager {
   private readonly lifecycle: Pick<DaemonLifecycle, 'start' | 'status' | 'stop'>;
   private readonly service: Pick<UserService, 'install' | 'uninstall'>;
   private readonly dataDirectory: string;
-  private readonly extensionPath: string;
+  private readonly extensionPath?: string;
 
   public constructor(options: SetupManagerOptions = {}) {
     this.configStore = options.configStore ?? new ConfigStore();
@@ -56,7 +56,7 @@ export class SetupManager {
       options.lifecycle ?? new DaemonLifecycle({ configStore: this.configStore, auth: this.auth });
     this.service = options.service ?? new UserService();
     this.dataDirectory = path.resolve(options.dataDirectory ?? getAppDataDir());
-    this.extensionPath = options.extensionPath ?? resolveExtensionPath();
+    this.extensionPath = options.extensionPath;
   }
 
   public async setup(options: SetupOptions = {}): Promise<SetupReport> {
@@ -64,18 +64,19 @@ export class SetupManager {
     const startDaemon = options.startDaemon ?? true;
     this.configStore.save(this.configStore.load());
     this.auth.ensureToken();
+    const extensionPath = this.extensionPath ?? resolveExtensionPath();
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
     return {
       configured: true,
       configPath: this.configStore.getPath(),
-      extensionPath: this.extensionPath,
+      extensionPath,
       ...(service ? { service } : {}),
       ...(daemon ? { daemon } : {}),
       nextSteps: [
         'Open chrome://extensions or edge://extensions.',
         'Enable Developer mode and choose Load unpacked.',
-        `Select ${this.extensionPath}.`,
+        `Select ${extensionPath}.`,
         'Run conduit extension token, then enter that secret and the daemon port in the extension.',
       ],
     };
