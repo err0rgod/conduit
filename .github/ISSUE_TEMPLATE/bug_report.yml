@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible Conduit defect (not a private vulnerability)
+title: 'bug: '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 'Do not include tokens, browser data, private keys, or security vulnerabilities. Use SECURITY.md for private reports.'
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: Git commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and safe reproduction
+      description: Redact all user data and credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Include relevant doctor output and logs only after reviewing them.
