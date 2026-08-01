@@ -58,3 +58,5 @@ jobs:
         run: node packages/cli/bin/conduit.js --help
       - name: Smoke-test JSON CLI
         run: node packages/cli/bin/conduit.js --json config show
+      - name: Test clean distribution install
+        run: pnpm distribution:test

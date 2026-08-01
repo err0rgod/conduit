@@ -17,6 +17,7 @@
     { "path": "./packages/browser-core" },
     { "path": "./packages/cli" },
     { "path": "./packages/mcp-server" },
+    { "path": "./packages/distribution" },
     { "path": "./apps/daemon" },
     { "path": "./apps/extension" }
   ],

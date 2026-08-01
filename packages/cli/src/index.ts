@@ -7,6 +7,7 @@ import { ElementTarget, ResponseEnvelope } from '@conduit/protocol';
 import { LocalAuth } from '@conduit/security';
 import { DaemonLifecycle, daemonBaseUrl } from './lifecycle';
 import { resolveExtensionPath, runDoctor } from './doctor';
+import { resolveDistributionEntry } from './runtime-paths';
 
 interface TabOptions {
   tab?: string;
@@ -422,11 +423,13 @@ function formatHuman(value: unknown, indent = ''): string {
 }
 
 async function runMcpServer(): Promise<void> {
-  let entry: string;
-  try {
-    entry = path.join(path.dirname(require.resolve('@conduit/mcp-server')), 'main.js');
-  } catch {
-    throw new Error('MCP server build not found. Run pnpm build first.');
+  let entry = resolveDistributionEntry('mcp.cjs');
+  if (!entry) {
+    try {
+      entry = path.join(path.dirname(require.resolve('@conduit/mcp-server')), 'main.js');
+    } catch {
+      throw new Error('MCP server build not found. Run pnpm build first.');
+    }
   }
   await new Promise<void>((resolve, reject) => {
     const child = spawn(process.execPath, [entry], { stdio: 'inherit', windowsHide: true });

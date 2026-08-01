@@ -64,6 +64,23 @@ pnpm build
 
 Conduit is not yet published to npm or a browser extension store.
 
+### Test the consumer package locally
+
+The release build produces a self-contained npm tarball named `conduit-browser`. It
+includes the CLI, daemon, MCP adapter, and unpacked extension without runtime
+`workspace:*` dependencies:
+
+```bash
+pnpm distribution:pack
+npm install --global ./artifacts/conduit-browser-0.1.0.tgz
+conduit --help
+conduit start
+```
+
+This exercises the same artifact intended for npm publication. The CI matrix also
+installs the tarball into a clean prefix and verifies extension discovery plus the
+daemon start/status/stop lifecycle.
+
 ## Extension setup
 
 ```bash
