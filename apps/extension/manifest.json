@@ -6,7 +6,7 @@
   "permissions": ["tabs", "scripting", "storage"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "background": {
-    "service_worker": "dist/background.js",
+    "service_worker": "background.js",
     "type": "module"
   },
   "action": {

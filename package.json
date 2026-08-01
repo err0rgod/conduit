@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "pnpm extension:build && playwright test",
     "test:security": "vitest run --config vitest.security.config.ts",
     "test:coverage": "vitest run --coverage",
     "docs:dev": "pnpm --filter @conduit/docs dev",
@@ -29,6 +29,7 @@
     "conduit:doctor": "node packages/cli/bin/doctor.js"
   },
   "devDependencies": {
+    "@playwright/test": "1.54.1",
     "@types/node": "^20.12.7",
     "esbuild": "0.21.5",
     "eslint": "^8.57.0",

@@ -11,9 +11,14 @@ import { LocalAuth } from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
 
 export interface DaemonOptions {
-  auth?: LocalAuth;
+  auth?: Authenticator;
   requestTimeoutMs?: number;
   maxBodyBytes?: number;
+}
+
+export interface Authenticator {
+  ensureToken(): string;
+  verifyToken(token: string): boolean;
 }
 
 interface PendingRequest {
@@ -25,7 +30,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 const DEFAULT_MAX_BODY_BYTES = 1_048_576;
 
 export class Daemon {
-  private readonly auth: LocalAuth;
+  private readonly auth: Authenticator;
   private readonly requestTimeoutMs: number;
   private readonly maxBodyBytes: number;
   private activeExtension: WebSocket | null = null;
