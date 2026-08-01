@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { ConfigStore } from '@conduit/config';
 import { getAppDataDir } from '@conduit/security';
 import { DaemonLifecycle } from './lifecycle';
+import { resolveDistributionAsset, resolveDistributionEntry } from './runtime-paths';
 
 export type DoctorCheckStatus = 'pass' | 'warn' | 'fail';
 
@@ -116,7 +117,9 @@ export async function runDoctor(
     });
   }
 
-  const extensionPath = resolvePackageSibling('@conduit/extension', 'manifest.json');
+  const extensionPath =
+    resolveDistributionAsset('extension', 'manifest.json') ??
+    resolvePackageSibling('@conduit/extension', 'manifest.json');
   checks.push({
     name: 'extension-build',
     status: extensionPath && fs.existsSync(extensionPath) ? 'pass' : 'warn',
@@ -126,7 +129,8 @@ export async function runDoctor(
         : 'Extension build is missing; run pnpm extension:build.',
   });
 
-  const mcpPath = resolvePackageSibling('@conduit/mcp-server', 'main.js');
+  const mcpPath =
+    resolveDistributionEntry('mcp.cjs') ?? resolvePackageSibling('@conduit/mcp-server', 'main.js');
   checks.push({
     name: 'mcp',
     status: mcpPath && fs.existsSync(mcpPath) ? 'pass' : 'warn',
@@ -144,7 +148,9 @@ export async function runDoctor(
 }
 
 export function resolveExtensionPath(): string {
-  const manifest = resolvePackageSibling('@conduit/extension', 'manifest.json');
+  const manifest =
+    resolveDistributionAsset('extension', 'manifest.json') ??
+    resolvePackageSibling('@conduit/extension', 'manifest.json');
   if (!manifest || !fs.existsSync(manifest)) {
     throw new Error('Extension build not found. Run pnpm extension:build first.');
   }

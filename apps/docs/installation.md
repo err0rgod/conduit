@@ -10,6 +10,22 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
+## Test the release package
+
+Maintainers can build and install the self-contained consumer tarball before it is
+published:
+
+```bash
+pnpm distribution:pack
+npm install --global ./artifacts/conduit-browser-0.1.0.tgz
+conduit --help
+conduit start
+```
+
+The tarball contains the CLI, daemon, MCP adapter, and built extension. CI installs
+it outside the monorepo and verifies the installed daemon lifecycle. Normal users
+should wait for the signed npm release instead of installing an arbitrary artifact.
+
 ## Load the Chromium extension
 
 ```bash

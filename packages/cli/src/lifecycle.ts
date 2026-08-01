@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { ConfigStore, ConduitConfig } from '@conduit/config';
 import { ConduitClient, DaemonHealth } from '@conduit/daemon-client';
 import { getAppDataDir, LocalAuth } from '@conduit/security';
+import { resolveDistributionEntry } from './runtime-paths';
 
 export interface DaemonState {
   version: 1;
@@ -212,6 +213,8 @@ export function daemonBaseUrl(config: ConduitConfig): string {
 }
 
 function resolveDaemonEntry(): string {
+  const distributionEntry = resolveDistributionEntry('daemon.cjs');
+  if (distributionEntry) return distributionEntry;
   try {
     return path.join(path.dirname(require.resolve('@conduit/daemon')), 'main.js');
   } catch {

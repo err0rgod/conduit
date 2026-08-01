@@ -1,0 +1,18 @@
+{
+  "name": "@conduit/distribution",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "typecheck": "tsc --noEmit",
+    "pack": "node pack.js",
+    "test:install": "node test-clean-install.js"
+  },
+  "devDependencies": {
+    "@conduit/cli": "workspace:*",
+    "@conduit/daemon": "workspace:*",
+    "@conduit/extension": "workspace:*",
+    "@conduit/mcp-server": "workspace:*",
+    "esbuild": "0.21.5"
+  }
+}
