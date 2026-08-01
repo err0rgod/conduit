@@ -44,7 +44,15 @@ const OPERATION_SECURITY: Record<
   'browser.get_visible_text': { permission: 'browser.read', risk: 'low' },
   'browser.click': { permission: 'browser.interact', risk: 'medium' },
   'browser.type': { permission: 'browser.forms', risk: 'medium' },
+  'browser.clear': { permission: 'browser.forms', risk: 'medium' },
+  'browser.select': { permission: 'browser.forms', risk: 'medium' },
+  'browser.hover': { permission: 'browser.interact', risk: 'low' },
+  'browser.scroll': { permission: 'browser.read', risk: 'low' },
+  'browser.press_key': { permission: 'browser.interact', risk: 'medium' },
+  'browser.wait_for': { permission: 'browser.read', risk: 'low' },
   'browser.screenshot': { permission: 'browser.read', risk: 'low' },
+  'browser.upload_file': { permission: 'browser.upload', risk: 'high' },
+  'browser.get_downloads': { permission: 'browser.download', risk: 'medium' },
 };
 
 export class SecurityPolicy {
@@ -75,10 +83,21 @@ export class SecurityPolicy {
     }
 
     const url = requestUrl(request) ?? currentUrl;
-    if (!url) return { outcome: 'allow', ...security };
+    if (!url) {
+      return security.risk === 'high'
+        ? { outcome: 'confirm', ...security, reason: `${request.type} is a high-risk operation.` }
+        : { outcome: 'allow', ...security };
+    }
     const domainDecision = this.evaluateUrl(url);
     if (domainDecision.outcome === 'allow') {
-      return { outcome: 'allow', ...security, domain: domainDecision.domain };
+      return security.risk === 'high'
+        ? {
+            outcome: 'confirm',
+            ...security,
+            domain: domainDecision.domain,
+            reason: `${request.type} is a high-risk operation.`,
+          }
+        : { outcome: 'allow', ...security, domain: domainDecision.domain };
     }
     if (domainDecision.outcome === 'deny') {
       return { ...security, ...domainDecision };

@@ -97,6 +97,61 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       properties: { ...targetSchema().properties, value: { type: 'string' } },
       required: ['value'],
     }),
+    tool('browser_clear', 'Clear an editable element. Requires browser.forms.', targetSchema()),
+    tool('browser_select', 'Select option values. Requires browser.forms.', {
+      ...targetSchema(),
+      properties: {
+        ...targetSchema().properties,
+        values: { type: 'array', items: { type: 'string' }, minItems: 1 },
+      },
+      required: ['values'],
+    }),
+    tool(
+      'browser_hover',
+      'Move the real pointer to an element. Requires browser.interact and optional debugger permission.',
+      targetSchema(),
+    ),
+    tool('browser_scroll', 'Scroll the page or a target. Requires browser.read.', {
+      ...targetSchema(),
+      properties: {
+        ...targetSchema().properties,
+        deltaX: { type: 'number' },
+        deltaY: { type: 'number' },
+      },
+    }),
+    tool(
+      'browser_press_key',
+      'Press a real browser key. Requires browser.interact and optional debugger permission.',
+      {
+        type: 'object',
+        properties: {
+          ...optionalTabProperty,
+          key: { type: 'string' },
+          modifiers: {
+            type: 'array',
+            items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] },
+          },
+        },
+        required: ['key'],
+        additionalProperties: false,
+      },
+    ),
+    tool(
+      'browser_wait_for',
+      'Wait for a selector, text, URL, or page state. Requires browser.read.',
+      {
+        type: 'object',
+        properties: {
+          ...optionalTabProperty,
+          selector: { type: 'string' },
+          text: { type: 'string' },
+          url: { type: 'string' },
+          state: { type: 'string', enum: ['loading', 'interactive', 'complete'] },
+          timeoutMs: { type: 'number' },
+        },
+        additionalProperties: false,
+      },
+    ),
     tool(
       'browser_screenshot',
       'Capture the visible tab. Requires browser.read; returns base64 image data.',
@@ -105,6 +160,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: { ...optionalTabProperty, format: { type: 'string', enum: ['png', 'jpeg'] } },
         additionalProperties: false,
       },
+    ),
+    tool(
+      'browser_upload_file',
+      'Upload allowlisted files. Requires browser.upload, confirmation, and optional debugger permission.',
+      {
+        ...targetSchema(),
+        properties: {
+          ...targetSchema().properties,
+          files: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+        },
+        required: ['files'],
+      },
+    ),
+    tool(
+      'browser_get_downloads',
+      'List recent downloads. Requires browser.download and optional downloads permission.',
+      emptySchema,
     ),
   ],
 }));
@@ -172,11 +244,54 @@ async function callBrowserTool(
         target: target(),
         text: requiredString(args, 'value'),
       });
+    case 'browser_clear':
+      return client.browser('browser.clear', {
+        ...(tabId === undefined ? {} : { tabId }),
+        target: target(),
+      });
+    case 'browser_select':
+      return client.browser('browser.select', {
+        ...(tabId === undefined ? {} : { tabId }),
+        target: target(),
+        values: requiredStrings(args, 'values'),
+      });
+    case 'browser_hover':
+      return client.browser('browser.hover', {
+        ...(tabId === undefined ? {} : { tabId }),
+        target: target(),
+      });
+    case 'browser_scroll':
+      return client.browser('browser.scroll', {
+        ...(tabId === undefined ? {} : { tabId }),
+        ...(hasTarget(args) ? { target: target() } : {}),
+        deltaX: optionalNumber(args, 'deltaX') ?? 0,
+        deltaY: optionalNumber(args, 'deltaY') ?? 0,
+      });
+    case 'browser_press_key':
+      return client.browser('browser.press_key', {
+        ...(tabId === undefined ? {} : { tabId }),
+        key: requiredString(args, 'key'),
+        modifiers: optionalStrings(args, 'modifiers') ?? [],
+      });
+    case 'browser_wait_for':
+      return client.browser('browser.wait_for', {
+        ...(tabId === undefined ? {} : { tabId }),
+        ...copyOptional(args, ['selector', 'text', 'url', 'state']),
+        timeoutMs: optionalNumber(args, 'timeoutMs') ?? 15_000,
+      });
     case 'browser_screenshot':
       return client.browser('browser.screenshot', {
         ...(tabId === undefined ? {} : { tabId }),
         format: optionalString(args, 'format') ?? 'png',
       });
+    case 'browser_upload_file':
+      return client.browser('browser.upload_file', {
+        ...(tabId === undefined ? {} : { tabId }),
+        target: target(),
+        files: requiredStrings(args, 'files'),
+      });
+    case 'browser_get_downloads':
+      return client.browser('browser.get_downloads');
     default:
       throw new Error(`Unknown Conduit tool: ${name}`);
   }
@@ -227,6 +342,28 @@ function requiredNumber(value: Record<string, unknown>, key: string): number {
   const result = optionalNumber(value, key);
   if (result === undefined) throw new Error(`${key} is required.`);
   return result;
+}
+function optionalStrings(value: Record<string, unknown>, key: string): string[] | undefined {
+  const candidate = value[key];
+  return Array.isArray(candidate) && candidate.every((item) => typeof item === 'string')
+    ? candidate
+    : undefined;
+}
+function requiredStrings(value: Record<string, unknown>, key: string): string[] {
+  const result = optionalStrings(value, key);
+  if (!result) throw new Error(`${key} is required.`);
+  return result;
+}
+function hasTarget(value: Record<string, unknown>): boolean {
+  return ['elementId', 'selector', 'role', 'label', 'text'].some((key) => value[key] !== undefined);
+}
+function copyOptional(value: Record<string, unknown>, keys: string[]): Record<string, string> {
+  return Object.fromEntries(
+    keys.flatMap((key) => {
+      const item = optionalString(value, key);
+      return item === undefined ? [] : [[key, item]];
+    }),
+  );
 }
 function content(value: unknown, isError = false) {
   return {

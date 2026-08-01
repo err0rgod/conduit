@@ -24,8 +24,10 @@ test.beforeAll(async () => {
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     response.end(`<!doctype html><html><head><title>Conduit fixture</title></head><body>
       <label for="message">Message</label><input id="message" />
+      <label for="choice">Choice</label><select id="choice"><option value="one">One</option><option value="two">Two</option></select>
       <button id="activate" onclick="document.querySelector('#result').textContent='clicked'">Activate</button>
       <output id="result">idle</output>
+      <script>setTimeout(() => { const item=document.createElement('div'); item.id='delayed'; item.textContent='ready later'; document.body.append(item); }, 250)</script>
     </body></html>`);
   });
   fixturePort = await listen(fixtureServer);
@@ -88,8 +90,10 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   if (!snapshot) throw new Error('Snapshot response did not contain a snapshot.');
   const input = snapshot.elements.find((element) => element.name === 'Message');
   const button = snapshot.elements.find((element) => element.name === 'Activate');
+  const select = snapshot.elements.find((element) => element.role === 'combobox');
   expect(input?.elementId).toBeTruthy();
   expect(button?.elementId).toBeTruthy();
+  expect(select?.elementId).toBeTruthy();
 
   expect(
     (
@@ -97,6 +101,27 @@ test('executes the browser vertical slice through the authenticated daemon', asy
         tabId,
         target: { elementId: input?.elementId },
         text: 'hello from Conduit',
+      })
+    ).success,
+  ).toBe(true);
+  expect(
+    (
+      await conduit.browser('browser.select', {
+        tabId,
+        target: { elementId: select?.elementId },
+        values: ['two'],
+      })
+    ).success,
+  ).toBe(true);
+  expect((await conduit.browser('browser.scroll', { tabId, deltaX: 0, deltaY: 200 })).success).toBe(
+    true,
+  );
+  expect(
+    (
+      await conduit.browser('browser.wait_for', {
+        tabId,
+        selector: '#delayed',
+        timeoutMs: 3_000,
       })
     ).success,
   ).toBe(true);
@@ -111,6 +136,20 @@ test('executes the browser vertical slice through the authenticated daemon', asy
 
   const finalText = await conduit.browser('browser.get_visible_text', { tabId });
   expect(finalText.success && textFrom(finalText.payload)).toContain('clicked');
+  expect(
+    (
+      await conduit.browser('browser.clear', {
+        tabId,
+        target: { elementId: input?.elementId },
+      })
+    ).success,
+  ).toBe(true);
+  const permissionFailure = await conduit.browser('browser.hover', {
+    tabId,
+    target: { elementId: button?.elementId },
+  });
+  expect(permissionFailure.success).toBe(false);
+  if (!permissionFailure.success) expect(permissionFailure.error.code).toBe('PERMISSION_DENIED');
   const screenshot = await conduit.browser('browser.screenshot', { tabId, format: 'png' });
   if (!screenshot.success) throw new Error(`${screenshot.error.code}: ${screenshot.error.message}`);
   expect(screenshotData(screenshot.payload).length).toBeGreaterThan(100);
@@ -161,12 +200,15 @@ function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): 
 
 function snapshotFrom(payload: unknown): {
   title: string;
-  elements: Array<{ elementId: string; name: string }>;
+  elements: Array<{ elementId: string; name: string; role?: string }>;
 } | null {
   return (
     (
       payload as {
-        snapshot: { title: string; elements: Array<{ elementId: string; name: string }> };
+        snapshot: {
+          title: string;
+          elements: Array<{ elementId: string; name: string; role?: string }>;
+        };
       }
     ).snapshot ?? null
   );

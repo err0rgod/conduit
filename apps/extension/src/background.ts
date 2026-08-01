@@ -151,9 +151,49 @@ async function executeBrowserRequest(request: BrowserRequestEnvelope): Promise<v
         sendToDaemon(createSuccessResponse({ typed: true }, request.id));
         return;
       }
+      case 'browser.clear': {
+        await browserEngine.clear(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ cleared: true }, request.id));
+        return;
+      }
+      case 'browser.select': {
+        await browserEngine.select(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ selected: true }, request.id));
+        return;
+      }
+      case 'browser.hover': {
+        await browserEngine.hover(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ hovered: true }, request.id));
+        return;
+      }
+      case 'browser.scroll': {
+        await browserEngine.scroll(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ scrolled: true }, request.id));
+        return;
+      }
+      case 'browser.press_key': {
+        await browserEngine.pressKey(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ pressed: true }, request.id));
+        return;
+      }
+      case 'browser.wait_for': {
+        await browserEngine.waitFor(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ matched: true }, request.id));
+        return;
+      }
       case 'browser.screenshot': {
         const screenshot = await browserEngine.screenshot(request.payload, request.payload.format);
         sendToDaemon(createSuccessResponse({ screenshot }, request.id));
+        return;
+      }
+      case 'browser.upload_file': {
+        await browserEngine.uploadFile(request.payload, request.payload);
+        sendToDaemon(createSuccessResponse({ uploaded: true }, request.id));
+        return;
+      }
+      case 'browser.get_downloads': {
+        const downloads = await browserEngine.getDownloads();
+        sendToDaemon(createSuccessResponse({ downloads }, request.id));
         return;
       }
     }
