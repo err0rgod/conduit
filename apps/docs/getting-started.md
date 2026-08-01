@@ -12,7 +12,7 @@ The daemon listens on `127.0.0.1:9222` by default. It generates a local token in
 
 ## Prerequisites
 
-- Node.js 20 or newer
+- Node.js 22 or newer (Node 24 LTS recommended)
 - pnpm 9.15.9 through Corepack
 - Chrome, Edge, or another Chromium browser that supports Manifest V3
 - Git for source installation

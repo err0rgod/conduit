@@ -17,7 +17,7 @@ pnpm build
 pnpm test
 ```
 
-Node 20+ and pnpm 9.15.9 are required. Load `apps/extension/dist` as an unpacked extension for manual browser testing.
+Node 22+ and pnpm 9.15.9 are required. Node 24 LTS is recommended. Load `apps/extension/dist` as an unpacked extension for manual browser testing.
 
 ## Standards
 

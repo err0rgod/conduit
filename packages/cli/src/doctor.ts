@@ -25,8 +25,8 @@ export async function runDoctor(
   const nodeMajor = Number(process.versions.node.split('.')[0]);
   checks.push({
     name: 'node',
-    status: nodeMajor >= 20 ? 'pass' : 'fail',
-    message: `Node ${process.versions.node}${nodeMajor >= 20 ? ' is supported.' : ' is unsupported; use Node 20 or newer.'}`,
+    status: nodeMajor >= 22 ? 'pass' : 'fail',
+    message: `Node ${process.versions.node}${nodeMajor >= 22 ? ' is supported.' : ' is unsupported; use Node 22 or newer.'}`,
   });
   checks.push({
     name: 'package-manager',

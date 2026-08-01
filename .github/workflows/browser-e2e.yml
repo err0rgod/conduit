@@ -1,0 +1,67 @@
+name: Browser E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/daemon/**'
+      - 'apps/extension/**'
+      - 'packages/browser-core/**'
+      - 'packages/daemon-client/**'
+      - 'packages/protocol/**'
+      - 'packages/security/**'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/browser-e2e.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/daemon/**'
+      - 'apps/extension/**'
+      - 'packages/browser-core/**'
+      - 'packages/daemon-client/**'
+      - 'packages/protocol/**'
+      - 'packages/security/**'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run extension E2E
+        run: xvfb-run --auto-servernum pnpm test:e2e
+      - name: Upload failure report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
