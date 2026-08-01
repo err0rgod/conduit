@@ -6,9 +6,14 @@ import {
   ErrorCode,
   PageSnapshot,
   ScreenshotResult,
+  ScrollAction,
+  SelectAction,
   SnapshotRequest,
   TabTarget,
   TypeAction,
+  UploadFileAction,
+  WaitForAction,
+  PressKeyAction,
 } from '@conduit/protocol';
 
 export class BrowserActionError extends Error {
@@ -35,7 +40,15 @@ export interface BrowserActionEngine {
   getVisibleText(target: BrowserTarget): Promise<string>;
   click(target: BrowserTarget, action: ClickAction): Promise<void>;
   type(target: BrowserTarget, action: TypeAction): Promise<void>;
+  clear(target: BrowserTarget, action: { target: ElementTarget }): Promise<void>;
+  select(target: BrowserTarget, action: SelectAction): Promise<void>;
+  hover(target: BrowserTarget, action: { target: ElementTarget }): Promise<void>;
+  scroll(target: BrowserTarget, action: ScrollAction): Promise<void>;
+  pressKey(target: BrowserTarget, action: PressKeyAction): Promise<void>;
+  waitFor(target: BrowserTarget, action: WaitForAction): Promise<void>;
   screenshot(target: BrowserTarget, format?: 'png' | 'jpeg'): Promise<ScreenshotResult>;
+  uploadFile(target: BrowserTarget, action: UploadFileAction): Promise<void>;
+  getDownloads(): Promise<Array<{ id: number; filename: string; url: string; state: string }>>;
 }
 
 interface InPageActionResult {
@@ -54,7 +67,13 @@ type PageActionRequest =
     }
   | { operation: 'visible-text' }
   | { operation: 'click'; target: ElementTarget }
-  | { operation: 'type'; target: ElementTarget; text: string };
+  | { operation: 'type'; target: ElementTarget; text: string }
+  | { operation: 'clear'; target: ElementTarget }
+  | { operation: 'select'; target: ElementTarget; values: string[] }
+  | { operation: 'scroll'; target?: ElementTarget; deltaX: number; deltaY: number }
+  | { operation: 'wait'; action: WaitForAction }
+  | { operation: 'bounds'; target: ElementTarget }
+  | { operation: 'selector'; target: ElementTarget };
 
 const MAX_SNAPSHOT_ELEMENTS = 200;
 const MAX_VISIBLE_TEXT_LENGTH = 20_000;
@@ -139,6 +158,84 @@ export class ExtensionBrowserEngine implements BrowserActionEngine {
     assertActionResult(result as InPageActionResult);
   }
 
+  public async clear(target: BrowserTarget, action: { target: ElementTarget }): Promise<void> {
+    const tabId = await this.resolveTabId(target);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'clear', target: action.target },
+    ]);
+    assertActionResult(result as InPageActionResult);
+  }
+
+  public async select(target: BrowserTarget, action: SelectAction): Promise<void> {
+    const tabId = await this.resolveTabId(target);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'select', target: action.target, values: action.values },
+    ]);
+    assertActionResult(result as InPageActionResult);
+  }
+
+  public async scroll(target: BrowserTarget, action: ScrollAction): Promise<void> {
+    const tabId = await this.resolveTabId(target);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      {
+        operation: 'scroll',
+        ...(action.target ? { target: action.target } : {}),
+        deltaX: action.deltaX,
+        deltaY: action.deltaY,
+      },
+    ]);
+    assertActionResult(result as InPageActionResult);
+  }
+
+  public async waitFor(target: BrowserTarget, action: WaitForAction): Promise<void> {
+    const tabId = await this.resolveTabId(target);
+    const result = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'wait', action },
+    ]);
+    assertActionResult(result as InPageActionResult);
+  }
+
+  public async hover(target: BrowserTarget, action: { target: ElementTarget }): Promise<void> {
+    await requireOptionalPermission('debugger');
+    const tabId = await this.resolveTabId(target);
+    const bounds = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'bounds', target: action.target },
+    ]);
+    if (!isPoint(bounds)) {
+      assertActionResult(bounds as InPageActionResult);
+      return;
+    }
+    await withDebugger(tabId, async (debuggee) => {
+      await chrome.debugger.sendCommand(debuggee, 'Input.dispatchMouseEvent', {
+        type: 'mouseMoved',
+        x: bounds.x,
+        y: bounds.y,
+      });
+    });
+  }
+
+  public async pressKey(target: BrowserTarget, action: PressKeyAction): Promise<void> {
+    await requireOptionalPermission('debugger');
+    const tabId = await this.resolveTabId(target);
+    const modifiers = action.modifiers.reduce(
+      (mask, modifier) => mask | ({ Alt: 1, Control: 2, Meta: 4, Shift: 8 }[modifier] ?? 0),
+      0,
+    );
+    await withDebugger(tabId, async (debuggee) => {
+      await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
+        type: 'keyDown',
+        key: action.key,
+        text: action.key.length === 1 ? action.key : undefined,
+        modifiers,
+      });
+      await chrome.debugger.sendCommand(debuggee, 'Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        key: action.key,
+        modifiers,
+      });
+    });
+  }
+
   public async screenshot(
     target: BrowserTarget,
     format: 'png' | 'jpeg' = 'png',
@@ -149,6 +246,51 @@ export class ExtensionBrowserEngine implements BrowserActionEngine {
 
     const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format });
     return normalizeDataUrl(dataUrl);
+  }
+
+  public async uploadFile(target: BrowserTarget, action: UploadFileAction): Promise<void> {
+    await requireOptionalPermission('debugger');
+    const tabId = await this.resolveTabId(target);
+    const selector = await this.runInTab(tabId, executePageActionInPage, [
+      { operation: 'selector', target: action.target },
+    ]);
+    if (typeof selector !== 'string') {
+      assertActionResult(selector as InPageActionResult);
+      return;
+    }
+    await withDebugger(tabId, async (debuggee) => {
+      const documentResult = await chrome.debugger.sendCommand(debuggee, 'DOM.getDocument', {
+        depth: -1,
+        pierce: true,
+      });
+      const rootNodeId = nestedNumber(documentResult, 'root', 'nodeId');
+      if (rootNodeId === undefined) {
+        throw new BrowserActionError('FRAME_NOT_FOUND', 'Debugger did not return a document root.');
+      }
+      const queryResult = await chrome.debugger.sendCommand(debuggee, 'DOM.querySelector', {
+        nodeId: rootNodeId,
+        selector,
+      });
+      const nodeId = objectNumber(queryResult, 'nodeId');
+      if (!nodeId) throw new BrowserActionError('ELEMENT_NOT_FOUND', 'Upload input was not found.');
+      await chrome.debugger.sendCommand(debuggee, 'DOM.setFileInputFiles', {
+        nodeId,
+        files: action.files,
+      });
+    });
+  }
+
+  public async getDownloads(): Promise<
+    Array<{ id: number; filename: string; url: string; state: string }>
+  > {
+    await requireOptionalPermission('downloads');
+    const downloads = await chrome.downloads.search({ orderBy: ['-startTime'], limit: 100 });
+    return downloads.map((download) => ({
+      id: download.id,
+      filename: download.filename,
+      url: download.url,
+      state: download.state,
+    }));
   }
 
   private async resolveTabId(target: BrowserTarget): Promise<number> {
@@ -183,6 +325,54 @@ export class ExtensionBrowserEngine implements BrowserActionEngine {
     }
     return first.result as Result;
   }
+}
+
+async function requireOptionalPermission(permission: 'debugger' | 'downloads'): Promise<void> {
+  const granted = await chrome.permissions.contains({ permissions: [permission] });
+  if (!granted) {
+    throw new BrowserActionError(
+      'PERMISSION_DENIED',
+      `The optional Chromium ${permission} permission has not been granted.`,
+    );
+  }
+}
+
+async function withDebugger(
+  tabId: number,
+  action: (debuggee: chrome.debugger.Debuggee) => Promise<void>,
+): Promise<void> {
+  const debuggee = { tabId };
+  await chrome.debugger.attach(debuggee, '1.3');
+  try {
+    await action(debuggee);
+  } finally {
+    await chrome.debugger.detach(debuggee).catch(() => undefined);
+  }
+}
+
+function isPoint(value: unknown): value is { x: number; y: number } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'x' in value &&
+    typeof value.x === 'number' &&
+    'y' in value &&
+    typeof value.y === 'number'
+  );
+}
+
+function objectNumber(value: object, key: string): number | undefined {
+  if (key in value) {
+    const candidate = (value as Record<string, unknown>)[key];
+    return typeof candidate === 'number' ? candidate : undefined;
+  }
+  return undefined;
+}
+
+function nestedNumber(value: object, parent: string, key: string): number | undefined {
+  if (!(parent in value)) return undefined;
+  const nested = (value as Record<string, unknown>)[parent];
+  return typeof nested === 'object' && nested !== null ? objectNumber(nested, key) : undefined;
 }
 
 export function normalizeDataUrl(dataUrl: string): ScreenshotResult {
@@ -227,9 +417,9 @@ function assertActionResult(result: InPageActionResult): void {
 
 // chrome.scripting serializes only the supplied function. Keep every browser-page
 // dependency inside this function so the real execution environment has no module closure.
-function executePageActionInPage(
+async function executePageActionInPage(
   request: PageActionRequest,
-): PageSnapshot | string | InPageActionResult {
+): Promise<PageSnapshot | string | InPageActionResult | { x: number; y: number }> {
   const normalize = (value: string) => value.replace(/\s+/gu, ' ').trim();
   const disabled = (element: Element) =>
     ('disabled' in element && Boolean((element as { disabled?: boolean }).disabled)) ||
@@ -274,7 +464,12 @@ function executePageActionInPage(
         .join(' ');
       if (value.trim()) return normalize(value);
     }
-    if (element instanceof HTMLInputElement && element.labels?.length) {
+    if (
+      (element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement) &&
+      element.labels?.length
+    ) {
       return normalize(
         Array.from(element.labels)
           .map((label) => label.textContent ?? '')
@@ -417,6 +612,120 @@ function executePageActionInPage(
       code: 'ELEMENT_NOT_INTERACTABLE',
       message: 'Target element does not accept text input.',
     };
+  }
+
+  if (request.operation === 'clear') {
+    const element = resolve(request.target);
+    if (!element) {
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_FOUND',
+        message: 'Could not resolve the target element.',
+      };
+    }
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      const prototype =
+        element instanceof HTMLInputElement
+          ? HTMLInputElement.prototype
+          : HTMLTextAreaElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+      if (setter) setter.call(element, '');
+      else element.value = '';
+      element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContent' }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      return { ok: true };
+    }
+    if (element instanceof HTMLElement && element.isContentEditable) {
+      element.textContent = '';
+      element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContent' }));
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      code: 'ELEMENT_NOT_INTERACTABLE',
+      message: 'Target element cannot be cleared.',
+    };
+  }
+
+  if (request.operation === 'select') {
+    const element = resolve(request.target);
+    if (!(element instanceof HTMLSelectElement)) {
+      return {
+        ok: false,
+        code: element ? 'ELEMENT_NOT_INTERACTABLE' : 'ELEMENT_NOT_FOUND',
+        message: 'Target is not a select element.',
+      };
+    }
+    const wanted = new Set(request.values);
+    let matched = false;
+    for (const option of Array.from(element.options)) {
+      option.selected = wanted.has(option.value) || wanted.has(option.label);
+      matched ||= option.selected;
+    }
+    if (!matched)
+      return { ok: false, code: 'ELEMENT_NOT_FOUND', message: 'No requested option was found.' };
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    return { ok: true };
+  }
+
+  if (request.operation === 'scroll') {
+    const element = request.target ? resolve(request.target) : null;
+    if (request.target && !element) {
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_FOUND',
+        message: 'Could not resolve the scroll target.',
+      };
+    }
+    if (element instanceof HTMLElement) {
+      element.scrollBy({ left: request.deltaX, top: request.deltaY, behavior: 'instant' });
+    } else {
+      window.scrollBy({ left: request.deltaX, top: request.deltaY, behavior: 'instant' });
+    }
+    return { ok: true };
+  }
+
+  if (request.operation === 'bounds' || request.operation === 'selector') {
+    const element = resolve(request.target);
+    if (!(element instanceof HTMLElement)) {
+      return {
+        ok: false,
+        code: 'ELEMENT_NOT_FOUND',
+        message: 'Could not resolve the target element.',
+      };
+    }
+    if (request.operation === 'selector') return pathOf(element);
+    const rect = element.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }
+
+  if (request.operation === 'wait') {
+    const started = Date.now();
+    const conditionMet = () => {
+      try {
+        return (
+          (!request.action.selector || document.querySelector(request.action.selector) !== null) &&
+          (!request.action.text ||
+            (document.body?.innerText ?? '').includes(request.action.text)) &&
+          (!request.action.url || document.URL.includes(request.action.url)) &&
+          (!request.action.state || document.readyState === request.action.state)
+        );
+      } catch {
+        return false;
+      }
+    };
+    while (!conditionMet()) {
+      if (Date.now() - started >= request.action.timeoutMs) {
+        return {
+          ok: false,
+          code: 'ACTION_TIMEOUT',
+          message: 'Page condition was not met before timeout.',
+        };
+      }
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+    }
+    return { ok: true };
   }
 
   const selector = [

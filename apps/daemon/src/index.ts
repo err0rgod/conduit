@@ -8,7 +8,14 @@ import {
   createErrorResponse,
   createSuccessResponse,
 } from '@conduit/protocol';
-import { AuditLogger, ConfirmationManager, LocalAuth, SecurityPolicy } from '@conduit/security';
+import {
+  AuditLogger,
+  ConfirmationManager,
+  FileAccessError,
+  LocalAuth,
+  SecurityPolicy,
+  validateUploadPaths,
+} from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
 
 export interface DaemonOptions {
@@ -18,6 +25,8 @@ export interface DaemonOptions {
   policy?: SecurityPolicy;
   confirmations?: ConfirmationManager;
   audit?: AuditLogger;
+  uploadAllowlist?: string[];
+  maxUploadFileBytes?: number;
 }
 
 export interface Authenticator {
@@ -40,6 +49,8 @@ export class Daemon {
   private readonly policy: SecurityPolicy;
   private readonly confirmations: ConfirmationManager;
   private readonly audit: AuditLogger;
+  private readonly uploadAllowlist: string[];
+  private readonly maxUploadFileBytes: number;
   private readonly tabUrls = new Map<number, string>();
   private activeTabId: number | null = null;
   private activeExtension: WebSocket | null = null;
@@ -54,6 +65,8 @@ export class Daemon {
     this.policy = options.policy ?? new SecurityPolicy();
     this.confirmations = options.confirmations ?? new ConfirmationManager();
     this.audit = options.audit ?? new AuditLogger();
+    this.uploadAllowlist = options.uploadAllowlist ?? [];
+    this.maxUploadFileBytes = options.maxUploadFileBytes ?? 10 * 1024 * 1024;
   }
 
   public async start(port = 0): Promise<number> {
@@ -179,13 +192,46 @@ export class Daemon {
       return;
     }
 
-    const decision = this.policy.authorize(request.data, this.currentUrlFor(request.data));
+    let browserRequest = request.data;
+    if (browserRequest.type === 'browser.upload_file') {
+      try {
+        browserRequest = {
+          ...browserRequest,
+          payload: {
+            ...browserRequest.payload,
+            files: validateUploadPaths(
+              browserRequest.payload.files,
+              this.uploadAllowlist,
+              this.maxUploadFileBytes,
+            ),
+          },
+        };
+      } catch (error) {
+        const message =
+          error instanceof FileAccessError ? error.message : 'Upload path validation failed.';
+        this.audit.log({
+          type: 'file.upload',
+          outcome: 'denied',
+          requestId: browserRequest.id,
+          operation: browserRequest.type,
+          details: { reason: message },
+        });
+        this.writeJson(
+          res,
+          403,
+          createErrorResponse('FILE_ACCESS_DENIED', message, browserRequest.id),
+        );
+        return;
+      }
+    }
+
+    const decision = this.policy.authorize(browserRequest, this.currentUrlFor(browserRequest));
     if (decision.outcome === 'deny') {
       this.audit.log({
         type: 'permission.decision',
         outcome: 'denied',
-        requestId: request.data.id,
-        operation: request.data.type,
+        requestId: browserRequest.id,
+        operation: browserRequest.type,
         domain: decision.domain,
         details: { permission: decision.permission, reason: decision.reason },
       });
@@ -195,7 +241,7 @@ export class Daemon {
         createErrorResponse(
           decision.domain ? 'DOMAIN_NOT_ALLOWED' : 'PERMISSION_DENIED',
           decision.reason,
-          request.data.id,
+          browserRequest.id,
         ),
       );
       return;
@@ -204,10 +250,10 @@ export class Daemon {
     if (decision.outcome === 'confirm') {
       const header = req.headers['x-conduit-confirmation'];
       const confirmationId = typeof header === 'string' ? header : '';
-      if (!this.confirmations.consume(confirmationId, request.data.type)) {
+      if (!this.confirmations.consume(confirmationId, browserRequest.type)) {
         const confirmation = this.confirmations.create(
-          request.data.id,
-          request.data.type,
+          browserRequest.id,
+          browserRequest.type,
           decision.risk,
           decision.reason,
           decision.domain,
@@ -215,14 +261,14 @@ export class Daemon {
         this.audit.log({
           type: 'confirmation.requested',
           outcome: 'pending',
-          requestId: request.data.id,
-          operation: request.data.type,
+          requestId: browserRequest.id,
+          operation: browserRequest.type,
           domain: decision.domain,
         });
         this.writeJson(
           res,
           409,
-          createErrorResponse('USER_CONFIRMATION_REQUIRED', decision.reason, request.data.id, {
+          createErrorResponse('USER_CONFIRMATION_REQUIRED', decision.reason, browserRequest.id, {
             confirmation,
           }),
         );
@@ -242,14 +288,14 @@ export class Daemon {
       return;
     }
 
-    const response = await this.forwardToExtension(request.data);
-    this.recordBrowserState(request.data, response);
+    const response = await this.forwardToExtension(browserRequest);
+    this.recordBrowserState(browserRequest, response);
     this.audit.log({
       type: 'browser.action',
       outcome: response.success ? 'success' : 'failure',
-      requestId: request.data.id,
+      requestId: browserRequest.id,
       correlationId: response.correlationId,
-      operation: request.data.type,
+      operation: browserRequest.type,
       domain: decision.domain,
       ...(!response.success ? { details: { errorCode: response.error.code } } : {}),
     });

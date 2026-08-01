@@ -266,6 +266,65 @@ export const BrowserTypeRequestSchema = EnvelopeBaseSchema.extend({
   }).strict(),
 }).strict();
 
+export const BrowserElementRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.enum(['browser.clear', 'browser.hover']),
+  payload: BrowserTargetSchema.extend({ target: ElementTargetSchema }).strict(),
+}).strict();
+
+export const BrowserSelectRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.select'),
+  payload: BrowserTargetSchema.extend({
+    target: ElementTargetSchema,
+    values: z.array(z.string()).min(1).max(100),
+  }).strict(),
+}).strict();
+
+export const BrowserScrollRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.scroll'),
+  payload: BrowserTargetSchema.extend({
+    target: ElementTargetSchema.optional(),
+    deltaX: z.number().finite().default(0),
+    deltaY: z.number().finite().default(0),
+  }).strict(),
+}).strict();
+
+export const BrowserPressKeyRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.press_key'),
+  payload: BrowserTargetSchema.extend({
+    key: z.string().min(1).max(100),
+    modifiers: z
+      .array(z.enum(['Alt', 'Control', 'Meta', 'Shift']))
+      .max(4)
+      .default([]),
+  }).strict(),
+}).strict();
+
+export const BrowserWaitForRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.wait_for'),
+  payload: BrowserTargetSchema.extend({
+    selector: z.string().min(1).optional(),
+    text: z.string().min(1).optional(),
+    url: z.string().min(1).optional(),
+    state: z.enum(['loading', 'interactive', 'complete']).optional(),
+    timeoutMs: z.number().int().positive().max(120_000).default(15_000),
+  }).refine((value) => Boolean(value.selector || value.text || value.url || value.state), {
+    message: 'At least one wait condition is required.',
+  }),
+}).strict();
+
+export const BrowserUploadFileRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.upload_file'),
+  payload: BrowserTargetSchema.extend({
+    target: ElementTargetSchema,
+    files: z.array(z.string().min(1)).min(1).max(20),
+  }).strict(),
+}).strict();
+
+export const BrowserGetDownloadsRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.get_downloads'),
+  payload: z.object({}).strict().optional().default({}),
+}).strict();
+
 export const BrowserScreenshotRequestSchema = EnvelopeBaseSchema.extend({
   type: z.literal('browser.screenshot'),
   payload: BrowserTargetSchema.extend({
@@ -286,6 +345,13 @@ export const BrowserRequestEnvelopeSchema = z.discriminatedUnion('type', [
   BrowserVisibleTextRequestSchema,
   BrowserClickRequestSchema,
   BrowserTypeRequestSchema,
+  BrowserElementRequestSchema,
+  BrowserSelectRequestSchema,
+  BrowserScrollRequestSchema,
+  BrowserPressKeyRequestSchema,
+  BrowserWaitForRequestSchema,
+  BrowserUploadFileRequestSchema,
+  BrowserGetDownloadsRequestSchema,
   BrowserScreenshotRequestSchema,
 ]);
 
@@ -391,6 +457,11 @@ export type SnapshotRequest = z.infer<typeof BrowserSnapshotRequestSchema>['payl
 export type NavigateAction = z.infer<typeof BrowserNavigateRequestSchema>['payload'];
 export type ClickAction = z.infer<typeof BrowserClickRequestSchema>['payload'];
 export type TypeAction = z.infer<typeof BrowserTypeRequestSchema>['payload'];
+export type SelectAction = z.infer<typeof BrowserSelectRequestSchema>['payload'];
+export type ScrollAction = z.infer<typeof BrowserScrollRequestSchema>['payload'];
+export type PressKeyAction = z.infer<typeof BrowserPressKeyRequestSchema>['payload'];
+export type WaitForAction = z.infer<typeof BrowserWaitForRequestSchema>['payload'];
+export type UploadFileAction = z.infer<typeof BrowserUploadFileRequestSchema>['payload'];
 export type SnapshotElement = z.infer<typeof SnapshotElementSchema>;
 export type PageSnapshot = z.infer<typeof PageSnapshotSchema>;
 export type ScreenshotResult = z.infer<typeof ScreenshotResultSchema>;

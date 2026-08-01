@@ -79,6 +79,80 @@ export function createProgram(client = new ConduitClient()): Command {
         text: value,
       }),
   );
+  addElementOptions(
+    browser.command('clear').description('Clear an input or editable element'),
+  ).action((options: ElementOptions) =>
+    run(client, 'browser.clear', { ...optionalTab(options), target: elementTarget(options) }),
+  );
+  addElementOptions(
+    browser.command('select <values...>').description('Select one or more option values'),
+  ).action((values: string[], options: ElementOptions) =>
+    run(client, 'browser.select', {
+      ...optionalTab(options),
+      target: elementTarget(options),
+      values,
+    }),
+  );
+  addElementOptions(
+    browser.command('hover').description('Move the browser pointer to an element'),
+  ).action((options: ElementOptions) =>
+    run(client, 'browser.hover', { ...optionalTab(options), target: elementTarget(options) }),
+  );
+  addElementOptions(browser.command('scroll').description('Scroll the page or an element'))
+    .option('--x <pixels>', 'Horizontal delta', '0')
+    .option('--y <pixels>', 'Vertical delta', '0')
+    .action((options: ElementOptions & { x: string; y: string }) =>
+      run(client, 'browser.scroll', {
+        ...optionalTab(options),
+        ...(optionalElementTarget(options) ? { target: optionalElementTarget(options) } : {}),
+        deltaX: Number(options.x),
+        deltaY: Number(options.y),
+      }),
+    );
+  browser
+    .command('key <key>')
+    .description('Press a browser key using the optional debugger permission')
+    .option('--tab <id>', 'Target tab ID')
+    .option('--modifier <modifier...>', 'Alt, Control, Meta, or Shift')
+    .action((key: string, options: TabOptions & { modifier?: string[] }) =>
+      run(client, 'browser.press_key', {
+        ...optionalTab(options),
+        key,
+        modifiers: options.modifier ?? [],
+      }),
+    );
+  browser
+    .command('wait')
+    .description('Wait for a selector, text, URL fragment, or loading state')
+    .option('--tab <id>', 'Target tab ID')
+    .option('--selector <css>', 'CSS selector')
+    .option('--text <text>', 'Visible text')
+    .option('--url <fragment>', 'URL fragment')
+    .option('--state <state>', 'loading, interactive, or complete')
+    .option('--timeout <ms>', 'Timeout in milliseconds', '15000')
+    .action((options: TabOptions & Record<string, string>) =>
+      run(client, 'browser.wait_for', {
+        ...optionalTab(options),
+        ...(options.selector ? { selector: options.selector } : {}),
+        ...(options.text ? { text: options.text } : {}),
+        ...(options.url ? { url: options.url } : {}),
+        ...(options.state ? { state: options.state } : {}),
+        timeoutMs: Number(options.timeout),
+      }),
+    );
+  addElementOptions(
+    browser.command('upload <files...>').description('Upload allowlisted files after confirmation'),
+  ).action((files: string[], options: ElementOptions) =>
+    run(client, 'browser.upload_file', {
+      ...optionalTab(options),
+      target: elementTarget(options),
+      files,
+    }),
+  );
+  browser
+    .command('downloads')
+    .description('List recent browser downloads')
+    .action(() => run(client, 'browser.get_downloads'));
   browser
     .command('screenshot')
     .description('Capture the visible tab')
@@ -137,6 +211,14 @@ function elementTarget(options: ElementOptions): ElementTarget {
   if (options.label) return { label: options.label };
   if (options.text) return { text: options.text };
   throw new Error('Provide --element, --selector, --role with --name, --label, or --text.');
+}
+
+function optionalElementTarget(options: ElementOptions): ElementTarget | undefined {
+  try {
+    return elementTarget(options);
+  } catch {
+    return undefined;
+  }
 }
 
 async function run(
