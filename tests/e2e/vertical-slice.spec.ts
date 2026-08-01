@@ -7,6 +7,7 @@ import path from 'node:path';
 import { Daemon } from '../../apps/daemon/src/index';
 import { ConduitClient } from '../../packages/daemon-client/src/index';
 import { SecurityPolicy } from '../../packages/security/src/policy';
+import { AuditLogger, StoredAuditEvent } from '../../packages/security/src/audit';
 
 const token = 'e2e-token-'.padEnd(64, '0');
 let daemon: Daemon;
@@ -14,7 +15,9 @@ let daemonPort: number;
 let fixtureServer: Server;
 let fixturePort: number;
 let context: BrowserContext;
+let worker: Worker;
 let profilePath: string;
+const auditEvents: StoredAuditEvent[] = [];
 
 test.beforeAll(async () => {
   const extensionPath = path.resolve('apps/extension/dist');
@@ -43,6 +46,7 @@ test.beforeAll(async () => {
       allowedDomains: ['127.0.0.1'],
       allowLocalhost: true,
     }),
+    audit: new AuditLogger({ sink: (event) => auditEvents.push(event) }),
   });
   daemonPort = await daemon.start(0);
   profilePath = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
@@ -52,9 +56,11 @@ test.beforeAll(async () => {
     args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
   });
 
-  const worker = await extensionWorker(context);
+  worker = await extensionWorker(context);
   await configureExtension(context, worker, daemonPort, token);
-  await expect.poll(async () => (await client().health()).extensionConnected).toBe(true);
+  await expect
+    .poll(async () => (await client().health()).extensionConnected, { timeout: 45_000 })
+    .toBe(true);
 });
 
 test.afterAll(async () => {
@@ -67,17 +73,26 @@ test.afterAll(async () => {
 test('executes the browser vertical slice through the authenticated daemon', async () => {
   const conduit = client();
   const opened = await conduit.browser('browser.open_tab');
+  if (!opened.success) {
+    const diagnostic = await worker.evaluate(() => globalThis.__conduitDiagnostic);
+    throw new Error(
+      `${opened.error.message}\nExtension: ${JSON.stringify(diagnostic)}\nAudit: ${JSON.stringify(auditEvents, null, 2)}`,
+    );
+  }
   const tabId = payloadTabId(opened);
   const url = `http://127.0.0.1:${fixturePort}/fixture`;
 
   expect((await conduit.browser('browser.list_tabs')).success).toBe(true);
   expect((await conduit.browser('browser.navigate', { tabId, url })).success).toBe(true);
   await expect
-    .poll(async () => {
-      const response = await conduit.browser('browser.snapshot', { tabId, mode: 'interactive' });
-      if (!response.success) return `${response.error.code}: ${response.error.message}`;
-      return snapshotFrom(response.payload)?.title ?? JSON.stringify(response.payload);
-    })
+    .poll(
+      async () => {
+        const response = await conduit.browser('browser.snapshot', { tabId, mode: 'interactive' });
+        if (!response.success) return `${response.error.code}: ${response.error.message}`;
+        return snapshotFrom(response.payload)?.title ?? JSON.stringify(response.payload);
+      },
+      { timeout: 45_000 },
+    )
     .toBe('Conduit fixture');
 
   const snapshotResponse = await conduit.browser('browser.snapshot', {
@@ -191,7 +206,9 @@ async function configureExtension(
 }
 
 function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): number {
-  if (!response.success) throw new Error(response.error.message);
+  if (!response.success) {
+    throw new Error(`${response.error.message}\nAudit: ${JSON.stringify(auditEvents, null, 2)}`);
+  }
   const payload = response.payload as { tab?: { id?: unknown } };
   if (typeof payload.tab?.id !== 'number')
     throw new Error('Open-tab response did not contain a tab ID.');

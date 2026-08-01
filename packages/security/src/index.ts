@@ -1,25 +1,15 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
-
-export function getAppDataDir(): string {
-  const platform = os.platform();
-  const homedir = os.homedir();
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || path.join(homedir, 'AppData', 'Roaming'), 'Conduit');
-  }
-  if (platform === 'darwin') {
-    return path.join(homedir, 'Library', 'Application Support', 'Conduit');
-  }
-  return path.join(homedir, '.config', 'conduit');
-}
+import { getAppDataDir } from './storage';
 
 export * from './audit';
 export * from './confirmation';
 export * from './policy';
 export * from './paths';
+export * from './pairing';
 export * from './rate-limit';
+export * from './storage';
 
 export function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');

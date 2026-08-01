@@ -4,6 +4,8 @@ import {
   ConfirmationRequestSchema,
   ConfirmationResponseSchema,
   PageSnapshotSchema,
+  PairingRequestSchema,
+  RemoteAuthenticationSchema,
   RequestEnvelopeSchema,
   ResponseEnvelopeSchema,
   createErrorResponse,
@@ -99,6 +101,43 @@ describe('Confirmations', () => {
       ConfirmationResponseSchema.safeParse({ confirmationId: baseEnvelope.id, approved: true })
         .success,
     ).toBe(true);
+  });
+});
+
+describe('Remote device protocol', () => {
+  it('accepts typed pairing permissions and rejects unknown escalation attempts', () => {
+    const request = {
+      code: 'ABCDEFG2',
+      publicKey: 'A'.repeat(128),
+      deviceName: 'Work laptop',
+      requestedPermissions: ['browser.read'],
+    };
+    expect(PairingRequestSchema.safeParse(request).success).toBe(true);
+    expect(
+      PairingRequestSchema.safeParse({
+        ...request,
+        requestedPermissions: ['browser.root'],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('validates signed challenge metadata at the trust boundary', () => {
+    expect(
+      RemoteAuthenticationSchema.safeParse({
+        deviceId: baseEnvelope.id,
+        challengeId: '223e4567-e89b-12d3-a456-426614174000',
+        requestDigest: 'a'.repeat(64),
+        signature: 'A'.repeat(128),
+      }).success,
+    ).toBe(true);
+    expect(
+      RemoteAuthenticationSchema.safeParse({
+        deviceId: baseEnvelope.id,
+        challengeId: 'not-a-uuid',
+        requestDigest: 'not-a-digest',
+        signature: 'invalid signature',
+      }).success,
+    ).toBe(false);
   });
 });
 

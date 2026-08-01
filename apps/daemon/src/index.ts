@@ -1,8 +1,16 @@
 import * as http from 'http';
+import * as https from 'https';
+import * as crypto from 'node:crypto';
 import {
   AuthMessageSchema,
   BrowserRequestEnvelopeSchema,
   ConfirmationResponseSchema,
+  DeviceRevocationRequestSchema,
+  PairingDecisionSchema,
+  PairingRequestSchema,
+  Permission,
+  RemoteAuthenticationSchema,
+  RemoteChallengeRequestSchema,
   ResponseEnvelope,
   ResponseEnvelopeSchema,
   createErrorResponse,
@@ -13,8 +21,14 @@ import {
   ConfirmationManager,
   FileAccessError,
   LocalAuth,
+  PairingError,
+  PairingManager,
+  RemoteDeviceAuthenticator,
   SecurityPolicy,
   SlidingWindowRateLimiter,
+  TrustedDeviceStore,
+  digestRemoteRequest,
+  requiredPermissionFor,
   validateUploadPaths,
 } from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -35,6 +49,15 @@ export interface DaemonOptions {
   duplicateRequestWindowMs?: number;
   maximumAuthenticationFailures?: number;
   authenticationFailureWindowMs?: number;
+  bindAddress?: string;
+  remoteEnabled?: boolean;
+  tls?: https.ServerOptions;
+  devices?: TrustedDeviceStore;
+  pairing?: PairingManager;
+  remoteAuthenticator?: RemoteDeviceAuthenticator;
+  remoteSessionTimeoutMs?: number;
+  maximumRemoteRequests?: number;
+  remoteRequestWindowMs?: number;
 }
 
 export interface Authenticator {
@@ -47,7 +70,16 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
-const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+type ClientAuthorization =
+  { kind: 'local' } | { kind: 'remote'; deviceId: string; permissions: Permission[] };
+
+interface RemoteSession {
+  deviceId: string;
+  permissions: Permission[];
+  expiresAt: number;
+}
+
+const DEFAULT_REQUEST_TIMEOUT_MS = 45_000;
 const DEFAULT_MAX_BODY_BYTES = 1_048_576;
 const DEFAULT_AUTHENTICATION_TIMEOUT_MS = 5_000;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
@@ -70,6 +102,14 @@ export class Daemon {
   private readonly maximumPendingRequests: number;
   private readonly duplicateRequestWindowMs: number;
   private readonly authenticationFailures: SlidingWindowRateLimiter;
+  private readonly bindAddress: string;
+  private readonly remoteEnabled: boolean;
+  private readonly tls?: https.ServerOptions;
+  private readonly devices: TrustedDeviceStore;
+  private readonly pairing: PairingManager;
+  private readonly remoteAuthenticator: RemoteDeviceAuthenticator;
+  private readonly remoteSessionTimeoutMs: number;
+  private readonly remoteRequestLimits: SlidingWindowRateLimiter;
   private readonly tabUrls = new Map<number, string>();
   private activeTabId: number | null = null;
   private activeExtension: WebSocket | null = null;
@@ -77,6 +117,7 @@ export class Daemon {
   private readonly recentRequestIds = new Map<string, number>();
   private readonly lastExtensionActivity = new WeakMap<WebSocket, number>();
   private readonly extensionSessionStartedAt = new WeakMap<WebSocket, number>();
+  private readonly remoteSessions = new Map<string, RemoteSession>();
   private server: http.Server | null = null;
   private wss: WebSocketServer | null = null;
   private heartbeatTimer: NodeJS.Timeout | null = null;
@@ -102,13 +143,31 @@ export class Daemon {
       options.maximumAuthenticationFailures ?? 5,
       options.authenticationFailureWindowMs ?? 60_000,
     );
+    this.bindAddress = options.bindAddress ?? '127.0.0.1';
+    this.remoteEnabled = options.remoteEnabled ?? false;
+    this.tls = options.tls;
+    this.devices = options.devices ?? new TrustedDeviceStore();
+    this.pairing = options.pairing ?? new PairingManager(this.devices);
+    this.remoteAuthenticator =
+      options.remoteAuthenticator ?? new RemoteDeviceAuthenticator(this.devices);
+    this.remoteSessionTimeoutMs = options.remoteSessionTimeoutMs ?? 15 * 60_000;
+    this.remoteRequestLimits = new SlidingWindowRateLimiter(
+      options.maximumRemoteRequests ?? 120,
+      options.remoteRequestWindowMs ?? 60_000,
+    );
   }
 
   public async start(port = 0): Promise<number> {
     if (this.server) throw new Error('Conduit daemon is already running.');
-    const server = http.createServer((req, res) => {
+    if (!isLoopbackAddress(this.bindAddress) && (!this.remoteEnabled || !this.tls)) {
+      throw new Error('Non-loopback binding requires explicit remote mode and TLS configuration.');
+    }
+    const requestHandler = (req: http.IncomingMessage, res: http.ServerResponse): void => {
       void this.handleHttpRequest(req, res);
-    });
+    };
+    const server = this.tls
+      ? https.createServer(this.tls, requestHandler)
+      : http.createServer(requestHandler);
     this.server = server;
     server.on('error', (error) => {
       this.audit.log({
@@ -152,7 +211,7 @@ export class Daemon {
       };
       server.once('error', handleStartupError);
       server.once('listening', handleListening);
-      server.listen(port, '127.0.0.1');
+      server.listen(port, this.bindAddress);
     });
   }
 
@@ -191,6 +250,7 @@ export class Daemon {
     this.wss = null;
     this.server = null;
     this.recentRequestIds.clear();
+    this.remoteSessions.clear();
   }
 
   public getToken(): string {
@@ -213,17 +273,48 @@ export class Daemon {
       return;
     }
 
+    if (req.method === 'POST' && req.url === '/api/remote/pair') {
+      if (!this.allowRemoteRequest(req, res)) return;
+      await this.handleRemotePairing(req, res);
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/api/remote/challenge') {
+      if (!this.allowRemoteRequest(req, res)) return;
+      await this.handleRemoteChallenge(req, res);
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/api/remote/authenticate') {
+      if (!this.allowRemoteRequest(req, res)) return;
+      await this.handleRemoteAuthentication(req, res);
+      return;
+    }
+
     const isAction = req.method === 'POST' && req.url === '/api/action';
     const isConfirmationList = req.method === 'GET' && req.url === '/api/confirmations';
     const isConfirmationResponse =
       req.method === 'POST' && req.url === '/api/confirmations/respond';
-    if (!isAction && !isConfirmationList && !isConfirmationResponse) {
+    const isPairingStart = req.method === 'POST' && req.url === '/api/pairings/start';
+    const isPairingList = req.method === 'GET' && req.url === '/api/pairings';
+    const isPairingDecision = req.method === 'POST' && req.url === '/api/pairings/respond';
+    const isDeviceList = req.method === 'GET' && req.url === '/api/devices';
+    const isDeviceRevoke = req.method === 'POST' && req.url === '/api/devices/revoke';
+    if (
+      !isAction &&
+      !isConfirmationList &&
+      !isConfirmationResponse &&
+      !isPairingStart &&
+      !isPairingList &&
+      !isPairingDecision &&
+      !isDeviceList &&
+      !isDeviceRevoke
+    ) {
       this.writeJson(res, 404, createErrorResponse('INVALID_REQUEST', 'Unknown daemon endpoint.'));
       return;
     }
 
     const clientKey = `http:${req.socket.remoteAddress ?? 'unknown'}`;
-    if (!this.isAuthorizedHttpRequest(req)) {
+    const authorization = this.authorizeHttpRequest(req);
+    if (!authorization) {
       this.audit.log({ type: 'client.authentication', outcome: 'denied' });
       const rateLimit = this.authenticationFailures.attempt(clientKey);
       this.writeJson(
@@ -244,6 +335,42 @@ export class Daemon {
       return;
     }
     this.authenticationFailures.reset(clientKey);
+
+    if (authorization.kind === 'remote' && !isAction) {
+      this.writeJson(
+        res,
+        403,
+        createErrorResponse('PERMISSION_DENIED', 'Remote sessions cannot manage Conduit.'),
+      );
+      return;
+    }
+
+    if (isPairingStart) {
+      const pairingCode = this.pairing.createCode();
+      this.audit.log({ type: 'device.pairing.started', outcome: 'success' });
+      this.writeJson(res, 201, pairingCode);
+      return;
+    }
+
+    if (isPairingList) {
+      this.writeJson(res, 200, { pairings: this.pairing.listPending() });
+      return;
+    }
+
+    if (isPairingDecision) {
+      await this.handlePairingDecision(req, res);
+      return;
+    }
+
+    if (isDeviceList) {
+      this.writeJson(res, 200, { devices: this.devices.list() });
+      return;
+    }
+
+    if (isDeviceRevoke) {
+      await this.handleDeviceRevocation(req, res);
+      return;
+    }
 
     if (isConfirmationList) {
       this.writeJson(res, 200, { confirmations: this.confirmations.list() });
@@ -282,6 +409,28 @@ export class Daemon {
     }
 
     let browserRequest = request.data;
+    if (
+      authorization.kind === 'remote' &&
+      !authorization.permissions.includes(requiredPermissionFor(browserRequest))
+    ) {
+      this.audit.log({
+        type: 'permission.decision',
+        outcome: 'denied',
+        requestId: browserRequest.id,
+        operation: browserRequest.type,
+        details: { deviceId: authorization.deviceId, source: 'device-grant' },
+      });
+      this.writeJson(
+        res,
+        403,
+        createErrorResponse(
+          'PERMISSION_DENIED',
+          'The trusted device is not granted permission for this operation.',
+          browserRequest.id,
+        ),
+      );
+      return;
+    }
     if (browserRequest.type === 'browser.upload_file') {
       try {
         browserRequest = {
@@ -488,6 +637,14 @@ export class Daemon {
 
       const response = ResponseEnvelopeSchema.safeParse(parsed.value);
       if (!response.success) {
+        this.audit.log({
+          type: 'extension.response',
+          outcome: 'failure',
+          details: {
+            reason: 'protocol-validation',
+            issues: response.error.issues.map((issue) => issue.message),
+          },
+        });
         ws.send(
           JSON.stringify(createErrorResponse('INVALID_REQUEST', 'Extension response was invalid.')),
         );
@@ -506,6 +663,11 @@ export class Daemon {
 
       clearTimeout(pending.timer);
       this.pendingRequests.delete(correlationId);
+      this.audit.log({
+        type: 'extension.response',
+        outcome: 'success',
+        correlationId,
+      });
       pending.resolve(response.data);
     });
 
@@ -534,6 +696,11 @@ export class Daemon {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         this.pendingRequests.delete(requestId);
+        this.audit.log({
+          type: 'browser.action.timeout',
+          outcome: 'failure',
+          requestId,
+        });
         resolve(
           createErrorResponse(
             'ACTION_TIMEOUT',
@@ -544,6 +711,11 @@ export class Daemon {
       }, this.requestTimeoutMs);
 
       this.pendingRequests.set(requestId, { resolve, timer });
+      this.audit.log({
+        type: 'browser.action.forwarded',
+        outcome: 'pending',
+        requestId,
+      });
       this.activeExtension?.send(JSON.stringify(request));
     });
   }
@@ -563,6 +735,9 @@ export class Daemon {
       if (client.readyState === WebSocket.OPEN) client.ping();
     });
     this.pruneRecentRequestIds(now);
+    for (const [tokenHash, session] of this.remoteSessions) {
+      if (session.expiresAt <= now) this.remoteSessions.delete(tokenHash);
+    }
   }
 
   private pruneRecentRequestIds(now = Date.now()): void {
@@ -571,7 +746,7 @@ export class Daemon {
     }
   }
 
-  private isAuthorizedHttpRequest(req: http.IncomingMessage): boolean {
+  private authorizeHttpRequest(req: http.IncomingMessage): ClientAuthorization | null {
     const authorization = req.headers.authorization;
     const bearerToken =
       typeof authorization === 'string' && authorization.startsWith('Bearer ')
@@ -580,7 +755,248 @@ export class Daemon {
     const headerToken = req.headers['x-conduit-token'];
     const token = bearerToken ?? (typeof headerToken === 'string' ? headerToken : undefined);
 
-    return typeof token === 'string' && this.auth.verifyToken(token);
+    if (typeof token !== 'string') return null;
+    if (this.auth.verifyToken(token)) return { kind: 'local' };
+    const tokenHash = hashRemoteSessionToken(token);
+    const session = this.remoteSessions.get(tokenHash);
+    if (!session) return null;
+    if (session.expiresAt <= Date.now()) {
+      this.remoteSessions.delete(tokenHash);
+      return null;
+    }
+    const device = this.devices.get(session.deviceId);
+    if (!device || device.revokedAt !== undefined) {
+      this.remoteSessions.delete(tokenHash);
+      return null;
+    }
+    return {
+      kind: 'remote',
+      deviceId: session.deviceId,
+      permissions: [...session.permissions],
+    };
+  }
+
+  private async handleRemotePairing(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    if (!this.requireRemoteMode(res)) return;
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = PairingRequestSchema.safeParse(body.value);
+    if (!parsed.success) {
+      this.writeJson(res, 400, createErrorResponse('INVALID_REQUEST', 'Invalid pairing request.'));
+      return;
+    }
+    try {
+      const pairing = this.pairing.submit(parsed.data);
+      this.audit.log({
+        type: 'device.pairing.requested',
+        outcome: 'pending',
+        details: { pairingId: pairing.id, fingerprint: pairing.fingerprint },
+      });
+      this.writeJson(res, 202, {
+        pairingId: pairing.id,
+        fingerprint: pairing.fingerprint,
+        expiresAt: pairing.expiresAt,
+        status: 'pending',
+      });
+    } catch (error) {
+      this.writePairingError(res, error);
+    }
+  }
+
+  private async handleRemoteChallenge(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    if (!this.requireRemoteMode(res)) return;
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = RemoteChallengeRequestSchema.safeParse(body.value);
+    if (
+      !parsed.success ||
+      parsed.data.requestDigest !== remoteSessionDigest(parsed.data.deviceId)
+    ) {
+      this.writeJson(
+        res,
+        400,
+        createErrorResponse('INVALID_REQUEST', 'Invalid remote session challenge request.'),
+      );
+      return;
+    }
+    try {
+      this.writeJson(
+        res,
+        201,
+        this.remoteAuthenticator.createChallenge(parsed.data.deviceId, parsed.data.requestDigest),
+      );
+    } catch (error) {
+      this.writePairingError(res, error);
+    }
+  }
+
+  private async handleRemoteAuthentication(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    if (!this.requireRemoteMode(res)) return;
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = RemoteAuthenticationSchema.safeParse(body.value);
+    if (
+      !parsed.success ||
+      parsed.data.requestDigest !== remoteSessionDigest(parsed.data.deviceId)
+    ) {
+      this.writeJson(
+        res,
+        400,
+        createErrorResponse('INVALID_REQUEST', 'Invalid remote authentication request.'),
+      );
+      return;
+    }
+    try {
+      const device = this.remoteAuthenticator.verify(
+        parsed.data.deviceId,
+        parsed.data.challengeId,
+        parsed.data.requestDigest,
+        parsed.data.signature,
+      );
+      const sessionToken = crypto.randomBytes(32).toString('base64url');
+      const expiresAt = Date.now() + this.remoteSessionTimeoutMs;
+      this.remoteSessions.set(hashRemoteSessionToken(sessionToken), {
+        deviceId: device.id,
+        permissions: [...device.permissions],
+        expiresAt,
+      });
+      this.audit.log({
+        type: 'device.authentication',
+        outcome: 'success',
+        details: { deviceId: device.id },
+      });
+      this.writeJson(res, 200, {
+        token: sessionToken,
+        expiresAt,
+        deviceId: device.id,
+        permissions: device.permissions,
+      });
+    } catch (error) {
+      this.audit.log({ type: 'device.authentication', outcome: 'denied' });
+      this.writePairingError(res, error);
+    }
+  }
+
+  private async handlePairingDecision(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = PairingDecisionSchema.safeParse(body.value);
+    if (!parsed.success) {
+      this.writeJson(res, 400, createErrorResponse('INVALID_REQUEST', 'Invalid pairing decision.'));
+      return;
+    }
+    try {
+      if (!parsed.data.approved) {
+        const denied = this.pairing.deny(parsed.data.pairingId);
+        this.audit.log({ type: 'device.pairing.denied', outcome: 'denied' });
+        this.writeJson(res, denied ? 200 : 404, { denied });
+        return;
+      }
+      const device = this.pairing.approve(parsed.data.pairingId, parsed.data.grantedPermissions);
+      this.audit.log({
+        type: 'device.pairing.approved',
+        outcome: 'success',
+        details: { deviceId: device.id, fingerprint: device.fingerprint },
+      });
+      this.writeJson(res, 201, { device });
+    } catch (error) {
+      this.writePairingError(res, error);
+    }
+  }
+
+  private async handleDeviceRevocation(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response);
+      return;
+    }
+    const parsed = DeviceRevocationRequestSchema.safeParse(body.value);
+    if (!parsed.success) {
+      this.writeJson(
+        res,
+        400,
+        createErrorResponse('INVALID_REQUEST', 'Invalid device revocation request.'),
+      );
+      return;
+    }
+    const revoked = this.devices.revoke(parsed.data.deviceId);
+    if (revoked) {
+      for (const [tokenHash, session] of this.remoteSessions) {
+        if (session.deviceId === parsed.data.deviceId) this.remoteSessions.delete(tokenHash);
+      }
+    }
+    this.audit.log({
+      type: 'device.revoked',
+      outcome: revoked ? 'success' : 'failure',
+      details: { deviceId: parsed.data.deviceId },
+    });
+    this.writeJson(res, revoked ? 200 : 404, { revoked });
+  }
+
+  private requireRemoteMode(res: http.ServerResponse): boolean {
+    if (this.remoteEnabled) return true;
+    this.writeJson(
+      res,
+      403,
+      createErrorResponse('PERMISSION_DENIED', 'Remote-device access is disabled.'),
+    );
+    return false;
+  }
+
+  private allowRemoteRequest(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+    const limit = this.remoteRequestLimits.attempt(req.socket.remoteAddress ?? 'unknown');
+    if (limit.allowed) return true;
+    this.writeJson(
+      res,
+      429,
+      createErrorResponse('RATE_LIMITED', 'Remote request rate limit exceeded.', undefined, {
+        retryAfterMs: limit.retryAfterMs,
+      }),
+    );
+    return false;
+  }
+
+  private writePairingError(res: http.ServerResponse, error: unknown): void {
+    if (!(error instanceof PairingError)) {
+      this.writeJson(res, 500, createErrorResponse('INTERNAL_ERROR', 'Remote operation failed.'));
+      return;
+    }
+    const status =
+      error.code === 'PAIRING_CODE_EXPIRED'
+        ? 410
+        : error.code === 'AUTHENTICATION_FAILED'
+          ? 401
+          : error.code === 'DEVICE_REVOKED'
+            ? 403
+            : 400;
+    this.writeJson(res, status, createErrorResponse(error.code, error.message));
   }
 
   private async handleConfirmationResponse(
@@ -693,6 +1109,18 @@ export class Daemon {
     res.writeHead(status, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(body));
   }
+}
+
+function isLoopbackAddress(address: string): boolean {
+  return address === '127.0.0.1' || address === '::1' || address === 'localhost';
+}
+
+function hashRemoteSessionToken(token: string): string {
+  return crypto.createHash('sha256').update(`conduit.remote.session:${token}`).digest('hex');
+}
+
+function remoteSessionDigest(deviceId: string): string {
+  return digestRemoteRequest({ deviceId, purpose: 'conduit.remote.session.v1' });
 }
 
 if (require.main === module) {

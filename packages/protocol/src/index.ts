@@ -79,14 +79,6 @@ export const AuthMessageSchema = z
   })
   .strict();
 
-export const PairingRequestSchema = z
-  .object({
-    publicKey: z.string().min(32),
-    deviceName: z.string().min(1).max(120),
-    requestedPermissions: z.array(z.string()).default([]),
-  })
-  .strict();
-
 export const PermissionSchema = z.enum([
   'browser.read',
   'browser.navigate',
@@ -101,6 +93,56 @@ export const PermissionSchema = z.enum([
   'browser.clipboard.write',
   'browser.dangerous',
 ]);
+
+export const PairingCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{8}$/u);
+
+export const DevicePublicKeySchema = z
+  .string()
+  .min(64)
+  .max(4_096)
+  .regex(/^[A-Za-z0-9+/]+={0,2}$/u);
+
+export const PairingRequestSchema = z
+  .object({
+    code: PairingCodeSchema,
+    publicKey: DevicePublicKeySchema,
+    deviceName: z.string().trim().min(1).max(120),
+    requestedPermissions: z
+      .array(PermissionSchema)
+      .max(PermissionSchema.options.length)
+      .default([]),
+  })
+  .strict();
+
+export const PairingDecisionSchema = z
+  .object({
+    pairingId: z.string().uuid(),
+    approved: z.boolean(),
+    grantedPermissions: z.array(PermissionSchema).max(PermissionSchema.options.length).default([]),
+  })
+  .strict();
+
+export const DeviceRevocationRequestSchema = z.object({ deviceId: z.string().uuid() }).strict();
+
+export const RemoteChallengeRequestSchema = z
+  .object({
+    deviceId: z.string().uuid(),
+    requestDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+  })
+  .strict();
+
+export const RemoteAuthenticationSchema = z
+  .object({
+    deviceId: z.string().uuid(),
+    challengeId: z.string().uuid(),
+    requestDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+    signature: z
+      .string()
+      .min(64)
+      .max(1_024)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/u),
+  })
+  .strict();
 
 export const RiskLevelSchema = z.enum(['low', 'medium', 'high']);
 
@@ -442,6 +484,10 @@ export type RequestEnvelope = z.infer<typeof RequestEnvelopeSchema>;
 export type ResponseEnvelope = z.infer<typeof ResponseEnvelopeSchema>;
 export type AuthRequest = z.infer<typeof AuthRequestSchema>;
 export type PairingRequest = z.infer<typeof PairingRequestSchema>;
+export type PairingDecision = z.infer<typeof PairingDecisionSchema>;
+export type DeviceRevocationRequest = z.infer<typeof DeviceRevocationRequestSchema>;
+export type RemoteChallengeRequest = z.infer<typeof RemoteChallengeRequestSchema>;
+export type RemoteAuthentication = z.infer<typeof RemoteAuthenticationSchema>;
 export type Permission = z.infer<typeof PermissionSchema>;
 export type RiskLevel = z.infer<typeof RiskLevelSchema>;
 export type ConfirmationRequest = z.infer<typeof ConfirmationRequestSchema>;

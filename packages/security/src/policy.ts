@@ -141,6 +141,10 @@ export class SecurityPolicy {
   }
 }
 
+export function requiredPermissionFor(request: BrowserRequestEnvelope): Permission {
+  return OPERATION_SECURITY[request.type].permission;
+}
+
 export function matchesDomain(hostname: string, pattern: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/u, '');
   const normalized = pattern.toLowerCase().trim().replace(/\.$/u, '');
