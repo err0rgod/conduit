@@ -12,6 +12,7 @@
   "references": [
     { "path": "./packages/protocol" },
     { "path": "./packages/security" },
+    { "path": "./packages/config" },
     { "path": "./packages/daemon-client" },
     { "path": "./packages/browser-core" },
     { "path": "./packages/cli" },

@@ -10,9 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^12.0.0",
+    "@conduit/config": "workspace:*",
+    "@conduit/daemon": "workspace:*",
     "@conduit/daemon-client": "workspace:*",
-    "@conduit/protocol": "workspace:*"
+    "@conduit/extension": "workspace:*",
+    "@conduit/mcp-server": "workspace:*",
+    "@conduit/protocol": "workspace:*",
+    "@conduit/security": "workspace:*",
+    "commander": "^12.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.7"

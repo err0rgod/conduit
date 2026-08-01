@@ -7,9 +7,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "references": [
-    { "path": "../../packages/config" },
-    { "path": "../../packages/protocol" },
-    { "path": "../../packages/security" }
-  ]
+  "references": [{ "path": "../protocol" }, { "path": "../security" }]
 }
