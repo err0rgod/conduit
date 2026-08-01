@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 import { Command } from 'commander';
 import { ConfigStore } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
@@ -423,7 +424,7 @@ function formatHuman(value: unknown, indent = ''): string {
 async function runMcpServer(): Promise<void> {
   let entry: string;
   try {
-    entry = require.resolve('@conduit/mcp-server');
+    entry = path.join(path.dirname(require.resolve('@conduit/mcp-server')), 'main.js');
   } catch {
     throw new Error('MCP server build not found. Run pnpm build first.');
   }

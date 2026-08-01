@@ -454,38 +454,6 @@ export class Daemon {
       );
       return;
     }
-    if (browserRequest.type === 'browser.upload_file') {
-      try {
-        browserRequest = {
-          ...browserRequest,
-          payload: {
-            ...browserRequest.payload,
-            files: validateUploadPaths(
-              browserRequest.payload.files,
-              this.uploadAllowlist,
-              this.maxUploadFileBytes,
-            ),
-          },
-        };
-      } catch (error) {
-        const message =
-          error instanceof FileAccessError ? error.message : 'Upload path validation failed.';
-        this.audit.log({
-          type: 'file.upload',
-          outcome: 'denied',
-          requestId: browserRequest.id,
-          operation: browserRequest.type,
-          details: { reason: message },
-        });
-        this.writeJson(
-          res,
-          403,
-          createErrorResponse('FILE_ACCESS_DENIED', message, browserRequest.id),
-        );
-        return;
-      }
-    }
-
     const decision = this.policy.authorize(browserRequest, this.currentUrlFor(browserRequest));
     if (decision.outcome === 'deny') {
       this.audit.log({
@@ -532,6 +500,40 @@ export class Daemon {
           createErrorResponse('USER_CONFIRMATION_REQUIRED', decision.reason, browserRequest.id, {
             confirmation,
           }),
+        );
+        return;
+      }
+    }
+
+    // Never inspect the host filesystem until both permission and any required
+    // user confirmation have succeeded.
+    if (browserRequest.type === 'browser.upload_file') {
+      try {
+        browserRequest = {
+          ...browserRequest,
+          payload: {
+            ...browserRequest.payload,
+            files: validateUploadPaths(
+              browserRequest.payload.files,
+              this.uploadAllowlist,
+              this.maxUploadFileBytes,
+            ),
+          },
+        };
+      } catch (error) {
+        const message =
+          error instanceof FileAccessError ? error.message : 'Upload path validation failed.';
+        this.audit.log({
+          type: 'file.upload',
+          outcome: 'denied',
+          requestId: browserRequest.id,
+          operation: browserRequest.type,
+          details: { reason: message },
+        });
+        this.writeJson(
+          res,
+          403,
+          createErrorResponse('FILE_ACCESS_DENIED', message, browserRequest.id),
         );
         return;
       }
