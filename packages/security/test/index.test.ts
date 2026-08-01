@@ -1,57 +1,45 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { LocalAuth, getAppDataDir, generateToken } from '../src/index';
-import * as fs from 'fs';
-import * as path from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { LocalAuth, generateToken } from '../src/index';
 
 describe('LocalAuth', () => {
-  const testDir = path.join(getAppDataDir(), 'test-auth');
-  const testConfigPath = path.join(testDir, 'auth.json');
-  let originalConfigPath: string;
+  let testDir: string;
+  let testConfigPath: string;
   let auth: LocalAuth;
 
   beforeEach(() => {
-    auth = new LocalAuth();
-    originalConfigPath = (auth as any).configPath;
-    (auth as any).configPath = testConfigPath;
-    if (fs.existsSync(testConfigPath)) {
-      fs.unlinkSync(testConfigPath);
-    }
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true, force: true });
-    }
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-auth-'));
+    testConfigPath = path.join(testDir, 'auth.json');
+    auth = new LocalAuth({ configPath: testConfigPath });
   });
 
-  afterEach(() => {
-    if (fs.existsSync(testConfigPath)) {
-      fs.unlinkSync(testConfigPath);
-    }
-    if (fs.existsSync(testDir)) {
-      fs.rmSync(testDir, { recursive: true, force: true });
-    }
-  });
+  afterEach(() => fs.rmSync(testDir, { recursive: true, force: true }));
 
-  it('generates a new token if none exists', () => {
+  it('generates and reuses a persisted 256-bit token', () => {
     const token = auth.ensureToken();
-    expect(token).toBeTruthy();
-    expect(token.length).toBe(64);
-    expect(fs.existsSync(testConfigPath)).toBe(true);
+    expect(token).toMatch(/^[a-f0-9]{64}$/u);
+    expect(new LocalAuth({ configPath: testConfigPath }).ensureToken()).toBe(token);
   });
 
-  it('reuses the existing token', () => {
-    const token1 = auth.ensureToken();
-    const auth2 = new LocalAuth();
-    (auth2 as any).configPath = testConfigPath;
-    const token2 = auth2.ensureToken();
-    expect(token1).toBe(token2);
-  });
-
-  it('verifies a valid token', () => {
+  it('verifies valid tokens with constant-length comparison and rejects invalid ones', () => {
     const token = auth.ensureToken();
     expect(auth.verifyToken(token)).toBe(true);
+    expect(auth.verifyToken(generateToken())).toBe(false);
+    expect(auth.verifyToken('short')).toBe(false);
   });
 
-  it('rejects an invalid token', () => {
-    auth.ensureToken();
-    expect(auth.verifyToken(generateToken())).toBe(false);
+  it('replaces malformed stored authentication state', () => {
+    fs.writeFileSync(testConfigPath, JSON.stringify({ token: 42 }));
+    expect(auth.ensureToken()).toMatch(/^[a-f0-9]{64}$/u);
+  });
+
+  it('rotates the token and invalidates the prior value', () => {
+    const original = auth.ensureToken();
+    const rotated = auth.rotateToken();
+    expect(rotated).not.toBe(original);
+    expect(auth.verifyToken(original)).toBe(false);
+    expect(auth.verifyToken(rotated)).toBe(true);
   });
 });
