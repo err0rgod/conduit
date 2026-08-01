@@ -7,5 +7,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../daemon-client" }, { "path": "../protocol" }]
+  "references": [{ "path": "../protocol" }, { "path": "../security" }]
 }

@@ -75,9 +75,12 @@ importers:
 
   packages/cli:
     dependencies:
-      '@conduit/security':
+      '@conduit/daemon-client':
         specifier: workspace:*
-        version: link:../security
+        version: link:../daemon-client
+      '@conduit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       commander:
         specifier: ^12.0.0
         version: 12.1.0
@@ -86,8 +89,23 @@ importers:
         specifier: ^20.12.7
         version: 20.19.43
 
+  packages/daemon-client:
+    dependencies:
+      '@conduit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@conduit/security':
+        specifier: workspace:*
+        version: link:../security
+
   packages/mcp-server:
     dependencies:
+      '@conduit/daemon-client':
+        specifier: workspace:*
+        version: link:../daemon-client
+      '@conduit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@modelcontextprotocol/sdk':
         specifier: ^0.6.0
         version: 0.6.1
