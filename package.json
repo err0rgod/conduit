@@ -1,6 +1,7 @@
 {
   "name": "conduit-monorepo",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -12,12 +13,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run --pool=forks",
-    "test:unit": "vitest run --pool=forks",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test": "vitest run --workspace vitest.unit.config.ts && vitest run --workspace vitest.integration.config.ts && vitest run --workspace vitest.security.config.ts",
+    "test:unit": "vitest run --workspace vitest.unit.config.ts",
+    "test:integration": "vitest run --workspace vitest.integration.config.ts",
     "test:e2e": "pnpm extension:build && playwright test",
-    "test:security": "vitest run --config vitest.security.config.ts",
-    "test:coverage": "vitest run --pool=forks --coverage",
+    "test:security": "vitest run --workspace vitest.security.config.ts",
+    "test:coverage": "vitest run --config vitest.coverage.config.ts --workspace vitest.coverage.workspace.ts --coverage",
     "docs:dev": "pnpm --filter @conduit/docs dev",
     "docs:build": "pnpm --filter @conduit/docs build",
     "extension:dev": "pnpm --filter @conduit/extension dev",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@playwright/test": "1.54.1",
     "@types/node": "^20.12.7",
+    "@vitest/coverage-v8": "1.6.1",
     "esbuild": "0.21.5",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",

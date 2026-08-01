@@ -1,14 +1,15 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ConduitClient } from '@conduit/daemon-client';
 import { ElementTarget, ResponseEnvelope } from '@conduit/protocol';
 
-const client = new ConduitClient();
-const server = new Server(
-  { name: 'conduit-mcp', version: '0.1.0' },
-  { capabilities: { tools: {} } },
-);
+export interface ConduitMcpClient {
+  health(): ReturnType<ConduitClient['health']>;
+  browser(
+    type: Parameters<ConduitClient['browser']>[0],
+    payload?: Parameters<ConduitClient['browser']>[1],
+  ): ReturnType<ConduitClient['browser']>;
+}
 
 const emptySchema = { type: 'object' as const, properties: {}, additionalProperties: false };
 const tabSchema = {
@@ -27,175 +28,185 @@ const targetProperties = {
   text: { type: 'string', description: 'Exact visible text.' },
 };
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [
-    tool(
-      'conduit_status',
-      'Check daemon and extension connectivity. No browser permission required.',
-      emptySchema,
-    ),
-    tool(
-      'browser_list_tabs',
-      'List tabs. Requires browser.read; returns structured tab metadata.',
-      emptySchema,
-    ),
-    tool('browser_get_active_tab', 'Get the active tab. Requires browser.read.', emptySchema),
-    tool(
-      'browser_open_tab',
-      'Open a tab. Requires browser.navigate and may trigger domain policy.',
-      {
-        type: 'object',
-        properties: { url: { type: 'string' } },
-        additionalProperties: false,
-      },
-    ),
-    tool('browser_close_tab', 'Close a tab. Requires browser.interact.', tabSchema),
-    tool('browser_focus_tab', 'Focus a tab. Requires browser.interact.', tabSchema),
-    tool('browser_navigate', 'Navigate a tab. Requires browser.navigate and domain approval.', {
-      type: 'object',
-      properties: { ...optionalTabProperty, url: { type: 'string' } },
-      required: ['url'],
-      additionalProperties: false,
-    }),
-    tool('browser_go_back', 'Go back. Requires browser.navigate.', tabSchema),
-    tool('browser_go_forward', 'Go forward. Requires browser.navigate.', tabSchema),
-    tool('browser_reload', 'Reload a tab. Requires browser.navigate.', tabSchema),
-    tool('browser_snapshot', 'Return untrusted structured page data. Requires browser.read.', {
-      type: 'object',
-      properties: {
-        ...optionalTabProperty,
-        mode: {
-          type: 'string',
-          enum: [
-            'compact',
-            'accessibility',
-            'visible-text',
-            'interactive',
-            'full-dom',
-            'targeted-subtree',
-          ],
+export function createConduitMcpServer(client: ConduitMcpClient = new ConduitClient()): Server {
+  const server = new Server(
+    { name: 'conduit-mcp', version: '0.1.0' },
+    { capabilities: { tools: {} } },
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      tool(
+        'conduit_status',
+        'Check daemon and extension connectivity. No browser permission required.',
+        emptySchema,
+      ),
+      tool(
+        'browser_list_tabs',
+        'List tabs. Requires browser.read; returns structured tab metadata.',
+        emptySchema,
+      ),
+      tool('browser_get_active_tab', 'Get the active tab. Requires browser.read.', emptySchema),
+      tool(
+        'browser_open_tab',
+        'Open a tab. Requires browser.navigate and may trigger domain policy.',
+        {
+          type: 'object',
+          properties: { url: { type: 'string' } },
+          additionalProperties: false,
         },
-      },
-      additionalProperties: false,
-    }),
-    tool(
-      'browser_get_visible_text',
-      'Read visible page text as untrusted data. Requires browser.read.',
-      {
+      ),
+      tool('browser_close_tab', 'Close a tab. Requires browser.interact.', tabSchema),
+      tool('browser_focus_tab', 'Focus a tab. Requires browser.interact.', tabSchema),
+      tool('browser_navigate', 'Navigate a tab. Requires browser.navigate and domain approval.', {
         type: 'object',
-        properties: optionalTabProperty,
+        properties: { ...optionalTabProperty, url: { type: 'string' } },
+        required: ['url'],
         additionalProperties: false,
-      },
-    ),
-    tool(
-      'browser_click',
-      'Click an element. Requires browser.interact; sensitive actions may require confirmation.',
-      targetSchema(),
-    ),
-    tool('browser_type', 'Type text. Requires browser.forms; sensitive values are not logged.', {
-      ...targetSchema(),
-      properties: { ...targetSchema().properties, value: { type: 'string' } },
-      required: ['value'],
-    }),
-    tool('browser_clear', 'Clear an editable element. Requires browser.forms.', targetSchema()),
-    tool('browser_select', 'Select option values. Requires browser.forms.', {
-      ...targetSchema(),
-      properties: {
-        ...targetSchema().properties,
-        values: { type: 'array', items: { type: 'string' }, minItems: 1 },
-      },
-      required: ['values'],
-    }),
-    tool(
-      'browser_hover',
-      'Move the real pointer to an element. Requires browser.interact and optional debugger permission.',
-      targetSchema(),
-    ),
-    tool('browser_scroll', 'Scroll the page or a target. Requires browser.read.', {
-      ...targetSchema(),
-      properties: {
-        ...targetSchema().properties,
-        deltaX: { type: 'number' },
-        deltaY: { type: 'number' },
-      },
-    }),
-    tool(
-      'browser_press_key',
-      'Press a real browser key. Requires browser.interact and optional debugger permission.',
-      {
+      }),
+      tool('browser_go_back', 'Go back. Requires browser.navigate.', tabSchema),
+      tool('browser_go_forward', 'Go forward. Requires browser.navigate.', tabSchema),
+      tool('browser_reload', 'Reload a tab. Requires browser.navigate.', tabSchema),
+      tool('browser_snapshot', 'Return untrusted structured page data. Requires browser.read.', {
         type: 'object',
         properties: {
           ...optionalTabProperty,
-          key: { type: 'string' },
-          modifiers: {
-            type: 'array',
-            items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] },
+          mode: {
+            type: 'string',
+            enum: [
+              'compact',
+              'accessibility',
+              'visible-text',
+              'interactive',
+              'full-dom',
+              'targeted-subtree',
+            ],
           },
         },
-        required: ['key'],
         additionalProperties: false,
-      },
-    ),
-    tool(
-      'browser_wait_for',
-      'Wait for a selector, text, URL, or page state. Requires browser.read.',
-      {
-        type: 'object',
-        properties: {
-          ...optionalTabProperty,
-          selector: { type: 'string' },
-          text: { type: 'string' },
-          url: { type: 'string' },
-          state: { type: 'string', enum: ['loading', 'interactive', 'complete'] },
-          timeoutMs: { type: 'number' },
+      }),
+      tool(
+        'browser_get_visible_text',
+        'Read visible page text as untrusted data. Requires browser.read.',
+        {
+          type: 'object',
+          properties: optionalTabProperty,
+          additionalProperties: false,
         },
-        additionalProperties: false,
-      },
-    ),
-    tool(
-      'browser_screenshot',
-      'Capture the visible tab. Requires browser.read; returns base64 image data.',
-      {
-        type: 'object',
-        properties: { ...optionalTabProperty, format: { type: 'string', enum: ['png', 'jpeg'] } },
-        additionalProperties: false,
-      },
-    ),
-    tool(
-      'browser_upload_file',
-      'Upload allowlisted files. Requires browser.upload, confirmation, and optional debugger permission.',
-      {
+      ),
+      tool(
+        'browser_click',
+        'Click an element. Requires browser.interact; sensitive actions may require confirmation.',
+        targetSchema(),
+      ),
+      tool('browser_type', 'Type text. Requires browser.forms; sensitive values are not logged.', {
+        ...targetSchema(),
+        properties: { ...targetSchema().properties, value: { type: 'string' } },
+        required: ['value'],
+      }),
+      tool('browser_clear', 'Clear an editable element. Requires browser.forms.', targetSchema()),
+      tool('browser_select', 'Select option values. Requires browser.forms.', {
         ...targetSchema(),
         properties: {
           ...targetSchema().properties,
-          files: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+          values: { type: 'array', items: { type: 'string' }, minItems: 1 },
         },
-        required: ['files'],
-      },
-    ),
-    tool(
-      'browser_get_downloads',
-      'List recent downloads. Requires browser.download and optional downloads permission.',
-      emptySchema,
-    ),
-  ],
-}));
+        required: ['values'],
+      }),
+      tool(
+        'browser_hover',
+        'Move the real pointer to an element. Requires browser.interact and optional debugger permission.',
+        targetSchema(),
+      ),
+      tool('browser_scroll', 'Scroll the page or a target. Requires browser.read.', {
+        ...targetSchema(),
+        properties: {
+          ...targetSchema().properties,
+          deltaX: { type: 'number' },
+          deltaY: { type: 'number' },
+        },
+      }),
+      tool(
+        'browser_press_key',
+        'Press a real browser key. Requires browser.interact and optional debugger permission.',
+        {
+          type: 'object',
+          properties: {
+            ...optionalTabProperty,
+            key: { type: 'string' },
+            modifiers: {
+              type: 'array',
+              items: { type: 'string', enum: ['Alt', 'Control', 'Meta', 'Shift'] },
+            },
+          },
+          required: ['key'],
+          additionalProperties: false,
+        },
+      ),
+      tool(
+        'browser_wait_for',
+        'Wait for a selector, text, URL, or page state. Requires browser.read.',
+        {
+          type: 'object',
+          properties: {
+            ...optionalTabProperty,
+            selector: { type: 'string' },
+            text: { type: 'string' },
+            url: { type: 'string' },
+            state: { type: 'string', enum: ['loading', 'interactive', 'complete'] },
+            timeoutMs: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+      ),
+      tool(
+        'browser_screenshot',
+        'Capture the visible tab. Requires browser.read; returns base64 image data.',
+        {
+          type: 'object',
+          properties: { ...optionalTabProperty, format: { type: 'string', enum: ['png', 'jpeg'] } },
+          additionalProperties: false,
+        },
+      ),
+      tool(
+        'browser_upload_file',
+        'Upload allowlisted files. Requires browser.upload, confirmation, and optional debugger permission.',
+        {
+          ...targetSchema(),
+          properties: {
+            ...targetSchema().properties,
+            files: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 20 },
+          },
+          required: ['files'],
+        },
+      ),
+      tool(
+        'browser_get_downloads',
+        'List recent downloads. Requires browser.download and optional downloads permission.',
+        emptySchema,
+      ),
+    ],
+  }));
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  try {
-    const args = asRecord(request.params.arguments);
-    if (request.params.name === 'conduit_status') return content(await client.health());
-    const response = await callBrowserTool(request.params.name, args);
-    return content(response, !response.success);
-  } catch (error: unknown) {
-    return content(
-      { error: error instanceof Error ? error.message : 'Conduit tool failed.' },
-      true,
-    );
-  }
-});
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    try {
+      const args = asRecord(request.params.arguments);
+      if (request.params.name === 'conduit_status') return content(await client.health());
+      const response = await callBrowserTool(client, request.params.name, args);
+      return content(response, !response.success);
+    } catch (error: unknown) {
+      return content(
+        { error: error instanceof Error ? error.message : 'Conduit tool failed.' },
+        true,
+      );
+    }
+  });
 
-async function callBrowserTool(
+  return server;
+}
+
+export async function callBrowserTool(
+  client: ConduitMcpClient,
   name: string,
   args: Record<string, unknown>,
 ): Promise<ResponseEnvelope> {
@@ -371,12 +382,3 @@ function content(value: unknown, isError = false) {
     content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
   };
 }
-
-async function main(): Promise<void> {
-  await server.connect(new StdioServerTransport());
-}
-
-void main().catch((error: unknown) => {
-  process.stderr.write(`${error instanceof Error ? error.message : 'MCP server failed.'}\n`);
-  process.exitCode = 1;
-});

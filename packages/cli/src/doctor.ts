@@ -126,7 +126,7 @@ export async function runDoctor(
         : 'Extension build is missing; run pnpm extension:build.',
   });
 
-  const mcpPath = resolvePackage('@conduit/mcp-server');
+  const mcpPath = resolvePackageSibling('@conduit/mcp-server', 'main.js');
   checks.push({
     name: 'mcp',
     status: mcpPath && fs.existsSync(mcpPath) ? 'pass' : 'warn',
