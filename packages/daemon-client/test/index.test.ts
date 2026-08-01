@@ -53,6 +53,9 @@ describe('ConduitClient', () => {
       if (pathname === '/api/pairings/start') {
         return new Response(JSON.stringify({ code: 'ABCDEFG2', expiresAt: 2_000 }));
       }
+      if (pathname === '/api/extension/pairings/start') {
+        return new Response(JSON.stringify({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 }));
+      }
       if (pathname === '/api/pairings') return new Response(JSON.stringify({ pairings: [] }));
       if (pathname === '/api/devices') return new Response(JSON.stringify({ devices: [] }));
       if (pathname === '/api/devices/revoke') {
@@ -63,6 +66,10 @@ describe('ConduitClient', () => {
     });
     const client = new ConduitClient({ token: 'a'.repeat(64), fetch: fetchMock });
     await expect(client.startPairing()).resolves.toEqual({ code: 'ABCDEFG2', expiresAt: 2_000 });
+    await expect(client.startExtensionPairing()).resolves.toEqual({
+      code: 'ABCDEFG2HJKL',
+      expiresAt: 2_000,
+    });
     await expect(client.listPairings()).resolves.toEqual([]);
     await expect(client.listDevices()).resolves.toEqual([]);
     await expect(client.revokeDevice(crypto.randomUUID())).resolves.toBe(true);

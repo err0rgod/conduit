@@ -1,9 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ConfigStore } from '@conduit/config';
+import { ConduitClient } from '@conduit/daemon-client';
 import { getAppDataDir, LocalAuth } from '@conduit/security';
 import { resolveExtensionPath } from './doctor';
-import { DaemonLifecycle, LifecycleStatus } from './lifecycle';
+import { DaemonLifecycle, LifecycleStatus, daemonBaseUrl } from './lifecycle';
 import { ServiceResult, UserService } from './service';
 
 export interface SetupOptions {
@@ -21,6 +22,7 @@ export interface SetupReport {
   extensionPath: string;
   service?: ServiceResult;
   daemon?: LifecycleStatus;
+  extensionPairing?: { code: string; expiresAt: number };
   nextSteps: string[];
 }
 
@@ -39,6 +41,7 @@ export interface SetupManagerOptions {
   service?: Pick<UserService, 'install' | 'uninstall'>;
   dataDirectory?: string;
   extensionPath?: string;
+  client?: Pick<ConduitClient, 'startExtensionPairing'>;
 }
 
 export class SetupManager {
@@ -48,6 +51,7 @@ export class SetupManager {
   private readonly service: Pick<UserService, 'install' | 'uninstall'>;
   private readonly dataDirectory: string;
   private readonly extensionPath?: string;
+  private readonly client: Pick<ConduitClient, 'startExtensionPairing'>;
 
   public constructor(options: SetupManagerOptions = {}) {
     this.configStore = options.configStore ?? new ConfigStore();
@@ -57,6 +61,9 @@ export class SetupManager {
     this.service = options.service ?? new UserService();
     this.dataDirectory = path.resolve(options.dataDirectory ?? getAppDataDir());
     this.extensionPath = options.extensionPath;
+    this.client =
+      options.client ??
+      new ConduitClient({ baseUrl: daemonBaseUrl(this.configStore.load()), auth: this.auth });
   }
 
   public async setup(options: SetupOptions = {}): Promise<SetupReport> {
@@ -67,17 +74,19 @@ export class SetupManager {
     const extensionPath = this.extensionPath ?? resolveExtensionPath();
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
+    const extensionPairing = startDaemon ? await this.client.startExtensionPairing() : undefined;
     return {
       configured: true,
       configPath: this.configStore.getPath(),
       extensionPath,
       ...(service ? { service } : {}),
       ...(daemon ? { daemon } : {}),
+      ...(extensionPairing ? { extensionPairing } : {}),
       nextSteps: [
         'Open chrome://extensions or edge://extensions.',
         'Enable Developer mode and choose Load unpacked.',
         `Select ${extensionPath}.`,
-        'Run conduit extension token, then enter that secret and the daemon port in the extension.',
+        'Enter the short-lived pairing code from this report in the Conduit extension.',
       ],
     };
   }

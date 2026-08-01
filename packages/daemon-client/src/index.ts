@@ -129,6 +129,13 @@ export class ConduitClient {
     return this.authorizedJson('/api/pairings/start', { method: 'POST', body: '{}' });
   }
 
+  public async startExtensionPairing(): Promise<{ code: string; expiresAt: number }> {
+    return this.authorizedJson('/api/extension/pairings/start', {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
   public async listPairings(): Promise<PendingPairing[]> {
     const value = await this.authorizedJson<unknown>('/api/pairings');
     if (!isRecord(value) || !Array.isArray(value.pairings)) {

@@ -66,6 +66,39 @@ describe('Daemon', () => {
     ws.close();
   });
 
+  it('redeems a short-lived extension-origin pairing code exactly once', async () => {
+    const started = await daemonRequest(
+      port,
+      daemon.getToken(),
+      '/api/extension/pairings/start',
+      {},
+    );
+    const pairing = (await started.json()) as { code: string };
+    const redeem = () =>
+      fetch(`http://127.0.0.1:${port}/api/extension/pair`, {
+        method: 'POST',
+        headers: {
+          Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: pairing.code }),
+      });
+
+    const accepted = await redeem();
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toEqual({ token: daemon.getToken() });
+    expect((await redeem()).status).toBe(401);
+  });
+
+  it('rejects extension pairing redemption from webpage origins', async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/extension/pair`, {
+      method: 'POST',
+      headers: { Origin: 'https://example.com', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'AAAAAAAAAAAA' }),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it('rejects HTTP browser requests without a local token', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/api/action`, {
       method: 'POST',

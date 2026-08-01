@@ -6,6 +6,7 @@ import {
   BrowserRequestEnvelopeSchema,
   ConfirmationResponseSchema,
   DeviceRevocationRequestSchema,
+  ExtensionPairingRequestSchema,
   PairingDecisionSchema,
   PairingRequestSchema,
   Permission,
@@ -21,6 +22,7 @@ import {
   ConfirmationManager,
   FileAccessError,
   LocalAuth,
+  LocalPairingManager,
   PairingError,
   PairingManager,
   RemoteDeviceAuthenticator,
@@ -60,6 +62,7 @@ export interface DaemonOptions {
   remoteRequestWindowMs?: number;
   instanceId?: string;
   shutdownHandler?: () => void;
+  localPairing?: LocalPairingManager;
 }
 
 export interface Authenticator {
@@ -114,6 +117,8 @@ export class Daemon {
   private readonly remoteRequestLimits: SlidingWindowRateLimiter;
   private readonly instanceId: string;
   private readonly shutdownHandler?: () => void;
+  private readonly localPairing: LocalPairingManager;
+  private readonly localPairingAttempts: SlidingWindowRateLimiter;
   private readonly tabUrls = new Map<number, string>();
   private activeTabId: number | null = null;
   private activeExtension: WebSocket | null = null;
@@ -161,6 +166,8 @@ export class Daemon {
     );
     this.instanceId = options.instanceId ?? crypto.randomUUID();
     this.shutdownHandler = options.shutdownHandler;
+    this.localPairing = options.localPairing ?? new LocalPairingManager();
+    this.localPairingAttempts = new SlidingWindowRateLimiter(5, 60_000);
   }
 
   public async start(port = 0): Promise<number> {
@@ -271,6 +278,26 @@ export class Daemon {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
+    if (req.url === '/api/extension/pair' && req.method === 'OPTIONS') {
+      const origin = extensionOrigin(req);
+      if (!origin || !isLoopbackRemoteAddress(req.socket.remoteAddress)) {
+        this.writeJson(
+          res,
+          403,
+          createErrorResponse('PERMISSION_DENIED', 'Local extension pairing was denied.'),
+        );
+        return;
+      }
+      res.writeHead(204, extensionCorsHeaders(origin));
+      res.end();
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/extension/pair') {
+      await this.handleLocalExtensionPairing(req, res);
+      return;
+    }
+
     if (req.method === 'GET' && req.url === '/health') {
       this.writeJson(res, 200, {
         status: 'ok',
@@ -301,6 +328,8 @@ export class Daemon {
     const isConfirmationResponse =
       req.method === 'POST' && req.url === '/api/confirmations/respond';
     const isPairingStart = req.method === 'POST' && req.url === '/api/pairings/start';
+    const isExtensionPairingStart =
+      req.method === 'POST' && req.url === '/api/extension/pairings/start';
     const isPairingList = req.method === 'GET' && req.url === '/api/pairings';
     const isPairingDecision = req.method === 'POST' && req.url === '/api/pairings/respond';
     const isDeviceList = req.method === 'GET' && req.url === '/api/devices';
@@ -311,6 +340,7 @@ export class Daemon {
       !isConfirmationList &&
       !isConfirmationResponse &&
       !isPairingStart &&
+      !isExtensionPairingStart &&
       !isPairingList &&
       !isPairingDecision &&
       !isDeviceList &&
@@ -371,6 +401,13 @@ export class Daemon {
     if (isPairingStart) {
       const pairingCode = this.pairing.createCode();
       this.audit.log({ type: 'device.pairing.started', outcome: 'success' });
+      this.writeJson(res, 201, pairingCode);
+      return;
+    }
+
+    if (isExtensionPairingStart) {
+      const pairingCode = this.localPairing.create();
+      this.audit.log({ type: 'extension.pairing.started', outcome: 'success' });
       this.writeJson(res, 201, pairingCode);
       return;
     }
@@ -703,6 +740,57 @@ export class Daemon {
         this.audit.log({ type: 'extension.disconnected', outcome: 'success' });
       }
     });
+  }
+
+  private async handleLocalExtensionPairing(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    const origin = extensionOrigin(req);
+    if (!origin || !isLoopbackRemoteAddress(req.socket.remoteAddress)) {
+      this.audit.log({ type: 'extension.pairing', outcome: 'denied' });
+      this.writeJson(
+        res,
+        403,
+        createErrorResponse('PERMISSION_DENIED', 'Local extension pairing was denied.'),
+      );
+      return;
+    }
+    const clientKey = `extension-pair:${req.socket.remoteAddress ?? 'unknown'}`;
+    const limit = this.localPairingAttempts.attempt(clientKey);
+    if (!limit.allowed) {
+      this.writeJson(
+        res,
+        429,
+        createErrorResponse('RATE_LIMITED', 'Too many extension pairing attempts.', undefined, {
+          retryAfterMs: limit.retryAfterMs,
+        }),
+        extensionCorsHeaders(origin),
+      );
+      return;
+    }
+    const body = await this.readBody(req);
+    if (!body.ok) {
+      this.writeJson(res, body.status, body.response, extensionCorsHeaders(origin));
+      return;
+    }
+    const parsed = ExtensionPairingRequestSchema.safeParse(body.value);
+    if (!parsed.success || !this.localPairing.consume(parsed.data.code)) {
+      this.audit.log({ type: 'extension.pairing', outcome: 'denied' });
+      this.writeJson(
+        res,
+        401,
+        createErrorResponse(
+          'AUTHENTICATION_FAILED',
+          'Extension pairing code is invalid or expired.',
+        ),
+        extensionCorsHeaders(origin),
+      );
+      return;
+    }
+    this.localPairingAttempts.reset(clientKey);
+    this.audit.log({ type: 'extension.pairing', outcome: 'success' });
+    this.writeJson(res, 200, { token: this.auth.ensureToken() }, extensionCorsHeaders(origin));
   }
 
   private forwardToExtension(request: unknown): Promise<ResponseEnvelope> {
@@ -1130,14 +1218,39 @@ export class Daemon {
     }
   }
 
-  private writeJson(res: http.ServerResponse, status: number, body: unknown): void {
-    res.writeHead(status, { 'Content-Type': 'application/json' });
+  private writeJson(
+    res: http.ServerResponse,
+    status: number,
+    body: unknown,
+    headers: Record<string, string> = {},
+  ): void {
+    res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
     res.end(JSON.stringify(body));
   }
 }
 
 function isLoopbackAddress(address: string): boolean {
   return address === '127.0.0.1' || address === '::1' || address === 'localhost';
+}
+
+function isLoopbackRemoteAddress(address: string | undefined): boolean {
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+}
+
+function extensionOrigin(req: http.IncomingMessage): string | undefined {
+  const origin = req.headers.origin;
+  return typeof origin === 'string' && /^chrome-extension:\/\/[a-p]{32}$/u.test(origin)
+    ? origin
+    : undefined;
+}
+
+function extensionCorsHeaders(origin: string): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    Vary: 'Origin',
+  };
 }
 
 function hashRemoteSessionToken(token: string): string {

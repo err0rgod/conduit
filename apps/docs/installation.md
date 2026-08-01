@@ -49,8 +49,8 @@ node packages/cli/bin/conduit.js extension path
 2. Enable **Developer mode**.
 3. Choose **Load unpacked**.
 4. Select the printed `apps/extension/dist` directory.
-5. Run `conduit extension token` locally and copy the token into the extension popup.
-6. Confirm the daemon port, normally `9222`, and save.
+5. Run `conduit extension pair` locally.
+6. Enter the one-use code and daemon port, normally `9222`, in the extension popup.
 
 The production manifest requests `tabs`, `scripting`, and `storage`. Broad host access is optional. The `debugger` and `downloads` capabilities are optional and requested only for operations that need them.
 

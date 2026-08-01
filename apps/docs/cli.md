@@ -9,16 +9,16 @@ conduit --json browser tabs
 
 ## Command groups
 
-| Area          | Commands                                                      |
-| ------------- | ------------------------------------------------------------- |
-| Setup         | `setup`, `upgrade`, `uninstall`                               |
-| Lifecycle     | `start`, `stop`, `restart`, `status`, `logs`, `doctor`        |
-| User service  | `service install`, `start`, `stop`, `status`, `uninstall`     |
-| Pairing       | `pair`, `devices`, `revoke`                                   |
-| Policy        | `permissions`, `allow-domain`, `deny-domain`                  |
-| Configuration | `config show`, `config path`, `config set`                    |
-| Extension     | `extension path`, `extension token`, `extension install-help` |
-| Clients       | `mcp`, `browser …`                                            |
+| Area          | Commands                                                     |
+| ------------- | ------------------------------------------------------------ |
+| Setup         | `setup`, `upgrade`, `uninstall`                              |
+| Lifecycle     | `start`, `stop`, `restart`, `status`, `logs`, `doctor`       |
+| User service  | `service install`, `start`, `stop`, `status`, `uninstall`    |
+| Pairing       | `pair`, `devices`, `revoke`                                  |
+| Policy        | `permissions`, `allow-domain`, `deny-domain`                 |
+| Configuration | `config show`, `config path`, `config set`                   |
+| Extension     | `extension path`, `extension pair`, `extension install-help` |
+| Clients       | `mcp`, `browser …`                                           |
 
 Run `conduit <command> --help` for exact options. Browser commands accept tab IDs and snapshot element targets where relevant.
 

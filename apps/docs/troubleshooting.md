@@ -10,7 +10,9 @@ conduit logs --lines 200
 
 ## Extension disconnected
 
-Confirm the daemon is running, the popup port matches configuration, and the token was copied from `conduit extension token`. Reload the unpacked extension after rebuilding it. Never post the token in an issue.
+Confirm the daemon is running, the popup port matches configuration, and the code
+came from a recent `conduit extension pair` command. Codes expire after five
+minutes and cannot be reused. Reload the unpacked extension after rebuilding it.
 
 ## Permission or domain denied
 

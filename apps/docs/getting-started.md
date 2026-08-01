@@ -8,7 +8,9 @@ Conduit connects an AI agent to the Chromium browser you already use. It is a lo
 2. The **Manifest V3 extension** connects to the daemon over an authenticated WebSocket and performs browser actions.
 3. The **CLI**, **MCP server**, or typed client sends validated requests to the daemon.
 
-The daemon listens on `127.0.0.1:9222` by default. It generates a local token in the platform application-data directory. The token is a secret: do not put it in shell history, screenshots, issue reports, or source control.
+The daemon listens on `127.0.0.1:9222` by default. It generates a local credential
+in the platform application-data directory. `conduit extension pair` avoids
+displaying that credential by exchanging a short-lived one-use code over loopback.
 
 ## Prerequisites
 

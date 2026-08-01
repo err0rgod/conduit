@@ -96,6 +96,12 @@ export const PermissionSchema = z.enum([
 
 export const PairingCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{8}$/u);
 
+export const ExtensionPairingCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{12}$/u);
+
+export const ExtensionPairingRequestSchema = z
+  .object({ code: ExtensionPairingCodeSchema })
+  .strict();
+
 export const DevicePublicKeySchema = z
   .string()
   .min(64)
