@@ -14,9 +14,14 @@ Host access is optional (`<all_urls>`). Advanced pointer, keyboard, and file ope
 
 ## Authentication
 
-The extension opens a WebSocket to the configured loopback daemon and must authenticate with the local token before sending or receiving actions. The daemon replaces an older extension connection when a new authenticated connection takes ownership.
+The extension opens a WebSocket to the configured loopback daemon and must
+authenticate before sending or receiving actions. The daemon replaces an older
+extension connection when a new authenticated connection takes ownership.
 
-Use `conduit extension token` only in a private terminal. The token is equivalent to local control authority while the daemon is running.
+Use `conduit extension pair` to create a 12-character code that expires after five
+minutes and works once. Redemption is accepted only over loopback from a Chromium
+extension origin and is rate-limited. The long-term local credential is stored in
+extension-local storage and is not shown in the popup or CLI.
 
 ## Rebuild and reload
 

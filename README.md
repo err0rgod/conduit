@@ -89,10 +89,13 @@ yourself.
 
 ```bash
 node packages/cli/bin/conduit.js extension path
-node packages/cli/bin/conduit.js extension token
+node packages/cli/bin/conduit.js extension pair
 ```
 
-Open `chrome://extensions` (or `edge://extensions`), enable Developer mode, choose **Load unpacked**, and select the printed directory. Enter port `9222` and the token in the Conduit popup. Treat the token as a secret.
+Open `chrome://extensions` (or `edge://extensions`), enable Developer mode, choose
+**Load unpacked**, and select the printed directory. Enter port `9222` and the
+short-lived code in the Conduit popup. The code expires after five minutes, works
+once, and lets the extension store the local credential without displaying it.
 
 ## Start and use
 

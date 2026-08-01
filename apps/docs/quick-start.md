@@ -9,7 +9,7 @@ conduit doctor
 ```
 
 The setup report prints the extension directory. Load it in Chromium, then open the
-popup and save the local token and port. `conduit status` should then show
+popup and enter the short-lived pairing code and port. `conduit status` should then show
 `extensionConnected: true`.
 
 ## 2. Grant a narrow workflow
@@ -45,7 +45,7 @@ Configure the client to launch:
 }
 ```
 
-The MCP process reads the same local token and daemon settings. It exposes typed browser tools; it does not execute arbitrary JavaScript or shell commands.
+The MCP process reads the same protected local credential and daemon settings. It exposes typed browser tools; it does not execute arbitrary JavaScript or shell commands.
 
 ## Stop safely
 

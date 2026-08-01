@@ -83,19 +83,13 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
-  it('reveals the local extension token only through an explicit command', async () => {
-    const previous = process.env.CONDUIT_DATA_DIR;
-    process.env.CONDUIT_DATA_DIR = directory;
-    try {
-      await program().parseAsync(['node', 'conduit', '--json', 'extension', 'token']);
-      const value = JSON.parse(output) as { token: string; warning: string };
-      expect(value.token).toMatch(/^[a-f0-9]{64}$/u);
-      expect(value.warning).toContain('secret');
-      expect(fs.existsSync(path.join(directory, 'auth.json'))).toBe(true);
-    } finally {
-      if (previous === undefined) delete process.env.CONDUIT_DATA_DIR;
-      else process.env.CONDUIT_DATA_DIR = previous;
-    }
+  it('creates a short-lived extension pairing code without revealing the local token', async () => {
+    const client = new ConduitClient({
+      token: 'unused',
+      fetch: async () => new Response(JSON.stringify({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 })),
+    });
+    await program(client).parseAsync(['node', 'conduit', '--json', 'extension', 'pair']);
+    expect(JSON.parse(output)).toEqual({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 });
   });
 
   function program(client = new ConduitClient({ token: 'unused' })) {

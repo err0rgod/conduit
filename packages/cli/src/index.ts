@@ -4,7 +4,6 @@ import { Command } from 'commander';
 import { ConfigStore } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
 import { ElementTarget, ResponseEnvelope } from '@conduit/protocol';
-import { LocalAuth } from '@conduit/security';
 import { DaemonLifecycle, daemonBaseUrl } from './lifecycle';
 import { resolveExtensionPath, runDoctor } from './doctor';
 import { resolveDistributionEntry } from './runtime-paths';
@@ -207,14 +206,9 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .description('Print the built extension directory')
     .action(() => output({ path: resolveExtensionPath() }));
   extension
-    .command('token')
-    .description('Explicitly reveal the local extension authentication token')
-    .action(() =>
-      output({
-        token: new LocalAuth().ensureToken(),
-        warning: 'Treat this token as a secret. Do not paste it into websites or commit it.',
-      }),
-    );
+    .command('pair')
+    .description('Create a short-lived, one-use extension pairing code')
+    .action(async () => output(await client.startExtensionPairing()));
   extension
     .command('install-help')
     .description('Show Chromium unpacked-extension installation steps')
@@ -225,8 +219,8 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
           'Open chrome://extensions or edge://extensions.',
           'Enable Developer mode.',
           `Choose Load unpacked and select ${resolveExtensionPath()}.`,
-          'Run conduit extension token and keep the output private.',
-          'Open the Conduit extension popup and configure the daemon port and local token.',
+          'Run conduit extension pair.',
+          'Open the Conduit extension popup and enter the daemon port and short-lived pairing code.',
         ],
       }),
     );

@@ -33,6 +33,9 @@ describe('SetupManager', () => {
       },
       dataDirectory: directory,
       extensionPath: path.join(directory, 'extension'),
+      client: {
+        startExtensionPairing: async () => ({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 }),
+      },
     });
 
     const report = await manager.setup();
@@ -43,6 +46,7 @@ describe('SetupManager', () => {
       daemonStarted: true,
     });
     expect(report.nextSteps.join(' ')).toContain('Load unpacked');
+    expect(report.extensionPairing?.code).toBe('ABCDEFG2HJKL');
   });
 
   it('preserves user data unless purge is explicitly requested', async () => {

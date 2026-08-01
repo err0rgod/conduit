@@ -5,6 +5,7 @@ import { getAppDataDir } from './storage';
 
 export * from './audit';
 export * from './confirmation';
+export * from './local-pairing';
 export * from './policy';
 export * from './paths';
 export * from './pairing';

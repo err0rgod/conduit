@@ -36,10 +36,17 @@
       <input type="number" id="port" value="9222" />
     </div>
     <div class="form-group">
-      <label>Daemon Token</label>
-      <input type="password" id="token" placeholder="Enter token" />
+      <label>Pairing Code</label>
+      <input
+        type="text"
+        id="code"
+        maxlength="12"
+        autocomplete="off"
+        placeholder="12-character code"
+      />
     </div>
-    <button id="save">Save & Connect</button>
+    <button id="save">Pair & Connect</button>
+    <p id="status">Run <code>conduit extension pair</code> to create a one-use code.</p>
 
     <script src="popup.js"></script>
   </body>

@@ -9,7 +9,7 @@ import { ConduitClient } from '../../packages/daemon-client/src/index';
 import { SecurityPolicy } from '../../packages/security/src/policy';
 import { AuditLogger, StoredAuditEvent } from '../../packages/security/src/audit';
 
-const token = 'e2e-token-'.padEnd(64, '0');
+const token = 'e'.repeat(64);
 let daemon: Daemon;
 let daemonPort: number;
 let fixtureServer: Server;
@@ -57,7 +57,7 @@ test.beforeAll(async () => {
   });
 
   worker = await extensionWorker(context);
-  await configureExtension(context, worker, daemonPort, token);
+  await configureExtension(context, worker, daemonPort);
   await expect
     .poll(async () => (await client().health()).extensionConnected, { timeout: 45_000 })
     .toBe(true);
@@ -194,14 +194,15 @@ async function configureExtension(
   browserContext: BrowserContext,
   worker: Worker,
   port: number,
-  daemonToken: string,
 ): Promise<void> {
+  const pairing = await client().startExtensionPairing();
   const extensionId = new URL(worker.url()).host;
   const popup = await browserContext.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.locator('#port').fill(String(port));
-  await popup.locator('#token').fill(daemonToken);
+  await popup.locator('#code').fill(pairing.code);
   await popup.locator('#save').click();
+  await expect(popup.locator('#status')).toContainText('Paired');
   await popup.close();
 }
 

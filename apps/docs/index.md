@@ -52,7 +52,7 @@ Conduit does not host a browser, route models, or send your browsing activity to
 pnpm install --frozen-lockfile
 pnpm build
 node packages/cli/bin/conduit.js extension path
-node packages/cli/bin/conduit.js extension token
+node packages/cli/bin/conduit.js extension pair
 node packages/cli/bin/conduit.js start
 node packages/cli/bin/conduit.js doctor
 ```
