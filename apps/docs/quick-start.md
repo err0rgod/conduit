@@ -3,12 +3,14 @@
 ## 1. Start and connect
 
 ```bash
-conduit start
+conduit setup
 conduit status
 conduit doctor
 ```
 
-Open the extension popup after loading it and save the local token and port. `conduit status` should then show `extensionConnected: true`.
+The setup report prints the extension directory. Load it in Chromium, then open the
+popup and save the local token and port. `conduit status` should then show
+`extensionConnected: true`.
 
 ## 2. Grant a narrow workflow
 

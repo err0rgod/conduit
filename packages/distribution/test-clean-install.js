@@ -62,6 +62,13 @@ try {
     throw new Error('Installed extension manifest was not found.');
   }
 
+  const setup = JSON.parse(
+    run(process.execPath, [cliPath, '--json', 'setup', '--no-service', '--no-start']),
+  );
+  if (!setup.configured || !fs.existsSync(setup.configPath)) {
+    throw new Error('Installed setup command did not initialize Conduit configuration.');
+  }
+
   run(process.execPath, [cliPath, '--json', 'start']);
   daemonStarted = true;
   const status = JSON.parse(run(process.execPath, [cliPath, '--json', 'status']));
@@ -69,7 +76,7 @@ try {
   run(process.execPath, [cliPath, '--json', 'stop']);
   daemonStarted = false;
   process.stdout.write(
-    'Clean tarball install, extension discovery, and daemon lifecycle passed.\n',
+    'Clean tarball install, setup, extension discovery, and daemon lifecycle passed.\n',
   );
 } finally {
   if (daemonStarted && cliPath) {

@@ -11,7 +11,9 @@ conduit --json browser tabs
 
 | Area          | Commands                                                      |
 | ------------- | ------------------------------------------------------------- |
+| Setup         | `setup`, `upgrade`, `uninstall`                               |
 | Lifecycle     | `start`, `stop`, `restart`, `status`, `logs`, `doctor`        |
+| User service  | `service install`, `start`, `stop`, `status`, `uninstall`     |
 | Pairing       | `pair`, `devices`, `revoke`                                   |
 | Policy        | `permissions`, `allow-domain`, `deny-domain`                  |
 | Configuration | `config show`, `config path`, `config set`                    |
@@ -24,6 +26,16 @@ Run `conduit <command> --help` for exact options. Browser commands accept tab ID
 
 Successful commands resolve with exit code zero. Validation, connectivity, and daemon errors are printed without swallowing the underlying structured error. JSON output is recommended for scripts.
 
+## Setup and automatic startup
+
+`conduit setup` is idempotent and uses a user-level service. It does not require
+administrator access. Settings survive `conduit uninstall` unless `--purge` is
+explicitly supplied.
+
 ## Cross-platform notes
 
-Lifecycle management uses Node process APIs and explicit file paths rather than Unix-only shell commands. The same CLI is tested on Windows during development; CI coverage across Windows, macOS, and Linux is part of the repository automation milestone.
+Lifecycle management uses Node process APIs and explicit file paths rather than
+Unix-only shell commands. Automatic startup uses a limited Scheduled Task on
+Windows, a LaunchAgent on macOS, and a systemd user unit on Linux. Definition and
+command generation are covered by cross-platform tests, and the packaged lifecycle
+runs in the Windows, macOS, and Linux CI matrix.

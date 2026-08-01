@@ -73,13 +73,17 @@ includes the CLI, daemon, MCP adapter, and unpacked extension without runtime
 ```bash
 pnpm distribution:pack
 npm install --global ./artifacts/conduit-browser-0.1.0.tgz
-conduit --help
-conduit start
+conduit setup
 ```
 
 This exercises the same artifact intended for npm publication. The CI matrix also
-installs the tarball into a clean prefix and verifies extension discovery plus the
-daemon start/status/stop lifecycle.
+installs the tarball into a clean prefix and verifies setup, extension discovery,
+and the daemon start/status/stop lifecycle.
+
+`conduit setup` creates secure local configuration, registers automatic startup for
+the current user without administrator rights, starts the daemon, and prints the
+extension path. Use `--no-service` or `--no-start` when managing those pieces
+yourself.
 
 ## Extension setup
 
@@ -102,6 +106,11 @@ node packages/cli/bin/conduit.js stop
 ```
 
 Use global `--json` for machine-readable CLI output.
+
+For an installed release, manage automatic startup with `conduit service status`,
+check updates with `conduit upgrade --check`, and upgrade with `conduit upgrade`.
+`conduit uninstall` removes automatic startup but preserves settings;
+`conduit uninstall --purge` also permanently removes local credentials and state.
 
 ## MCP setup
 
