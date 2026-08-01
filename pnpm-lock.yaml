@@ -34,6 +34,9 @@ importers:
 
   apps/daemon:
     dependencies:
+      '@conduit/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@conduit/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -78,12 +81,27 @@ importers:
 
   packages/cli:
     dependencies:
+      '@conduit/config':
+        specifier: workspace:*
+        version: link:../config
+      '@conduit/daemon':
+        specifier: workspace:*
+        version: link:../../apps/daemon
       '@conduit/daemon-client':
         specifier: workspace:*
         version: link:../daemon-client
+      '@conduit/extension':
+        specifier: workspace:*
+        version: link:../../apps/extension
+      '@conduit/mcp-server':
+        specifier: workspace:*
+        version: link:../mcp-server
       '@conduit/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@conduit/security':
+        specifier: workspace:*
+        version: link:../security
       commander:
         specifier: ^12.0.0
         version: 12.1.0
@@ -91,6 +109,18 @@ importers:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.43
+
+  packages/config:
+    dependencies:
+      '@conduit/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@conduit/security':
+        specifier: workspace:*
+        version: link:../security
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
 
   packages/daemon-client:
     dependencies:

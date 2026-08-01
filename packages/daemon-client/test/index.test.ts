@@ -27,12 +27,21 @@ describe('ConduitClient', () => {
   });
 
   it('validates health responses', async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ status: 'ok', extensionConnected: true }), { status: 200 }),
-      );
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'ok',
+          extensionConnected: true,
+          instanceId: '123e4567-e89b-12d3-a456-426614174000',
+        }),
+        { status: 200 },
+      ),
+    );
     const client = new ConduitClient({ token: 'a'.repeat(64), fetch: fetchMock });
-    await expect(client.health()).resolves.toEqual({ status: 'ok', extensionConnected: true });
+    await expect(client.health()).resolves.toEqual({
+      status: 'ok',
+      extensionConnected: true,
+      instanceId: '123e4567-e89b-12d3-a456-426614174000',
+    });
   });
 });

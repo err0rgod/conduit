@@ -39,6 +39,7 @@ describe('Daemon', () => {
     expect(await response.json()).toEqual({
       status: 'ok',
       extensionConnected: false,
+      instanceId: expect.any(String),
     });
   });
 

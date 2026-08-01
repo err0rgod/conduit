@@ -58,6 +58,8 @@ export interface DaemonOptions {
   remoteSessionTimeoutMs?: number;
   maximumRemoteRequests?: number;
   remoteRequestWindowMs?: number;
+  instanceId?: string;
+  shutdownHandler?: () => void;
 }
 
 export interface Authenticator {
@@ -110,6 +112,8 @@ export class Daemon {
   private readonly remoteAuthenticator: RemoteDeviceAuthenticator;
   private readonly remoteSessionTimeoutMs: number;
   private readonly remoteRequestLimits: SlidingWindowRateLimiter;
+  private readonly instanceId: string;
+  private readonly shutdownHandler?: () => void;
   private readonly tabUrls = new Map<number, string>();
   private activeTabId: number | null = null;
   private activeExtension: WebSocket | null = null;
@@ -155,6 +159,8 @@ export class Daemon {
       options.maximumRemoteRequests ?? 120,
       options.remoteRequestWindowMs ?? 60_000,
     );
+    this.instanceId = options.instanceId ?? crypto.randomUUID();
+    this.shutdownHandler = options.shutdownHandler;
   }
 
   public async start(port = 0): Promise<number> {
@@ -269,6 +275,7 @@ export class Daemon {
       this.writeJson(res, 200, {
         status: 'ok',
         extensionConnected: this.isExtensionConnected(),
+        instanceId: this.instanceId,
       });
       return;
     }
@@ -298,6 +305,7 @@ export class Daemon {
     const isPairingDecision = req.method === 'POST' && req.url === '/api/pairings/respond';
     const isDeviceList = req.method === 'GET' && req.url === '/api/devices';
     const isDeviceRevoke = req.method === 'POST' && req.url === '/api/devices/revoke';
+    const isShutdown = req.method === 'POST' && req.url === '/api/shutdown';
     if (
       !isAction &&
       !isConfirmationList &&
@@ -306,7 +314,8 @@ export class Daemon {
       !isPairingList &&
       !isPairingDecision &&
       !isDeviceList &&
-      !isDeviceRevoke
+      !isDeviceRevoke &&
+      !isShutdown
     ) {
       this.writeJson(res, 404, createErrorResponse('INVALID_REQUEST', 'Unknown daemon endpoint.'));
       return;
@@ -342,6 +351,20 @@ export class Daemon {
         403,
         createErrorResponse('PERMISSION_DENIED', 'Remote sessions cannot manage Conduit.'),
       );
+      return;
+    }
+
+    if (isShutdown) {
+      if (!this.shutdownHandler) {
+        this.writeJson(
+          res,
+          409,
+          createErrorResponse('INVALID_REQUEST', 'Daemon shutdown is not externally managed.'),
+        );
+        return;
+      }
+      this.writeJson(res, 202, { stopping: true, instanceId: this.instanceId });
+      setImmediate(this.shutdownHandler);
       return;
     }
 
@@ -1121,16 +1144,4 @@ function hashRemoteSessionToken(token: string): string {
 
 function remoteSessionDigest(deviceId: string): string {
   return digestRemoteRequest({ deviceId, purpose: 'conduit.remote.session.v1' });
-}
-
-if (require.main === module) {
-  const daemon = new Daemon();
-  daemon.start(9222).then((port) => {
-    console.log(`Conduit daemon started on 127.0.0.1:${port}`);
-    console.log('Local authentication initialized; token values are never printed.');
-  });
-
-  process.on('SIGINT', () => {
-    void daemon.stop().then(() => process.exit(0));
-  });
 }
