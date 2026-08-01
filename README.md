@@ -48,7 +48,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (Node 24 LTS recommended)
 - Corepack and pnpm 9.15.9
 - Chrome, Edge, or compatible Chromium browser with Manifest V3
 
