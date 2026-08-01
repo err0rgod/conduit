@@ -8,6 +8,9 @@ import { LocalAuth } from '@conduit/security';
 import { DaemonLifecycle, daemonBaseUrl } from './lifecycle';
 import { resolveExtensionPath, runDoctor } from './doctor';
 import { resolveDistributionEntry } from './runtime-paths';
+import { SetupManager } from './setup';
+import { UserService } from './service';
+import { UpdateManager } from './update';
 
 interface TabOptions {
   tab?: string;
@@ -26,12 +29,19 @@ export interface CliServices {
   client: ConduitClient;
   configStore: ConfigStore;
   lifecycle: DaemonLifecycle;
+  service: UserService;
+  setupManager: SetupManager;
+  updateManager: UpdateManager;
   stdout?: Pick<NodeJS.WriteStream, 'write'>;
 }
 
 export function createProgram(overrides: Partial<CliServices> = {}): Command {
   const configStore = overrides.configStore ?? new ConfigStore();
   const lifecycle = overrides.lifecycle ?? new DaemonLifecycle({ configStore });
+  const service = overrides.service ?? new UserService();
+  const setupManager =
+    overrides.setupManager ?? new SetupManager({ configStore, lifecycle, service });
+  const updateManager = overrides.updateManager ?? new UpdateManager();
   const client =
     overrides.client ?? new ConduitClient({ baseUrl: daemonBaseUrl(configStore.load()) });
   const stdout = overrides.stdout ?? process.stdout;
@@ -42,6 +52,35 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .description('Open-source, local-first browser control bridge for AI agents')
     .version('0.1.0')
     .option('--json', 'Emit machine-readable JSON');
+
+  program
+    .command('setup')
+    .description('Configure Conduit, install its user service, and start the daemon')
+    .option('--no-service', 'Do not install automatic startup for this user')
+    .option('--no-start', 'Do not start the daemon now')
+    .action(async (options: { service: boolean; start: boolean }) =>
+      output(
+        await setupManager.setup({
+          installService: options.service,
+          startDaemon: options.start,
+        }),
+      ),
+    );
+  program
+    .command('uninstall')
+    .description('Stop Conduit and remove its user service; preserve settings by default')
+    .option('--purge', 'Also permanently remove local Conduit configuration and credentials')
+    .action(async (options: { purge?: boolean }) =>
+      output(await setupManager.uninstall({ purge: options.purge })),
+    );
+  program
+    .command('upgrade')
+    .alias('update')
+    .description('Check npm and upgrade the installed Conduit package')
+    .option('--check', 'Check for a newer version without installing it')
+    .action(async (options: { check?: boolean }) =>
+      output(options.check ? await updateManager.check() : await updateManager.upgrade()),
+    );
 
   program
     .command('start')
@@ -77,6 +116,34 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
       output(report);
       if (!report.healthy) process.exitCode = 1;
     });
+
+  const serviceCommand = program
+    .command('service')
+    .description('Manage automatic startup for the current user');
+  serviceCommand
+    .command('install')
+    .description('Install the per-user login service without administrator rights')
+    .action(() => output(service.install()));
+  serviceCommand
+    .command('start')
+    .description('Start Conduit through the installed user service')
+    .action(() => output(service.start()));
+  serviceCommand
+    .command('stop')
+    .description('Stop the managed daemon and user service')
+    .action(async () => {
+      const current = await lifecycle.status();
+      const daemon = current.running && current.state ? await lifecycle.stop() : current;
+      output({ daemon, service: service.stop() });
+    });
+  serviceCommand
+    .command('status')
+    .description('Show service registration and daemon health')
+    .action(async () => output({ service: service.status(), daemon: await lifecycle.status() }));
+  serviceCommand
+    .command('uninstall')
+    .description('Remove automatic startup while preserving Conduit settings')
+    .action(() => output(service.uninstall()));
 
   const pair = program
     .command('pair')
