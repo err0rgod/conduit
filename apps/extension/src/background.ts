@@ -9,6 +9,19 @@ import {
 let daemonSocket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+interface ExtensionDiagnostic {
+  phase: string;
+  operation?: string;
+  requestId?: string;
+  message?: string;
+  timestamp: number;
+}
+
+declare global {
+  // Accessible only inside the extension service worker for local diagnostics and E2E assertions.
+  var __conduitDiagnostic: ExtensionDiagnostic | undefined;
+}
+
 const browserEngine = new ExtensionBrowserEngine();
 
 function connectDaemon(): void {
@@ -34,6 +47,7 @@ function connectDaemon(): void {
       };
 
       daemonSocket.onmessage = (event) => {
+        setDiagnostic('message-received');
         void handleDaemonMessage(event.data);
       };
 
@@ -57,16 +71,19 @@ function connectDaemon(): void {
 async function handleDaemonMessage(rawData: string): Promise<void> {
   const parsed = parseJson(rawData);
   if (!parsed.ok) {
+    setDiagnostic('invalid-json');
     sendToDaemon(createErrorResponse('INVALID_REQUEST', 'Daemon message was not valid JSON.'));
     return;
   }
 
   if (isAuthSuccess(parsed.value)) {
+    setDiagnostic('authenticated');
     setConnectionBadge(true);
     return;
   }
 
   if (isAuthFailure(parsed.value)) {
+    setDiagnostic('authentication-failed');
     console.error('Authentication failed with Conduit daemon.');
     daemonSocket?.close();
     return;
@@ -74,6 +91,7 @@ async function handleDaemonMessage(rawData: string): Promise<void> {
 
   const request = BrowserRequestEnvelopeSchema.safeParse(parsed.value);
   if (!request.success) {
+    setDiagnostic('request-invalid', undefined, undefined, request.error.message);
     sendToDaemon(
       createErrorResponse('INVALID_REQUEST', 'Daemon request failed protocol validation.'),
     );
@@ -84,6 +102,7 @@ async function handleDaemonMessage(rawData: string): Promise<void> {
 }
 
 async function executeBrowserRequest(request: BrowserRequestEnvelope): Promise<void> {
+  setDiagnostic('executing', request.type, request.id);
   try {
     switch (request.type) {
       case 'browser.list_tabs': {
@@ -198,6 +217,12 @@ async function executeBrowserRequest(request: BrowserRequestEnvelope): Promise<v
       }
     }
   } catch (error) {
+    setDiagnostic(
+      'execution-failed',
+      request.type,
+      request.id,
+      error instanceof Error ? error.message : 'Unexpected browser action failure.',
+    );
     if (error instanceof BrowserActionError) {
       sendToDaemon(createErrorResponse(error.code, error.message, request.id));
       return;
@@ -211,7 +236,25 @@ async function executeBrowserRequest(request: BrowserRequestEnvelope): Promise<v
 function sendToDaemon(message: unknown): void {
   if (daemonSocket?.readyState === WebSocket.OPEN) {
     daemonSocket.send(JSON.stringify(message));
+    setDiagnostic('response-sent');
+  } else {
+    setDiagnostic('response-dropped', undefined, undefined, 'Daemon socket is not open.');
   }
+}
+
+function setDiagnostic(
+  phase: string,
+  operation?: string,
+  requestId?: string,
+  message?: string,
+): void {
+  globalThis.__conduitDiagnostic = {
+    phase,
+    ...(operation ? { operation } : {}),
+    ...(requestId ? { requestId } : {}),
+    ...(message ? { message } : {}),
+    timestamp: Date.now(),
+  };
 }
 
 function setConnectionBadge(connected: boolean): void {

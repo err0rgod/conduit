@@ -1,4 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { Daemon } from '../src/index';
 import {
   PROTOCOL_VERSION,
@@ -7,7 +11,13 @@ import {
   createSuccessResponse,
 } from '@conduit/protocol';
 import WebSocket from 'ws';
-import { AuditLogger, SecurityPolicy } from '@conduit/security';
+import {
+  AuditLogger,
+  SecurityPolicy,
+  TrustedDeviceStore,
+  createRemoteSignaturePayload,
+  digestRemoteRequest,
+} from '@conduit/security';
 
 describe('Daemon', () => {
   let daemon: Daemon;
@@ -332,6 +342,155 @@ describe('Daemon transport hardening', () => {
   });
 });
 
+describe('Daemon remote devices', () => {
+  it('keeps remote mode disabled and rejects unsafe public binding by default', async () => {
+    const localOnly = new Daemon({ maximumRemoteRequests: 1, remoteRequestWindowMs: 10_000 });
+    const localPort = await localOnly.start(0);
+    try {
+      const response = await fetch(`http://127.0.0.1:${localPort}/api/remote/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      expect(response.status).toBe(403);
+      const limited = await fetch(`http://127.0.0.1:${localPort}/api/remote/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      expect(limited.status).toBe(429);
+    } finally {
+      await localOnly.stop();
+    }
+
+    const unsafe = new Daemon({ bindAddress: '0.0.0.0', remoteEnabled: true });
+    await expect(unsafe.start(0)).rejects.toThrowError(
+      'Non-loopback binding requires explicit remote mode and TLS configuration.',
+    );
+  });
+
+  it('pairs, authenticates, constrains, and revokes a remote device', async () => {
+    const testDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-remote-daemon-'));
+    const devices = new TrustedDeviceStore(path.join(testDirectory, 'devices.json'));
+    const remoteDaemon = new Daemon({
+      remoteEnabled: true,
+      devices,
+      audit: new AuditLogger({ sink: () => undefined }),
+    });
+    const remotePort = await remoteDaemon.start(0);
+    const localToken = remoteDaemon.getToken();
+    const identity = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+    const publicKey = identity.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
+    let ws: WebSocket | undefined;
+    try {
+      const start = await daemonRequest(remotePort, localToken, '/api/pairings/start', {});
+      expect(start.status).toBe(201);
+      const { code } = (await start.json()) as { code: string };
+
+      const pairing = await fetch(`http://127.0.0.1:${remotePort}/api/remote/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          publicKey,
+          deviceName: 'Remote test laptop',
+          requestedPermissions: ['browser.read'],
+        }),
+      });
+      expect(pairing.status).toBe(202);
+      const pending = (await pairing.json()) as { pairingId: string; fingerprint: string };
+
+      const reusedCode = await fetch(`http://127.0.0.1:${remotePort}/api/remote/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          publicKey,
+          deviceName: 'Replay',
+          requestedPermissions: ['browser.read'],
+        }),
+      });
+      expect(reusedCode.status).toBe(410);
+
+      const approval = await daemonRequest(remotePort, localToken, '/api/pairings/respond', {
+        pairingId: pending.pairingId,
+        approved: true,
+        grantedPermissions: ['browser.read'],
+      });
+      expect(approval.status).toBe(201);
+      const approvalBody = (await approval.json()) as { device: { id: string } };
+      const deviceId = approvalBody.device.id;
+
+      const requestDigest = digestRemoteRequest({
+        deviceId,
+        purpose: 'conduit.remote.session.v1',
+      });
+      const challengeResponse = await fetch(`http://127.0.0.1:${remotePort}/api/remote/challenge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, requestDigest }),
+      });
+      expect(challengeResponse.status).toBe(201);
+      const challenge = (await challengeResponse.json()) as {
+        challengeId: string;
+        nonce: string;
+      };
+      const signature = crypto
+        .sign(
+          'sha256',
+          Buffer.from(
+            createRemoteSignaturePayload(challenge.challengeId, challenge.nonce, requestDigest),
+          ),
+          identity.privateKey,
+        )
+        .toString('base64');
+      const authentication = await fetch(`http://127.0.0.1:${remotePort}/api/remote/authenticate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId,
+          challengeId: challenge.challengeId,
+          requestDigest,
+          signature,
+        }),
+      });
+      expect(authentication.status).toBe(200);
+      const remoteSession = (await authentication.json()) as { token: string };
+
+      ws = await connectExtension(remotePort, localToken);
+      const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
+      const remoteActionPromise = postAction(remotePort, remoteSession.token, {
+        ...createEnvelopeBase(),
+        type: 'browser.list_tabs',
+      });
+      const extensionRequest = await extensionRequestPromise;
+      ws.send(JSON.stringify(createSuccessResponse({ tabs: [] }, extensionRequest.id)));
+      expect((await remoteActionPromise).status).toBe(200);
+
+      const ungranted = await postAction(remotePort, remoteSession.token, {
+        ...createEnvelopeBase(),
+        type: 'browser.navigate',
+        payload: { url: 'https://example.com' },
+      });
+      expect(ungranted.status).toBe(403);
+
+      const revocation = await daemonRequest(remotePort, localToken, '/api/devices/revoke', {
+        deviceId,
+      });
+      expect(revocation.status).toBe(200);
+      const revokedSession = await postAction(remotePort, remoteSession.token, {
+        ...createEnvelopeBase(),
+        type: 'browser.list_tabs',
+      });
+      expect(revokedSession.status).toBe(401);
+    } finally {
+      ws?.close();
+      await remoteDaemon.stop();
+      fs.rmSync(testDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
 async function connectExtension(port: number, token: string): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
@@ -369,6 +528,19 @@ async function onceExtensionRequest(
 
 function postAction(port: number, token: string, body: unknown): Promise<Response> {
   return fetch(`http://127.0.0.1:${port}/api/action`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+function daemonRequest(
+  port: number,
+  token: string,
+  endpoint: string,
+  body: unknown,
+): Promise<Response> {
+  return fetch(`http://127.0.0.1:${port}${endpoint}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

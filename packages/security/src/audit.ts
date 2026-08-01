@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getAppDataDir } from './index';
+import { getAppDataDir } from './storage';
 
 export interface AuditEvent {
   type: string;
