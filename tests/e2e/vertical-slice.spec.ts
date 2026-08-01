@@ -9,7 +9,7 @@ import { ConduitClient } from '../../packages/daemon-client/src/index';
 import { SecurityPolicy } from '../../packages/security/src/policy';
 import { AuditLogger, StoredAuditEvent } from '../../packages/security/src/audit';
 
-const token = 'e2e-token-'.padEnd(64, '0');
+const token = 'e'.repeat(64);
 let daemon: Daemon;
 let daemonPort: number;
 let fixtureServer: Server;
