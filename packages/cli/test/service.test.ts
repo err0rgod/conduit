@@ -51,7 +51,7 @@ describe('UserService', () => {
     expect(definition).toContain('<key>RunAtLoad</key><true/>');
   });
 
-  it('registers a limited Windows logon task without shell interpolation', () => {
+  it('registers current-user Windows startup without administrator rights', () => {
     const commands: ServiceCommand[] = [];
     const service = new UserService({
       platform: 'win32',
@@ -63,18 +63,17 @@ describe('UserService', () => {
     service.install();
     expect(commands).toEqual([
       {
-        command: 'schtasks.exe',
+        command: 'reg.exe',
         args: [
-          '/Create',
-          '/F',
-          '/SC',
-          'ONLOGON',
-          '/TN',
-          'Conduit Browser Bridge',
-          '/TR',
+          'ADD',
+          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run',
+          '/v',
+          'Conduit',
+          '/t',
+          'REG_SZ',
+          '/d',
           '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\test\\Conduit App\\cli.cjs" start',
-          '/RL',
-          'LIMITED',
+          '/f',
         ],
       },
     ]);

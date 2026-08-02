@@ -29,13 +29,14 @@ Successful commands resolve with exit code zero. Validation, connectivity, and d
 ## Setup and automatic startup
 
 `conduit setup` is idempotent and uses a user-level service. It does not require
-administrator access. Settings survive `conduit uninstall` unless `--purge` is
+administrator access. On Windows it uses the current-user Run registry key, not
+an administrator-managed service. Settings survive `conduit uninstall` unless `--purge` is
 explicitly supplied.
 
 ## Cross-platform notes
 
 Lifecycle management uses Node process APIs and explicit file paths rather than
-Unix-only shell commands. Automatic startup uses a limited Scheduled Task on
+Unix-only shell commands. Automatic startup uses the current-user Run key on
 Windows, a LaunchAgent on macOS, and a systemd user unit on Linux. Definition and
 command generation are covered by cross-platform tests, and the packaged lifecycle
 runs in the Windows, macOS, and Linux CI matrix.

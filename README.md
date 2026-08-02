@@ -80,7 +80,7 @@ This exercises the same artifact intended for npm publication. The CI matrix als
 installs the tarball into a clean prefix and verifies setup, extension discovery,
 and the daemon start/status/stop lifecycle.
 
-`conduit setup` creates secure local configuration, registers automatic startup for
+`conduit setup` creates secure local configuration, registers current-user automatic startup for
 the current user without administrator rights, starts the daemon, and prints the
 extension path. Use `--no-service` or `--no-start` when managing those pieces
 yourself.

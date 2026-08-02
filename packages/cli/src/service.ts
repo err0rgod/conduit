@@ -27,7 +27,8 @@ export interface UserServiceOptions {
   run?: (command: ServiceCommand) => void;
 }
 
-const WINDOWS_TASK_NAME = 'Conduit Browser Bridge';
+const WINDOWS_RUN_KEY = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+const WINDOWS_VALUE_NAME = 'Conduit';
 const MACOS_LABEL = 'dev.conduit.browser-bridge';
 const LINUX_UNIT = 'conduit.service';
 
@@ -49,18 +50,17 @@ export class UserService {
   public install(): ServiceResult {
     if (this.platform === 'win32') {
       this.runCommand({
-        command: 'schtasks.exe',
+        command: 'reg.exe',
         args: [
-          '/Create',
-          '/F',
-          '/SC',
-          'ONLOGON',
-          '/TN',
-          WINDOWS_TASK_NAME,
-          '/TR',
-          windowsTaskAction(this.nodePath, this.cliEntryPath),
-          '/RL',
-          'LIMITED',
+          'ADD',
+          WINDOWS_RUN_KEY,
+          '/v',
+          WINDOWS_VALUE_NAME,
+          '/t',
+          'REG_SZ',
+          '/d',
+          windowsRunAction(this.nodePath, this.cliEntryPath),
+          '/f',
         ],
       });
       return this.result(true, 'Conduit will start when this Windows user signs in.');
@@ -85,7 +85,7 @@ export class UserService {
 
   public start(): ServiceResult {
     if (this.platform === 'win32') {
-      this.runCommand({ command: 'schtasks.exe', args: ['/Run', '/TN', WINDOWS_TASK_NAME] });
+      this.runCommand({ command: this.nodePath, args: [this.cliEntryPath, 'start'] });
     } else if (this.platform === 'darwin') {
       this.runCommand({
         command: 'launchctl',
@@ -104,8 +104,8 @@ export class UserService {
   public stop(): ServiceResult {
     if (this.platform === 'win32') {
       this.runAllowingFailure({
-        command: 'schtasks.exe',
-        args: ['/End', '/TN', WINDOWS_TASK_NAME],
+        command: this.nodePath,
+        args: [this.cliEntryPath, 'stop'],
       });
     } else if (this.platform === 'darwin') {
       this.runAllowingFailure({
@@ -125,12 +125,8 @@ export class UserService {
   public uninstall(): ServiceResult {
     if (this.platform === 'win32') {
       this.runAllowingFailure({
-        command: 'schtasks.exe',
-        args: ['/End', '/TN', WINDOWS_TASK_NAME],
-      });
-      this.runAllowingFailure({
-        command: 'schtasks.exe',
-        args: ['/Delete', '/F', '/TN', WINDOWS_TASK_NAME],
+        command: 'reg.exe',
+        args: ['DELETE', WINDOWS_RUN_KEY, '/v', WINDOWS_VALUE_NAME, '/f'],
       });
     } else if (this.platform === 'darwin') {
       const definitionPath = this.definitionPath();
@@ -162,7 +158,7 @@ export class UserService {
 
   public isInstalled(): boolean {
     if (this.platform === 'win32') {
-      const result = spawnSync('schtasks.exe', ['/Query', '/TN', WINDOWS_TASK_NAME], {
+      const result = spawnSync('reg.exe', ['QUERY', WINDOWS_RUN_KEY, '/v', WINDOWS_VALUE_NAME], {
         windowsHide: true,
         stdio: 'ignore',
       });
@@ -173,7 +169,7 @@ export class UserService {
 
   public definitionPath(): string {
     if (this.platform === 'win32')
-      throw new Error('Windows stores the service as a Scheduled Task.');
+      throw new Error('Windows stores automatic startup in the current-user Run registry key.');
     return this.platform === 'darwin'
       ? path.join(this.homeDirectory, 'Library', 'LaunchAgents', `${MACOS_LABEL}.plist`)
       : path.join(this.homeDirectory, '.config', 'systemd', 'user', LINUX_UNIT);
@@ -181,7 +177,7 @@ export class UserService {
 
   public definition(): string {
     if (this.platform === 'win32')
-      throw new Error('Windows stores the service as a Scheduled Task.');
+      throw new Error('Windows stores automatic startup in the current-user Run registry key.');
     if (this.platform === 'darwin') {
       return `${['<?xml version="1.0" encoding="UTF-8"?>', '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">', '<plist version="1.0"><dict>', `<key>Label</key><string>${MACOS_LABEL}</string>`, '<key>ProgramArguments</key><array>', `<string>${escapeXml(this.nodePath)}</string>`, `<string>${escapeXml(this.cliEntryPath)}</string>`, '<string>start</string>', '</array>', '<key>RunAtLoad</key><true/>', '<key>ProcessType</key><string>Background</string>', `<key>StandardOutPath</key><string>${escapeXml(path.join(getAppDataDir(), 'service.log'))}</string>`, `<key>StandardErrorPath</key><string>${escapeXml(path.join(getAppDataDir(), 'service.log'))}</string>`, '</dict></plist>'].join('\n')}\n`;
     }
@@ -225,7 +221,7 @@ function runChecked({ command, args }: ServiceCommand): void {
   }
 }
 
-function windowsTaskAction(nodePath: string, cliEntryPath: string): string {
+function windowsRunAction(nodePath: string, cliEntryPath: string): string {
   return `\"${nodePath.replaceAll('"', '\\"')}\" \"${cliEntryPath.replaceAll('"', '\\"')}\" start`;
 }
 
