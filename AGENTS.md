@@ -2118,18 +2118,19 @@ Last updated: 2026-08-02.
 - PR #21: five-minute, one-use local extension pairing. The long-term credential
   is no longer printed or pasted into the popup. Real Chromium E2E covers pairing
   through browser actions and screenshots.
-- Main was at commit `17c211a` before the Windows startup correction began.
+- PR #22: Windows no-admin startup correction. Automatic startup now uses the
+  current-user `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run` entry;
+  the previously denied Scheduled Task mechanism was removed. The real globally
+  installed tarball and `conduit setup` succeeded on the affected machine.
+- Main was at commit `b6e91c6` after PR #22 merged.
 
 ## Current work
 
-- Active branch: `fix/windows-user-startup`.
-- `conduit setup` failed on this Windows machine with `Access is denied` because
-  creating an ONLOGON Scheduled Task was blocked by local policy.
-- The fix replaces Scheduled Task registration with the current-user
-  `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run` entry. It must be
-  formatted, linted, typechecked, tested, packaged, installed globally, exercised
-  with the real `conduit setup`, pushed as a PR, checked in GitHub Actions, and
-  merged before continuing.
+- `main` is clean and PR #22 is merged. The next implementation branch should be
+  `feat/verified-installers`.
+- The daemon is running locally on port 9222 and automatic startup is registered.
+  The extension is not connected until the user loads the unpacked extension and
+  redeems a fresh code from `conduit extension pair`.
 - The locally built `conduit-browser@0.1.0` tarball is installed globally. It is
   not published to npm yet.
 - `pnpm distribution:pack` currently collides with pnpm's built-in `pack` command
@@ -2138,20 +2139,19 @@ Last updated: 2026-08-02.
 
 ## Remaining milestone order
 
-1. Finish and merge the Windows no-admin startup correction.
-2. Add checksum-verified curl and PowerShell installers plus tag-triggered GitHub
+1. Add checksum-verified curl and PowerShell installers plus tag-triggered GitHub
    Release artifacts. Do not advertise them until an actual release exists.
-3. Expand clean-machine setup/uninstall validation.
-4. Recreate the extension popup and docs home using the inspected reference's
+2. Expand clean-machine setup/uninstall validation.
+3. Recreate the extension popup and docs home using the inspected reference's
    design language: near-black background, warm off-white type, acid-lime accents,
    uppercase telemetry labels, thin borders, and large editorial headings. Do not
    copy Forge branding or content.
-5. Publish, deploy, and validate the end-user flow. npm publication requires
+4. Publish, deploy, and validate the end-user flow. npm publication requires
    explicit release credentials/authorization; documentation alone may use Pages.
 
 ## Workspace safety and validation
 
-- `deployment.txt` and `resume.txt` are private local notes and must remain
+- `deployment.txt`, `resume.txt`, and `whatiwant.txt` are private local notes and must remain
   untracked, unmodified, and uncommitted.
 - Preserve user changes and never force-push or rewrite public history.
 - Before each stable commit run format, lint, typecheck, relevant tests, build, and
