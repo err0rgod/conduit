@@ -30,11 +30,11 @@ should wait for the signed npm release instead of installing an arbitrary artifa
 state, installs automatic startup for only the current user, starts the daemon, and
 prints the unpacked extension path. It does not require administrator rights.
 
-| Platform | User-level startup mechanism                  |
-| -------- | --------------------------------------------- |
-| Windows  | Limited Scheduled Task at sign-in             |
-| macOS    | LaunchAgent in `~/Library/LaunchAgents`       |
-| Linux    | systemd user unit in `~/.config/systemd/user` |
+| Platform | User-level startup mechanism                   |
+| -------- | ---------------------------------------------- |
+| Windows  | Current-user `HKCU\\...\\Run` entry at sign-in |
+| macOS    | LaunchAgent in `~/Library/LaunchAgents`        |
+| Linux    | systemd user unit in `~/.config/systemd/user`  |
 
 Use `conduit setup --no-service` to manage startup yourself or
 `conduit setup --no-start` to configure without starting immediately.

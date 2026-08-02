@@ -2090,3 +2090,70 @@ Demonstrate that the system was built, run, tested, committed, pushed, and docum
 - Prefer a smaller reliable system over a large unstable system.
 
 Begin by inspecting the environment, Git status, GitHub authentication, and existing files. Then create the architecture plan and immediately begin implementation.
+
+# Current implementation handoff
+
+Update this section whenever a milestone is merged so a new agent session can
+resume without reconstructing project history.
+
+Last updated: 2026-08-02.
+
+## Repository decision
+
+- Keep the daemon, CLI/MCP adapter, shared protocol, extension, tests, and docs in
+  this monorepo for now. They are separate deployable products but share protocol
+  types and a real-browser vertical-slice test.
+- Reconsider separate repositories only after stable public releases require
+  independent ownership or release cadence. If split later, extract the versioned
+  protocol package first and add compatibility matrices before moving code.
+- Public repository: `https://github.com/err0rgod/conduit`.
+- Documentation: `https://err0rgod.github.io/conduit/`.
+
+## Completed milestones
+
+- PR #19: standalone `conduit-browser` npm-style distribution containing CLI,
+  daemon, MCP adapter, and unpacked extension; clean install validated on Windows,
+  macOS, and Linux.
+- PR #20: `conduit setup`, upgrade, uninstall, and user-level automatic startup.
+- PR #21: five-minute, one-use local extension pairing. The long-term credential
+  is no longer printed or pasted into the popup. Real Chromium E2E covers pairing
+  through browser actions and screenshots.
+- Main was at commit `17c211a` before the Windows startup correction began.
+
+## Current work
+
+- Active branch: `fix/windows-user-startup`.
+- `conduit setup` failed on this Windows machine with `Access is denied` because
+  creating an ONLOGON Scheduled Task was blocked by local policy.
+- The fix replaces Scheduled Task registration with the current-user
+  `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run` entry. It must be
+  formatted, linted, typechecked, tested, packaged, installed globally, exercised
+  with the real `conduit setup`, pushed as a PR, checked in GitHub Actions, and
+  merged before continuing.
+- The locally built `conduit-browser@0.1.0` tarball is installed globally. It is
+  not published to npm yet.
+- `pnpm distribution:pack` currently collides with pnpm's built-in `pack` command
+  on this machine. `node packages/distribution/pack.js` works; fix the root script
+  during release-installer work.
+
+## Remaining milestone order
+
+1. Finish and merge the Windows no-admin startup correction.
+2. Add checksum-verified curl and PowerShell installers plus tag-triggered GitHub
+   Release artifacts. Do not advertise them until an actual release exists.
+3. Expand clean-machine setup/uninstall validation.
+4. Recreate the extension popup and docs home using the inspected reference's
+   design language: near-black background, warm off-white type, acid-lime accents,
+   uppercase telemetry labels, thin borders, and large editorial headings. Do not
+   copy Forge branding or content.
+5. Publish, deploy, and validate the end-user flow. npm publication requires
+   explicit release credentials/authorization; documentation alone may use Pages.
+
+## Workspace safety and validation
+
+- `deployment.txt` and `resume.txt` are private local notes and must remain
+  untracked, unmodified, and uncommitted.
+- Preserve user changes and never force-push or rewrite public history.
+- Before each stable commit run format, lint, typecheck, relevant tests, build, and
+  clean distribution install. Push a feature branch, open a PR, wait for every
+  required GitHub check, then merge into `main`.
