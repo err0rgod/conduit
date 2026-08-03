@@ -11,6 +11,6 @@
     "@conduit/protocol": "workspace:*"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.268"
+    "@types/chrome": "^0.2.2"
   }
 }
