@@ -69,16 +69,16 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
 
 Write-Host "Building Conduit (Daemon/CLI)..." -ForegroundColor Yellow
 Set-Location $appDir
-pnpm install
+npx pnpm install
 if ($LASTEXITCODE -ne 0) { Write-Host "Failed to install dependencies" -ForegroundColor Red; exit 1 }
-pnpm build
+npx pnpm build
 if ($LASTEXITCODE -ne 0) { Write-Host "Failed to build Conduit" -ForegroundColor Red; exit 1 }
 
 Write-Host "Building Conduit Extension..." -ForegroundColor Yellow
 Set-Location $extensionDir
-pnpm install
+npx pnpm install
 if ($LASTEXITCODE -ne 0) { Write-Host "Failed to install extension dependencies" -ForegroundColor Red; exit 1 }
-pnpm build
+npx pnpm build
 if ($LASTEXITCODE -ne 0) { Write-Host "Failed to build Extension" -ForegroundColor Red; exit 1 }
 
 # 5. Run Setup

@@ -71,13 +71,13 @@ fi
 
 echo -e "\033[0;33mBuilding Conduit (Daemon/CLI)...\033[0m"
 cd "$APP_DIR"
-pnpm install
-pnpm build
+npx pnpm install
+npx pnpm build
 
 echo -e "\033[0;33mBuilding Conduit Extension...\033[0m"
 cd "$EXT_DIR"
-pnpm install
-pnpm build
+npx pnpm install
+npx pnpm build
 
 # 5. Run Setup
 echo -e "\033[0;33mConfiguring system...\033[0m"
