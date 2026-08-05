@@ -94,7 +94,11 @@ npx pnpm build
 # 5. Run Setup
 echo -e "\033[0;33mConfiguring system...\033[0m"
 cd "$APP_DIR"
-node packages/cli/bin/conduit.js setup
+# Globally link the CLI
+cd packages/cli
+npm link --force
+cd ../../
+conduit setup
 
 # 6. Success Output
 EXT_PATH="$EXT_DIR/apps/extension/dist"

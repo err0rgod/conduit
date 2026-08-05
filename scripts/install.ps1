@@ -96,7 +96,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Failed to build Extension" -ForegroundCol
 # 5. Run Setup
 Write-Host "Configuring system..." -ForegroundColor Yellow
 Set-Location $appDir
-node packages/cli/bin/conduit.js setup
+# Globally link the CLI
+Push-Location packages/cli
+npm link --force
+Pop-Location
+conduit setup
 
 # 6. Success Output
 $extPath = Join-Path $extensionDir "apps\extension\dist"
