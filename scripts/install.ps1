@@ -61,9 +61,11 @@ if (Test-Path $extensionDir) {
 
 # 4. Install Dependencies & Build
 Write-Host "Installing dependencies using pnpm..." -ForegroundColor Yellow
-# Ensure pnpm is available via corepack
-corepack enable
-corepack prepare pnpm@latest --activate
+# Ensure pnpm is available
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+    Write-Host "pnpm not found. Installing pnpm globally..." -ForegroundColor Yellow
+    npm install -g pnpm
+}
 
 Write-Host "Building Conduit (Daemon/CLI)..." -ForegroundColor Yellow
 Set-Location $appDir

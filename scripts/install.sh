@@ -63,9 +63,11 @@ fi
 
 # 4. Install Dependencies & Build
 echo -e "\033[0;33mInstalling dependencies using pnpm...\033[0m"
-# Ensure pnpm is available via corepack
-corepack enable
-corepack prepare pnpm@latest --activate
+# Ensure pnpm is available
+if ! command -v pnpm >/dev/null 2>&1; then
+    echo -e "\033[0;33mpnpm not found. Installing pnpm globally...\033[0m"
+    npm install -g pnpm
+fi
 
 echo -e "\033[0;33mBuilding Conduit (Daemon/CLI)...\033[0m"
 cd "$APP_DIR"
