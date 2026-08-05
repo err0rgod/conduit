@@ -13,7 +13,6 @@
     "@conduit/config": "workspace:*",
     "@conduit/daemon": "workspace:*",
     "@conduit/daemon-client": "workspace:*",
-    "@conduit/extension": "workspace:*",
     "@conduit/mcp-server": "workspace:*",
     "@conduit/protocol": "workspace:*",
     "@conduit/security": "workspace:*",

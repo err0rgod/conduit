@@ -5,7 +5,7 @@ import { ConfigStore } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
 import { ElementTarget, ResponseEnvelope } from '@conduit/protocol';
 import { DaemonLifecycle, daemonBaseUrl } from './lifecycle';
-import { resolveExtensionPath, runDoctor } from './doctor';
+import { runDoctor } from './doctor';
 import { resolveDistributionEntry } from './runtime-paths';
 import { SetupManager } from './setup';
 import { UserService } from './service';
@@ -201,10 +201,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   const extension = program
     .command('extension')
     .description('Manage the unpacked browser extension');
-  extension
-    .command('path')
-    .description('Print the built extension directory')
-    .action(() => output({ path: resolveExtensionPath() }));
+
   extension
     .command('install-help')
     .description('Show Chromium unpacked-extension installation steps')
