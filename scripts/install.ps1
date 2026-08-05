@@ -89,7 +89,7 @@ $extPath = Join-Path $extensionDir "apps\extension\dist"
 
 Write-Host ""
 Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "🎉 CONDUIT INSTALLED SUCCESSFULLY! " -ForegroundColor Green
+Write-Host "CONDUIT INSTALLED SUCCESSFULLY! " -ForegroundColor Green
 Write-Host "===================================================" -ForegroundColor Cyan
 Write-Host "The Conduit Daemon is running in the background."
 Write-Host ""
@@ -98,7 +98,7 @@ Write-Host "1. Open your browser and go to: chrome://extensions or edge://extens
 Write-Host "2. Turn on 'Developer mode' (top right corner)."
 Write-Host "3. Click 'Load unpacked'."
 Write-Host "4. Copy and paste this exact path:"
-Write-Host "   ➡️  $extPath" -ForegroundColor Magenta
+Write-Host " $extPath" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "The extension will connect automatically."
 Write-Host "===================================================" -ForegroundColor Cyan

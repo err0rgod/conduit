@@ -5,7 +5,7 @@ CONDUIT_DIR="$HOME/.conduit"
 APP_DIR="$CONDUIT_DIR/app"
 
 echo -e "\033[0;36m===================================================\033[0m"
-echo -e "\033[0;36m🚀 INSTALLING CONDUIT...\033[0m"
+echo -e "\033[0;36m INSTALLING CONDUIT...\033[0m"
 echo -e "\033[0;36m===================================================\033[0m"
 
 # 1. Check for Node.js
@@ -20,7 +20,7 @@ if ! command -v node >/dev/null 2>&1; then
         exit 1
     fi
 fi
-echo -e "\033[0;32m✅ Node.js is installed.\033[0m"
+echo -e "\033[0;32m Node.js is installed.\033[0m"
 
 # 2. Check for Git
 if ! command -v git >/dev/null 2>&1; then
@@ -34,7 +34,7 @@ if ! command -v git >/dev/null 2>&1; then
         exit 1
     fi
 fi
-echo -e "\033[0;32m✅ Git is installed.\033[0m"
+echo -e "\033[0;32m Git is installed.\033[0m"
 
 # 3. Clone or Update Repositories
 mkdir -p "$CONDUIT_DIR"
@@ -87,7 +87,7 @@ EXT_PATH="$EXT_DIR/apps/extension/dist"
 
 echo ""
 echo -e "\033[0;36m===================================================\033[0m"
-echo -e "\033[0;32m🎉 CONDUIT INSTALLED SUCCESSFULLY! \033[0m"
+echo -e "\033[0;32m CONDUIT INSTALLED SUCCESSFULLY! \033[0m"
 echo -e "\033[0;36m===================================================\033[0m"
 echo "The Conduit Daemon is running in the background."
 echo ""
@@ -96,7 +96,7 @@ echo "1. Open your browser and go to: chrome://extensions or edge://extensions"
 echo "2. Turn on 'Developer mode' (top right corner)."
 echo "3. Click 'Load unpacked'."
 echo "4. Copy and paste this exact path:"
-echo -e "   ➡️  \033[0;35m$EXT_PATH\033[0m"
+echo -e "     \033[0;35m$EXT_PATH\033[0m"
 echo ""
 echo "The extension will connect automatically."
 echo -e "\033[0;36m===================================================\033[0m"
