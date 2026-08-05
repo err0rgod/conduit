@@ -14,12 +14,10 @@
     { "path": "./packages/security" },
     { "path": "./packages/config" },
     { "path": "./packages/daemon-client" },
-    { "path": "./packages/browser-core" },
     { "path": "./packages/cli" },
     { "path": "./packages/mcp-server" },
     { "path": "./packages/distribution" },
-    { "path": "./apps/daemon" },
-    { "path": "./apps/extension" }
+    { "path": "./apps/daemon" }
   ],
   "exclude": ["node_modules", "dist"]
 }

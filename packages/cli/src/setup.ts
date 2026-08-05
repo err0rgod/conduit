@@ -3,7 +3,6 @@ import * as path from 'node:path';
 import { ConfigStore } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
 import { getAppDataDir, LocalAuth } from '@conduit/security';
-import { resolveExtensionPath } from './doctor';
 import { DaemonLifecycle, LifecycleStatus, daemonBaseUrl } from './lifecycle';
 import { ServiceResult, UserService } from './service';
 import { NativeHostInstaller, NativeHostStatus } from './native-host';
@@ -20,7 +19,6 @@ export interface UninstallOptions {
 export interface SetupReport {
   configured: true;
   configPath: string;
-  extensionPath: string;
   service?: ServiceResult;
   daemon?: LifecycleStatus;
   nativeHost?: NativeHostStatus;
@@ -42,7 +40,6 @@ export interface SetupManagerOptions {
   lifecycle?: Pick<DaemonLifecycle, 'start' | 'status' | 'stop'>;
   service?: Pick<UserService, 'install' | 'uninstall'>;
   dataDirectory?: string;
-  extensionPath?: string;
   client?: Pick<ConduitClient, 'startExtensionPairing'>;
 }
 
@@ -52,7 +49,6 @@ export class SetupManager {
   private readonly lifecycle: Pick<DaemonLifecycle, 'start' | 'status' | 'stop'>;
   private readonly service: Pick<UserService, 'install' | 'uninstall'>;
   private readonly dataDirectory: string;
-  private readonly extensionPath?: string;
   private readonly client: Pick<ConduitClient, 'startExtensionPairing'>;
 
   public constructor(options: SetupManagerOptions = {}) {
@@ -62,7 +58,6 @@ export class SetupManager {
       options.lifecycle ?? new DaemonLifecycle({ configStore: this.configStore, auth: this.auth });
     this.service = options.service ?? new UserService();
     this.dataDirectory = path.resolve(options.dataDirectory ?? getAppDataDir());
-    this.extensionPath = options.extensionPath;
     this.client =
       options.client ??
       new ConduitClient({ baseUrl: daemonBaseUrl(this.configStore.load()), auth: this.auth });
@@ -73,21 +68,20 @@ export class SetupManager {
     const startDaemon = options.startDaemon ?? true;
     this.configStore.save(this.configStore.load());
     this.auth.ensureToken();
-    const extensionPath = this.extensionPath ?? resolveExtensionPath();
+
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
     const nativeHost = new NativeHostInstaller().install();
     return {
       configured: true,
       configPath: this.configStore.getPath(),
-      extensionPath,
       ...(service ? { service } : {}),
       ...(daemon ? { daemon } : {}),
       ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
         'Open chrome://extensions or edge://extensions.',
         'Enable Developer mode and choose Load unpacked.',
-        `Select ${extensionPath}.`,
+        'Select the extension dist folder.',
         'The extension will connect automatically.',
       ],
     };

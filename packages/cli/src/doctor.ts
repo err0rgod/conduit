@@ -117,18 +117,6 @@ export async function runDoctor(
     });
   }
 
-  const extensionPath =
-    resolveDistributionAsset('extension', 'manifest.json') ??
-    resolvePackageSibling('@conduit/extension', 'manifest.json');
-  checks.push({
-    name: 'extension-build',
-    status: extensionPath && fs.existsSync(extensionPath) ? 'pass' : 'warn',
-    message:
-      extensionPath && fs.existsSync(extensionPath)
-        ? `Extension build found at ${path.dirname(extensionPath)}.`
-        : 'Extension build is missing; run pnpm extension:build.',
-  });
-
   const { NativeHostInstaller } = require('./native-host');
   const nativeHostStatus = new NativeHostInstaller().status();
   checks.push({
@@ -161,16 +149,6 @@ export async function runDoctor(
   });
 
   return { healthy: checks.every((check) => check.status !== 'fail'), checks };
-}
-
-export function resolveExtensionPath(): string {
-  const manifest =
-    resolveDistributionAsset('extension', 'manifest.json') ??
-    resolvePackageSibling('@conduit/extension', 'manifest.json');
-  if (!manifest || !fs.existsSync(manifest)) {
-    throw new Error('Extension build not found. Run pnpm extension:build first.');
-  }
-  return path.dirname(manifest);
 }
 
 function resolvePackage(packageName: string): string | undefined {
