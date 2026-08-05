@@ -21,7 +21,14 @@ describe('Conduit configuration', () => {
     const config = store.load();
     expect(config.daemon.bindAddress).toBe('127.0.0.1');
     expect(config.remote.enabled).toBe(false);
-    expect(config.security.permissions).toEqual(['browser.read']);
+    expect(config.security.permissions).toEqual([
+      'browser.read',
+      'browser.navigate',
+      'browser.interact',
+      'browser.forms',
+      'browser.download',
+    ]);
+    expect(config.security.domainMode).toBe('blocklist');
     expect(fs.existsSync(configPath)).toBe(false);
   });
 
