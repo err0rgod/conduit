@@ -46,13 +46,40 @@ The daemon owns policy and transport. The extension owns browser execution. A sh
 
 Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell access are not exposed.
 
-## Prerequisites
+## Installation
 
-- Node.js 22+ (Node 24 LTS recommended)
-- Corepack and pnpm 9.15.9
-- Chrome, Edge, or compatible Chromium browser with Manifest V3
+### The 1-Minute Setup
 
-## Install from source
+Conduit provides automated installation scripts that download dependencies, build the project, set up the background daemon, and prepare the extension for your browser.
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.ps1 | iex
+```
+
+**macOS / Linux (Bash):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.sh | bash
+```
+
+**What this script does:**
+1. Installs Node.js and Git if they are missing.
+2. Clones the Conduit repository to `~/.conduit/app`.
+3. Installs dependencies and builds the project.
+4. Runs `conduit setup` to securely configure the daemon and OS integration.
+5. Prints the exact folder path for you to load into your browser.
+
+### Connect the Extension
+
+After the script finishes, simply open your browser and load the extension:
+1. Navigate to `chrome://extensions` or `edge://extensions`.
+2. Turn on **Developer mode** in the top right corner.
+3. Click **Load unpacked**.
+4. Paste the folder path provided by the installation script at the very end of the output.
+
+The extension will instantly and automatically connect to the daemon using Native Messaging. No tokens or ports to configure!
+
+## Install from source (for contributors)
 
 ```bash
 git clone https://github.com/err0rgod/conduit.git
@@ -84,18 +111,6 @@ and the daemon start/status/stop lifecycle.
 the current user without administrator rights, starts the daemon, and prints the
 extension path. Use `--no-service` or `--no-start` when managing those pieces
 yourself.
-
-## Extension setup
-
-```bash
-node packages/cli/bin/conduit.js extension path
-node packages/cli/bin/conduit.js extension pair
-```
-
-Open `chrome://extensions` (or `edge://extensions`), enable Developer mode, choose
-**Load unpacked**, and select the printed directory. Enter port `9222` and the
-short-lived code in the Conduit popup. The code expires after five minutes, works
-once, and lets the extension store the local credential without displaying it.
 
 ## Start and use
 
