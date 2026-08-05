@@ -6,6 +6,7 @@ import { getAppDataDir, LocalAuth } from '@conduit/security';
 import { resolveExtensionPath } from './doctor';
 import { DaemonLifecycle, LifecycleStatus, daemonBaseUrl } from './lifecycle';
 import { ServiceResult, UserService } from './service';
+import { NativeHostInstaller, NativeHostStatus } from './native-host';
 
 export interface SetupOptions {
   installService?: boolean;
@@ -22,13 +23,14 @@ export interface SetupReport {
   extensionPath: string;
   service?: ServiceResult;
   daemon?: LifecycleStatus;
-  extensionPairing?: { code: string; expiresAt: number };
+  nativeHost?: NativeHostStatus;
   nextSteps: string[];
 }
 
 export interface UninstallReport {
   service: ServiceResult;
   daemon: LifecycleStatus;
+  nativeHost: NativeHostStatus;
   dataRemoved: boolean;
   dataDirectory: string;
   packageRemovalCommand: string;
@@ -74,19 +76,19 @@ export class SetupManager {
     const extensionPath = this.extensionPath ?? resolveExtensionPath();
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
-    const extensionPairing = startDaemon ? await this.client.startExtensionPairing() : undefined;
+    const nativeHost = new NativeHostInstaller().install();
     return {
       configured: true,
       configPath: this.configStore.getPath(),
       extensionPath,
       ...(service ? { service } : {}),
       ...(daemon ? { daemon } : {}),
-      ...(extensionPairing ? { extensionPairing } : {}),
+      ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
         'Open chrome://extensions or edge://extensions.',
         'Enable Developer mode and choose Load unpacked.',
         `Select ${extensionPath}.`,
-        'Enter the short-lived pairing code from this report in the Conduit extension.',
+        'The extension will connect automatically.',
       ],
     };
   }
@@ -98,6 +100,7 @@ export class SetupManager {
         ? await this.lifecycle.stop()
         : { running: false, message: 'No CLI-managed Conduit daemon was running.' };
     const service = this.service.uninstall();
+    const nativeHost = new NativeHostInstaller().uninstall();
     let dataRemoved = false;
     if (options.purge) {
       assertSafeDataDirectory(this.dataDirectory);
@@ -107,6 +110,7 @@ export class SetupManager {
     return {
       service,
       daemon,
+      nativeHost,
       dataRemoved,
       dataDirectory: this.dataDirectory,
       packageRemovalCommand: 'npm uninstall --global conduit-browser',

@@ -1,10 +1,24 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigStore } from '@conduit/config';
 import { LocalAuth } from '@conduit/security';
 import { SetupManager } from '../src/setup';
+
+vi.mock('../src/native-host', () => ({
+  NativeHostInstaller: class {
+    install() {
+      return { installed: true };
+    }
+    uninstall() {
+      return { installed: false };
+    }
+    status() {
+      return { installed: true };
+    }
+  },
+}));
 
 describe('SetupManager', () => {
   const directories: string[] = [];
@@ -46,7 +60,7 @@ describe('SetupManager', () => {
       daemonStarted: true,
     });
     expect(report.nextSteps.join(' ')).toContain('Load unpacked');
-    expect(report.extensionPairing?.code).toBe('ABCDEFG2HJKL');
+    expect(report.nativeHost?.installed).toBe(true);
   });
 
   it('preserves user data unless purge is explicitly requested', async () => {

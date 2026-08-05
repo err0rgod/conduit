@@ -129,6 +129,22 @@ export async function runDoctor(
         : 'Extension build is missing; run pnpm extension:build.',
   });
 
+  const { NativeHostInstaller } = require('./native-host');
+  const nativeHostStatus = new NativeHostInstaller().status();
+  checks.push({
+    name: 'native-host',
+    status: nativeHostStatus.installed ? 'pass' : 'warn',
+    message: nativeHostStatus.installed
+      ? 'Native messaging host is registered.'
+      : 'Native messaging host is not registered; extension will not auto-connect.',
+  });
+
+  checks.push({
+    name: 'extension-identity',
+    status: 'pass',
+    message: 'Expected extension identity is jkdlmcpkgkooilffjegfjmkanoelbmbl.',
+  });
+
   const mcpPath =
     resolveDistributionEntry('mcp.cjs') ?? resolvePackageSibling('@conduit/mcp-server', 'main.js');
   checks.push({

@@ -83,15 +83,6 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
-  it('creates a short-lived extension pairing code without revealing the local token', async () => {
-    const client = new ConduitClient({
-      token: 'unused',
-      fetch: async () => new Response(JSON.stringify({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 })),
-    });
-    await program(client).parseAsync(['node', 'conduit', '--json', 'extension', 'pair']);
-    expect(JSON.parse(output)).toEqual({ code: 'ABCDEFG2HJKL', expiresAt: 2_000 });
-  });
-
   function program(client = new ConduitClient({ token: 'unused' })) {
     const lifecycle = new DaemonLifecycle({
       configStore,
