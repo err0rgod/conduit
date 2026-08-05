@@ -235,7 +235,7 @@ export class NativeHostInstaller {
     // Resolve cli path properly, fallback to relative path if not packaged
     let cliEntry = resolveDistributionEntry('cli.cjs');
     if (!cliEntry) {
-      cliEntry = path.resolve(__dirname, '..', '..', '..', 'packages', 'cli', 'dist', 'index.js');
+      cliEntry = path.resolve(__dirname, '..', 'bin', 'conduit.js');
     }
     const nodeExec = process.execPath;
 
