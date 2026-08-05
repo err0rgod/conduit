@@ -53,16 +53,19 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 Conduit provides automated installation scripts that download dependencies, build the project, set up the background daemon, and prepare the extension for your browser.
 
 **Windows (PowerShell):**
+
 ```powershell
 irm https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.ps1 | iex
 ```
 
 **macOS / Linux (Bash):**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.sh | bash
 ```
 
 **What this script does:**
+
 1. Installs Node.js and Git if they are missing.
 2. Clones the Conduit repository to `~/.conduit/app`.
 3. Installs dependencies and builds the project.
@@ -72,6 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 ### Connect the Extension
 
 After the script finishes, simply open your browser and load the extension:
+
 1. Navigate to `chrome://extensions` or `edge://extensions`.
 2. Turn on **Developer mode** in the top right corner.
 3. Click **Load unpacked**.

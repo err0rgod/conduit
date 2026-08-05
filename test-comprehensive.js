@@ -50,12 +50,14 @@ const server = http.createServer((req, res) => {
 server.listen(0, '127.0.0.1', () => {
   const port = server.address().port;
   console.log(`\n[Server] Test server listening on http://127.0.0.1:${port}`);
-  runTests(port).catch(err => {
-    console.error('\n❌ Test failed:', err);
-  }).finally(() => {
-    server.close();
-    process.exit(0);
-  });
+  runTests(port)
+    .catch((err) => {
+      console.error('\n❌ Test failed:', err);
+    })
+    .finally(() => {
+      server.close();
+      process.exit(0);
+    });
 });
 
 function runCommand(command) {
@@ -82,7 +84,7 @@ function parseJsonResult(raw) {
 
 async function runTests(port) {
   const baseUrl = `http://127.0.0.1:${port}`;
-  
+
   // 1. Open
   console.log('\n--- 1. Testing Open ---');
   const openRaw = runCommand(`conduit --json browser open "${baseUrl}"`);
@@ -99,24 +101,34 @@ async function runTests(port) {
   const snapRaw = runCommand(`conduit --json browser snapshot --tab ${tabId}`);
   const snapRes = parseJsonResult(snapRaw);
   const elements = snapRes.payload?.snapshot?.elements || snapRes.payload?.elements || [];
-  
-  const inputEl = elements.find(e => e.role === 'textbox' || e.name === 'Type here' || e.tagName?.toLowerCase() === 'input');
-  const selectEl = elements.find(e => e.role === 'combobox' || e.tagName?.toLowerCase() === 'select');
-  const btnEl = elements.find(e => e.role === 'button' || e.name === 'Click Me' || e.tagName?.toLowerCase() === 'button');
-  const hoverEl = elements.find(e => e.selector?.includes('#hover-target') || e.elementId); // fallback
-  
+
+  const inputEl = elements.find(
+    (e) => e.role === 'textbox' || e.name === 'Type here' || e.tagName?.toLowerCase() === 'input',
+  );
+  const selectEl = elements.find(
+    (e) => e.role === 'combobox' || e.tagName?.toLowerCase() === 'select',
+  );
+  const btnEl = elements.find(
+    (e) => e.role === 'button' || e.name === 'Click Me' || e.tagName?.toLowerCase() === 'button',
+  );
+  const hoverEl = elements.find((e) => e.selector?.includes('#hover-target') || e.elementId); // fallback
+
   if (!inputEl) throw new Error('Could not find input element in snapshot');
   console.log(`✅ Snapshot successful. Found ${elements.length} interactive elements.`);
 
   // 3. Type
   console.log('\n--- 3. Testing Type ---');
-  runCommand(`conduit --json browser type --tab ${tabId} --element ${inputEl.elementId} --text "Hello Conduit"`);
+  runCommand(
+    `conduit --json browser type --tab ${tabId} --element ${inputEl.elementId} --text "Hello Conduit"`,
+  );
   console.log('✅ Type successful');
 
   // 4. Select
   console.log('\n--- 4. Testing Select ---');
   if (selectEl) {
-    runCommand(`conduit --json browser select --tab ${tabId} --element ${selectEl.elementId} --value "opt2"`);
+    runCommand(
+      `conduit --json browser select --tab ${tabId} --element ${selectEl.elementId} --value "opt2"`,
+    );
     console.log('✅ Select successful');
   } else {
     console.log('⚠️ Skipping select (element not found)');
@@ -140,7 +152,7 @@ async function runTests(port) {
   console.log('\n--- 7. Testing Scroll ---');
   runCommand(`conduit --json browser scroll --tab ${tabId} --delta-y 2000`);
   console.log('✅ Scroll successful');
-  
+
   // 8. Screenshot
   console.log('\n--- 8. Testing Screenshot ---');
   const screenshotRaw = runCommand(`conduit --json browser screenshot --tab ${tabId}`);
