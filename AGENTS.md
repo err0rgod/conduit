@@ -2096,64 +2096,45 @@ Begin by inspecting the environment, Git status, GitHub authentication, and exis
 Update this section whenever a milestone is merged so a new agent session can
 resume without reconstructing project history.
 
-Last updated: 2026-08-02.
+Last updated: 2026-08-04.
 
 ## Repository decision
 
-- Keep the daemon, CLI/MCP adapter, shared protocol, extension, tests, and docs in
-  this monorepo for now. They are separate deployable products but share protocol
-  types and a real-browser vertical-slice test.
-- Reconsider separate repositories only after stable public releases require
-  independent ownership or release cadence. If split later, extract the versioned
-  protocol package first and add compatibility matrices before moving code.
-- Public repository: `https://github.com/err0rgod/conduit`.
+- Keep the backend, daemon, CLI, MCP server, installers, and documentation in `D:\conduit` (`https://github.com/err0rgod/conduit`).
+- Keep the Chromium extension and its browser execution code in `D:\conduit-extension` (`https://github.com/err0rgod/conduit-extension`).
+- Remove pairing codes from the local extension setup flow.
+- The extension connects automatically using Native Messaging.
 - Documentation: `https://err0rgod.github.io/conduit/`.
 
 ## Completed milestones
 
-- PR #19: standalone `conduit-browser` npm-style distribution containing CLI,
-  daemon, MCP adapter, and unpacked extension; clean install validated on Windows,
-  macOS, and Linux.
+- PR #19: standalone `conduit-browser` npm-style distribution containing CLI, daemon, MCP adapter, and unpacked extension; clean install validated on Windows, macOS, and Linux.
 - PR #20: `conduit setup`, upgrade, uninstall, and user-level automatic startup.
-- PR #21: five-minute, one-use local extension pairing. The long-term credential
-  is no longer printed or pasted into the popup. Real Chromium E2E covers pairing
-  through browser actions and screenshots.
-- PR #22: Windows no-admin startup correction. Automatic startup now uses the
-  current-user `HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run` entry;
-  the previously denied Scheduled Task mechanism was removed. The real globally
-  installed tarball and `conduit setup` succeeded on the affected machine.
-- Main was at commit `b6e91c6` after PR #22 merged.
+- PR #21: five-minute, one-use local extension pairing (now superseded for the local flow; remote pairing remains required).
+- PR #22: Windows no-admin startup correction using HKCU.
+- PR #23: prior session handoff update.
+- Main was at commit `52fc3b1` after PR #23 merged.
+- Created `D:\conduit-extension` and pushed foundation commit `f3a84e7`.
+- `conduit-extension` PR #1 (CI fixes) squash-merged as `a461f86`.
+- `conduit-extension` PR #2 (native auto-connect) pushed but not merged.
 
 ## Current work
 
-- `main` is clean and PR #22 is merged. The next implementation branch should be
-  `feat/verified-installers`.
-- The daemon is running locally on port 9222 and automatic startup is registered.
-  The extension is not connected until the user loads the unpacked extension and
-  redeems a fresh code from `conduit extension pair`.
-- The locally built `conduit-browser@0.1.0` tarball is installed globally. It is
-  not published to npm yet.
-- `pnpm distribution:pack` currently collides with pnpm's built-in `pack` command
-  on this machine. `node packages/distribution/pack.js` works; fix the root script
-  during release-installer work.
+- `main` is clean. The next milestone is to implement the backend native host for native messaging extension bootstrap (`feat/native-extension-bootstrap`).
+- Add native messaging protocol handler in `packages/cli/src/native-host.ts`.
+- Implement per-user native host registration (`NativeHostInstaller`).
+- Connect registration to `conduit setup`/`uninstall`/`doctor` in `packages/cli/src/setup.ts`.
 
 ## Remaining milestone order
 
-1. Add checksum-verified curl and PowerShell installers plus tag-triggered GitHub
-   Release artifacts. Do not advertise them until an actual release exists.
-2. Expand clean-machine setup/uninstall validation.
-3. Recreate the extension popup and docs home using the inspected reference's
-   design language: near-black background, warm off-white type, acid-lime accents,
-   uppercase telemetry labels, thin borders, and large editorial headings. Do not
-   copy Forge branding or content.
-4. Publish, deploy, and validate the end-user flow. npm publication requires
-   explicit release credentials/authorization; documentation alone may use Pages.
+1. Implement backend native host and merge coordinated PRs across both repositories.
+2. Stop bundling `apps/extension` into the backend npm distribution and remove it entirely.
+3. Add checksum-verified curl and PowerShell installers.
+4. Recreate the extension popup and docs home using the reference site's design language.
+5. Package and publish independently.
 
 ## Workspace safety and validation
 
-- `deployment.txt`, `resume.txt`, and `whatiwant.txt` are private local notes and must remain
-  untracked, unmodified, and uncommitted.
+- `deployment.txt`, `resume.txt`, `whatiwant.txt`, and `resume_work.md` are private local notes and must remain untracked, unmodified, and uncommitted.
 - Preserve user changes and never force-push or rewrite public history.
-- Before each stable commit run format, lint, typecheck, relevant tests, build, and
-  clean distribution install. Push a feature branch, open a PR, wait for every
-  required GitHub check, then merge into `main`.
+- Before each stable commit run format, lint, typecheck, relevant tests, build, and clean distribution install. Push a feature branch, open a PR, wait for every required GitHub check, then merge into `main`.

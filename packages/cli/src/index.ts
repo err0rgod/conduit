@@ -206,21 +206,17 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .description('Print the built extension directory')
     .action(() => output({ path: resolveExtensionPath() }));
   extension
-    .command('pair')
-    .description('Create a short-lived, one-use extension pairing code')
-    .action(async () => output(await client.startExtensionPairing()));
-  extension
     .command('install-help')
     .description('Show Chromium unpacked-extension installation steps')
     .action(() =>
       output({
         steps: [
-          'Run pnpm extension:build.',
+          'Clone https://github.com/err0rgod/conduit-extension',
+          'Run pnpm install and pnpm build in the conduit-extension directory.',
           'Open chrome://extensions or edge://extensions.',
           'Enable Developer mode.',
-          `Choose Load unpacked and select ${resolveExtensionPath()}.`,
-          'Run conduit extension pair.',
-          'Open the Conduit extension popup and enter the daemon port and short-lived pairing code.',
+          `Choose Load unpacked and select the apps/extension/dist folder.`,
+          'The extension will connect automatically.',
         ],
       }),
     );
@@ -234,6 +230,18 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
 }
 
 export async function runCli(argv = process.argv): Promise<void> {
+  if (argv.length >= 4 && argv[2] === 'extension' && argv[3] === 'native-host') {
+    let origin = '';
+    for (let i = 4; i < argv.length; i++) {
+      if (!argv[i].startsWith('--')) {
+        origin = argv[i];
+        break;
+      }
+    }
+    const { runNativeHost } = await import('./native-host');
+    return runNativeHost(origin);
+  }
+
   await createProgram().parseAsync(argv);
 }
 
