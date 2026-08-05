@@ -1142,7 +1142,13 @@ export class Daemon {
   private currentUrlFor(
     request: ReturnType<typeof BrowserRequestEnvelopeSchema.parse>,
   ): string | undefined {
-    if (request.type === 'browser.navigate' || request.type === 'browser.open_tab')
+    if (
+      request.type === 'browser.navigate' ||
+      request.type === 'browser.open_tab' ||
+      request.type === 'browser.list_tabs' ||
+      request.type === 'browser.get_active_tab' ||
+      request.type === 'browser.get_downloads'
+    )
       return undefined;
     const payload = request.payload as { tabId?: number };
     const tabId = payload.tabId ?? this.activeTabId ?? undefined;
