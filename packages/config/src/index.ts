@@ -46,7 +46,7 @@ export const ConduitConfigSchema = z
             'browser.forms',
             'browser.download',
           ]),
-        domainMode: z.enum(['allowlist', 'blocklist', 'ask']).default('ask'),
+        domainMode: z.enum(['allowlist', 'blocklist', 'ask']).default('blocklist'),
         allowedDomains: z.array(DomainPatternSchema).default([]),
         blockedDomains: z.array(DomainPatternSchema).default([]),
         allowLocalhost: z.boolean().default(false),
