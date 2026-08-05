@@ -9,18 +9,30 @@ echo -e "\033[0;36m INSTALLING CONDUIT...\033[0m"
 echo -e "\033[0;36m===================================================\033[0m"
 
 # 1. Check for Node.js
+NEEDS_NODE=false
 if ! command -v node >/dev/null 2>&1; then
-    echo -e "\033[0;33mNode.js not found. Attempting to install via nvm or package manager...\033[0m"
+    NEEDS_NODE=true
+else
+    NODE_VERSION=$(node -v | cut -d 'v' -f 2 | cut -d '.' -f 1)
+    if [ "$NODE_VERSION" -lt 22 ]; then
+        echo -e "\033[0;33mNode.js $(node -v) is too old. Conduit requires Node.js 22+.\033[0m"
+        NEEDS_NODE=true
+    fi
+fi
+
+if [ "$NEEDS_NODE" = true ]; then
+    echo -e "\033[0;33mAttempting to install/update Node.js via package manager...\033[0m"
     if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update && sudo apt-get install -y nodejs npm
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        sudo apt-get install -y nodejs
     elif command -v brew >/dev/null 2>&1; then
         brew install node
     else
-        echo -e "\033[0;31mCould not automatically install Node.js. Please install it from https://nodejs.org/\033[0m"
+        echo -e "\033[0;31mCould not automatically install Node.js. Please install Node 22+ from https://nodejs.org/\033[0m"
         exit 1
     fi
 fi
-echo -e "\033[0;32m Node.js is installed.\033[0m"
+echo -e "\033[0;32m✅ Node.js is ready.\033[0m"
 
 # 2. Check for Git
 if ! command -v git >/dev/null 2>&1; then

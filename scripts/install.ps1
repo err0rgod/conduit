@@ -9,8 +9,20 @@ Write-Host "INSTALLING CONDUIT..." -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 
 # 1. Check for Node.js
+$needsNode = $false
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    Write-Host "Node.js not found. Installing Node.js via winget..." -ForegroundColor Yellow
+    $needsNode = $true
+} else {
+    $nodeVersionStr = node -v
+    $nodeMajor = [int]($nodeVersionStr -replace '^v', '' -split '\.')[0]
+    if ($nodeMajor -lt 22) {
+        Write-Host "Node.js $nodeVersionStr is too old. Conduit requires Node.js 22+." -ForegroundColor Yellow
+        $needsNode = $true
+    }
+}
+
+if ($needsNode) {
+    Write-Host "Installing/Updating Node.js via winget..." -ForegroundColor Yellow
     winget install OpenJS.NodeJS --silent
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -18,7 +30,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         exit 1
     }
 }
-Write-Host "Node.js is installed." -ForegroundColor Green
+Write-Host "✅ Node.js is ready." -ForegroundColor Green
 
 # 2. Check for Git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
