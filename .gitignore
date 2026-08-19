@@ -8,3 +8,12 @@ test-results/
 coverage/
 artifacts/
 packages/distribution/package/
+
+# Private maintainer handoff notes and local browser probes
+deployment.txt
+resume.txt
+resume_work.md
+whatiwant.txt
+todo.txt
+test-amazon.js
+test-comprehensive.js

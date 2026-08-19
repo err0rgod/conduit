@@ -1,6 +1,0 @@
-what i want this extesion to be is 
-1. the extension and the server should be in the different repository
-2. the user should not need to enter the pairing code just start the server and it automatically connectes to the 
-extension if installed
-3. onne click setup command no complex installation
-for two repos keep this one for the server and create a new one in the root of the conduit which is D:\ for the extension named as conduit-extension
