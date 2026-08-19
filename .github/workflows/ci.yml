@@ -50,7 +50,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install documentation dependencies
         working-directory: conduit-web
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
       - name: Check formatting
         run: pnpm format:check
       - name: Lint
