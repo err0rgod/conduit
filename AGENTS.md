@@ -2096,45 +2096,63 @@ Begin by inspecting the environment, Git status, GitHub authentication, and exis
 Update this section whenever a milestone is merged so a new agent session can
 resume without reconstructing project history.
 
-Last updated: 2026-08-04.
+Last updated: 2026-08-20.
 
 ## Repository decision
 
-- Keep the backend, daemon, CLI, MCP server, installers, and documentation in `D:\conduit` (`https://github.com/err0rgod/conduit`).
+- Keep the backend, daemon, CLI, MCP server, security packages, and installers in `D:\conduit` (`https://github.com/err0rgod/conduit`).
 - Keep the Chromium extension and its browser execution code in `D:\conduit-extension` (`https://github.com/err0rgod/conduit-extension`).
+- Keep the public React/Vite documentation site in `D:\conduit-web` (`https://github.com/err0rgod/conduit-web`).
 - Remove pairing codes from the local extension setup flow.
 - The extension connects automatically using Native Messaging.
-- Documentation: `https://err0rgod.github.io/conduit/`.
+- Remote-device pairing remains separate, explicit, short-lived, and revocable.
+- Documentation: `https://err0rgod.github.io/conduit-web/`.
 
 ## Completed milestones
 
-- PR #19: standalone `conduit-browser` npm-style distribution containing CLI, daemon, MCP adapter, and unpacked extension; clean install validated on Windows, macOS, and Linux.
-- PR #20: `conduit setup`, upgrade, uninstall, and user-level automatic startup.
-- PR #21: five-minute, one-use local extension pairing (now superseded for the local flow; remote pairing remains required).
-- PR #22: Windows no-admin startup correction using HKCU.
-- PR #23: prior session handoff update.
-- Main was at commit `52fc3b1` after PR #23 merged.
-- Created `D:\conduit-extension` and pushed foundation commit `f3a84e7`.
-- `conduit-extension` PR #1 (CI fixes) squash-merged as `a461f86`.
-- `conduit-extension` PR #2 (native auto-connect) pushed but not merged.
+- Backend PRs #19-#23 established the standalone backend distribution, setup/upgrade/uninstall, user-level startup, and the earlier handoff.
+- Backend PR #27 removed tracked private notes and fixed clean consumer distribution installation.
+- Backend PR #28 changed clean-install defaults to `browser.read` plus ask-on-first-use domains.
+- Backend PR #29 implemented strict Native Messaging framing, origin validation, current-user Chrome/Edge/Chromium registration, rollback, diagnostics, and cross-platform tests.
+- Backend PR #30 moved real Chromium E2E to a pinned standalone extension checkout and validated automatic Native Messaging authentication in a fresh profile.
+- Backend PR #31 added checksummed GitHub Release assets and no-admin PowerShell/Bash installers.
+- Backend PR #32 validated explicit extension site permission behavior and reduced E2E browser installation from more than 12 minutes to about one minute.
+- Backend PR #33 prepared and published the `v0.1.1` security patch release.
+- Backend PR #34 replaced no-op documentation scripts with a real split-repository build and cross-platform CI integration.
+- Extension PR #3 removed required broad host access, added popup Allow/Revoke controls, and enforced origin grants before scripting or screenshots.
+- Extension PR #4 prepared the versioned `0.1.1` release build.
+- Documentation PRs #1-#5 created the complete 22-section site, hardened/updated Pages actions, migrated the default branch to `main`, and aligned deployment environment policy.
+- Public release: `https://github.com/err0rgod/conduit/releases/tag/v0.1.1`.
+- Public documentation: `https://err0rgod.github.io/conduit-web/`.
 
-## Current work
+## Current verified state
 
-- `main` is clean. The next milestone is to implement the backend native host for native messaging extension bootstrap (`feat/native-extension-bootstrap`).
-- Add native messaging protocol handler in `packages/cli/src/native-host.ts`.
-- Implement per-user native host registration (`NativeHostInstaller`).
-- Connect registration to `conduit setup`/`uninstall`/`doctor` in `packages/cli/src/setup.ts`.
+- Backend `main`: `dfd38216026addac6a38fd50eebb6daf2cc07e10` before this handoff update.
+- Extension `main`: `f4211eb7ceb1ba15d955fda5ee51e15887d83b84`.
+- Documentation `main`: `9aa12a3305a83c580d3823a0a6d82eb6bc3e9fcd`.
+- All three working trees were clean at the start of this milestone.
+- Backend: 65 unit, 23 integration, 29 security, 5 Node release/docs tests after PR #34, plus real Chromium E2E.
+- Extension: 19 tests plus build, typecheck, lint, formatting, and three-OS CI.
+- Documentation: route/content integrity tests, formatting, lint, typecheck, production build, desktop/mobile visual inspection, and live HTTPS/asset/route checks.
+- `v0.1.1` assets were downloaded from the public release. All SHA-256 values matched; the tarball and extension manifest reported `0.1.1`; the extension contained optional HTTP/HTTPS origins and no required `host_permissions`.
+- A published PowerShell installer was previously exercised in an isolated user-local destination with `-NoSetup`, and its CLI, launcher, extension path, version, and PATH restoration were verified.
 
 ## Remaining milestone order
 
-1. Implement backend native host and merge coordinated PRs across both repositories.
-2. Stop bundling `apps/extension` into the backend npm distribution and remove it entirely.
-3. Add checksum-verified curl and PowerShell installers.
-4. Recreate the extension popup and docs home using the reference site's design language.
-5. Package and publish independently.
+1. Audit the implementation against the long-form requirements and turn each confirmed gap into a focused tested PR. Do not reimplement the completed vertical slice.
+2. Complete the extension control surfaces still documented as limited: pending confirmation management, audit viewing, active sessions/current controlled tab, and settings/permission management.
+3. Expand real-browser fixtures for iframes, shadow DOM, SPA rerenders, popup/new-tab, upload/download, blocked actions, and high-risk confirmation. Keep production host permissions optional; only disposable E2E copies may receive fixture-wide access.
+4. Review MCP/CLI parity. The current MCP surface has `conduit_status` and browser tools but not a separate `conduit_doctor` tool. Add only tools backed by real daemon behavior.
+5. Exercise and document an end-to-end trusted remote client over a private TLS network. Do not expose a public unauthenticated socket or build a custom internet relay.
+6. Finish scheduled audit retention and screenshot/download persistence behavior or remove premature configuration fields.
+7. Prepare npm and browser-store publication only after package ownership, signing, release compatibility, and update behavior are deliberately configured. GitHub `v0.1.1` is the current supported distribution path.
+8. Define the pre-1.0 compatibility/support policy before declaring a stable release.
 
 ## Workspace safety and validation
 
-- `deployment.txt`, `resume.txt`, `whatiwant.txt`, and `resume_work.md` are private local notes and must remain untracked, unmodified, and uncommitted.
+- `deployment.txt`, `resume.txt`, `resume_work.md`, `todo.txt`, `test-amazon.js`, and `test-comprehensive.js` are private local notes/probes and must remain ignored and uncommitted. `whatiwant.txt` is no longer present.
 - Preserve user changes and never force-push or rewrite public history.
 - Before each stable commit run format, lint, typecheck, relevant tests, build, and clean distribution install. Push a feature branch, open a PR, wait for every required GitHub check, then merge into `main`.
+- Backend CI and releases must pin extension/docs repositories to immutable commits, never moving branch names.
+- Production extension manifests must not regain required broad host access.
+- The current machine may still contain an older permissive user configuration; clean-install defaults do not silently rewrite existing user policy. Inspect or migrate it explicitly before manual sensitive testing.
