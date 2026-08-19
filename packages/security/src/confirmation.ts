@@ -39,7 +39,7 @@ export class ConfirmationManager {
   public list(): ConfirmationRequest[] {
     this.prune();
     return Array.from(this.confirmations.values())
-      .filter((state) => !state.consumed)
+      .filter((state) => !state.approved && !state.consumed)
       .map((state) => state.request);
   }
 

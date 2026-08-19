@@ -9,6 +9,7 @@ describe('ConfirmationManager', () => {
     const confirmation = manager.create('request-1', 'browser.click', 'high', 'Click purchase');
     expect(manager.consume(confirmation.id, 'browser.click')).toBe(false);
     expect(manager.respond(confirmation.id, true)).toBe(true);
+    expect(manager.list()).toEqual([]);
     expect(manager.consume(confirmation.id, 'browser.type')).toBe(false);
     expect(manager.consume(confirmation.id, 'browser.click')).toBe(true);
     expect(manager.consume(confirmation.id, 'browser.click')).toBe(false);

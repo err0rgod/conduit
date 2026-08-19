@@ -3,6 +3,7 @@ import {
   BrowserRequestEnvelopeSchema,
   ConfirmationRequestSchema,
   ConfirmationResponseSchema,
+  ExtensionManagementRequestSchema,
   PageSnapshotSchema,
   PairingRequestSchema,
   RemoteAuthenticationSchema,
@@ -101,6 +102,30 @@ describe('Confirmations', () => {
       ConfirmationResponseSchema.safeParse({ confirmationId: baseEnvelope.id, approved: true })
         .success,
     ).toBe(true);
+  });
+
+  it('validates extension confirmation management messages', () => {
+    expect(
+      ExtensionManagementRequestSchema.safeParse({
+        ...baseEnvelope,
+        type: 'extension.confirmations.list',
+        payload: {},
+      }).success,
+    ).toBe(true);
+    expect(
+      ExtensionManagementRequestSchema.safeParse({
+        ...baseEnvelope,
+        type: 'extension.confirmations.respond',
+        payload: { confirmationId: baseEnvelope.id, approved: false },
+      }).success,
+    ).toBe(true);
+    expect(
+      ExtensionManagementRequestSchema.safeParse({
+        ...baseEnvelope,
+        type: 'extension.confirmations.respond',
+        payload: { confirmationId: baseEnvelope.id, approved: 'yes' },
+      }).success,
+    ).toBe(false);
   });
 });
 

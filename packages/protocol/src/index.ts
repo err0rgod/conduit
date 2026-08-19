@@ -171,6 +171,21 @@ export const ConfirmationResponseSchema = z
   })
   .strict();
 
+export const ExtensionConfirmationListRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('extension.confirmations.list'),
+  payload: z.object({}).strict(),
+}).strict();
+
+export const ExtensionConfirmationRespondRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('extension.confirmations.respond'),
+  payload: ConfirmationResponseSchema,
+}).strict();
+
+export const ExtensionManagementRequestSchema = z.discriminatedUnion('type', [
+  ExtensionConfirmationListRequestSchema,
+  ExtensionConfirmationRespondRequestSchema,
+]);
+
 export const BrowserOperationSchema = z.enum([
   'browser.list_tabs',
   'browser.get_active_tab',
@@ -498,6 +513,7 @@ export type Permission = z.infer<typeof PermissionSchema>;
 export type RiskLevel = z.infer<typeof RiskLevelSchema>;
 export type ConfirmationRequest = z.infer<typeof ConfirmationRequestSchema>;
 export type ConfirmationResponse = z.infer<typeof ConfirmationResponseSchema>;
+export type ExtensionManagementRequest = z.infer<typeof ExtensionManagementRequestSchema>;
 export type BrowserOperation = z.infer<typeof BrowserOperationSchema>;
 export type BrowserRequestEnvelope = z.infer<typeof BrowserRequestEnvelopeSchema>;
 export type BrowserTab = z.infer<typeof BrowserTabSchema>;

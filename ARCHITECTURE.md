@@ -8,7 +8,7 @@ Conduit provides a small, inspectable path from an authorized agent request to a
 
 ### Protocol
 
-`packages/protocol` defines versioned Zod schemas and TypeScript types for request/response envelopes, browser targets/actions/results, snapshots, errors, permissions, confirmations, pairing, and remote authentication. Request UUIDs, correlation IDs, timestamps, and protocol versions cross every transport boundary.
+`packages/protocol` defines versioned Zod schemas and TypeScript types for request/response envelopes, browser targets/actions/results, snapshots, errors, permissions, extension management, confirmations, pairing, and remote authentication. Request UUIDs, correlation IDs, timestamps, and protocol versions cross every transport boundary.
 
 ### Security
 
@@ -16,7 +16,7 @@ Conduit provides a small, inspectable path from an authorized agent request to a
 
 ### Daemon
 
-`apps/daemon` is the policy enforcement point. It exposes local HTTP endpoints to CLI/MCP clients and an authenticated WebSocket for the extension. It validates input before dispatch, enforces both device and host grants, manages confirmation consumption, bounds resource use, coordinates request/response IDs, and records audit events.
+`apps/daemon` is the policy enforcement point. It exposes local HTTP endpoints to CLI/MCP clients and an authenticated WebSocket for the extension. It validates input before dispatch, enforces both device and host grants, manages confirmation consumption, bounds resource use, coordinates request/response IDs, and records audit events. The extension can list and answer pending confirmations through dedicated validated messages on that authenticated socket, avoiding additional loopback host permissions.
 
 It binds to `127.0.0.1` by default. Public/LAN binding is rejected unless remote mode and TLS are both explicitly configured.
 

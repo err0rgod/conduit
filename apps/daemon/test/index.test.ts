@@ -14,6 +14,7 @@ import WebSocket from 'ws';
 import {
   AuditLogger,
   SecurityPolicy,
+  StoredAuditEvent,
   TrustedDeviceStore,
   createRemoteSignaturePayload,
   digestRemoteRequest,
@@ -258,6 +259,65 @@ describe('Daemon authorization', () => {
       });
       expect(reused.status).toBe(409);
     } finally {
+      await secured.stop();
+    }
+  });
+
+  it('lets the authenticated extension review pending confirmations', async () => {
+    const events: StoredAuditEvent[] = [];
+    const secured = new Daemon({
+      policy: new SecurityPolicy({ permissions: ['browser.navigate'], domainMode: 'ask' }),
+      audit: new AuditLogger({ sink: (event) => events.push(event) }),
+    });
+    const securedPort = await secured.start(0);
+    let ws: WebSocket | undefined;
+    try {
+      const action = {
+        ...createEnvelopeBase(),
+        type: 'browser.navigate',
+        payload: { url: 'https://example.com' },
+      };
+      const pending = await postAction(securedPort, secured.getToken(), action);
+      expect(pending.status).toBe(409);
+
+      ws = await connectExtension(securedPort, secured.getToken());
+      const listRequest = {
+        ...createEnvelopeBase(),
+        type: 'extension.confirmations.list',
+        payload: {},
+      };
+      const listPromise = onceExtensionResponse(ws, listRequest.id);
+      ws.send(JSON.stringify(listRequest));
+      const listResponse = await listPromise;
+      if (!listResponse.success) throw new Error(listResponse.error.message);
+      const confirmations = (listResponse.payload as { confirmations: Array<{ id: string }> })
+        .confirmations;
+      expect(confirmations).toHaveLength(1);
+
+      const respondRequest = {
+        ...createEnvelopeBase(),
+        type: 'extension.confirmations.respond',
+        payload: { confirmationId: confirmations[0]?.id, approved: true },
+      };
+      const respondPromise = onceExtensionResponse(ws, respondRequest.id);
+      ws.send(JSON.stringify(respondRequest));
+      const respondResponse = await respondPromise;
+      expect(respondResponse.success && respondResponse.payload).toEqual({ accepted: true });
+
+      const refreshedRequest = {
+        ...createEnvelopeBase(),
+        type: 'extension.confirmations.list',
+        payload: {},
+      };
+      const refreshedPromise = onceExtensionResponse(ws, refreshedRequest.id);
+      ws.send(JSON.stringify(refreshedRequest));
+      const refreshedResponse = await refreshedPromise;
+      expect(refreshedResponse.success && refreshedResponse.payload).toEqual({ confirmations: [] });
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: 'confirmation.responded', outcome: 'success' }),
+      );
+    } finally {
+      ws?.close();
       await secured.stop();
     }
   });
@@ -576,6 +636,21 @@ async function onceExtensionRequest(
       expect(message.type).toBe(expectedType);
       resolve(message);
     });
+  });
+}
+
+async function onceExtensionResponse(
+  ws: WebSocket,
+  correlationId: string,
+): Promise<ResponseEnvelope> {
+  return new Promise((resolve) => {
+    const onMessage = (data: WebSocket.RawData) => {
+      const message = JSON.parse(data.toString()) as ResponseEnvelope;
+      if (message.correlationId !== correlationId) return;
+      ws.off('message', onMessage);
+      resolve(message);
+    };
+    ws.on('message', onMessage);
   });
 }
 
