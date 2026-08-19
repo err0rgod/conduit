@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { chromium, BrowserContext, Worker } from '@playwright/test';
 import { createServer, Server } from 'node:http';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Daemon } from '../../apps/daemon/src/index';
@@ -87,7 +87,16 @@ test.beforeAll(async () => {
       true,
     );
   } else {
-    expect(nativeHost.install().installed).toBe(true);
+    const installed = nativeHost.install();
+    expect(installed.installed).toBe(true);
+    const sourceManifest = installed.manifestPaths?.at(-1);
+    if (!sourceManifest) throw new Error('Native host installation did not return a manifest.');
+    const profileManifestDirectory = path.join(profilePath, 'NativeMessagingHosts');
+    await mkdir(profileManifestDirectory, { recursive: true });
+    await copyFile(
+      sourceManifest,
+      path.join(profileManifestDirectory, path.basename(sourceManifest)),
+    );
     temporaryNativeHost = nativeHost;
   }
 
