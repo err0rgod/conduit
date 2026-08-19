@@ -7,7 +7,7 @@ const { releaseVersion } = require('./release-check');
 const { checksumLines } = require('./write-checksums');
 
 test('release tag must match the repository version', () => {
-  assert.equal(releaseVersion('v0.1.0'), '0.1.0');
+  assert.equal(releaseVersion('v0.1.1'), '0.1.1');
   assert.throws(() => releaseVersion('v0.2.0'), /does not match/u);
 });
 
