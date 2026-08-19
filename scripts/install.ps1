@@ -1,122 +1,93 @@
-# Conduit Windows Installation Script
-$ErrorActionPreference = "Stop"
+[CmdletBinding()]
+param(
+    [string]$Version,
+    [switch]$NoSetup
+)
 
-$conduitDir = Join-Path $HOME ".conduit"
-$appDir = Join-Path $conduitDir "app"
+$ErrorActionPreference = 'Stop'
+$conduitRepository = 'err0rgod/conduit'
 
-Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "INSTALLING CONDUIT..." -ForegroundColor Cyan
-Write-Host "===================================================" -ForegroundColor Cyan
-
-# 1. Check for Node.js
-$needsNode = $false
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    $needsNode = $true
-} else {
-    $nodeVersionStr = node -v
-    $nodeMajor = [int]($nodeVersionStr -replace '^v', '' -split '\.')[0]
-    if ($nodeMajor -lt 22) {
-        Write-Host "Node.js $nodeVersionStr is too old. Conduit requires Node.js 22+." -ForegroundColor Yellow
-        $needsNode = $true
+function Assert-Command([string]$Name) {
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        throw "$Name is required. Install Node.js 22 or newer from https://nodejs.org/ and retry."
     }
 }
 
-if ($needsNode) {
-    Write-Host "Installing/Updating Node.js via winget..." -ForegroundColor Yellow
-    winget install OpenJS.NodeJS --silent
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Write-Host "Failed to install Node.js automatically. Please install it from https://nodejs.org/" -ForegroundColor Red
-        exit 1
+function Assert-Checksum([string]$FilePath, [string]$ChecksumsPath) {
+    $fileName = [IO.Path]::GetFileName($FilePath)
+    $line = Get-Content -LiteralPath $ChecksumsPath | Where-Object { $_ -match "^[a-f0-9]{64}\s+$([regex]::Escape($fileName))$" } | Select-Object -First 1
+    if (-not $line) { throw "SHA256SUMS does not contain $fileName." }
+    $expected = ($line -split '\s+')[0].ToLowerInvariant()
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $FilePath).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) { throw "Checksum verification failed for $fileName." }
+}
+
+Assert-Command 'node'
+Assert-Command 'npm'
+$nodeMajor = [int]((node --version).TrimStart('v').Split('.')[0])
+if ($nodeMajor -lt 22) { throw "Conduit requires Node.js 22 or newer; found $(node --version)." }
+
+if (-not $Version) {
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$conduitRepository/releases/latest" -Headers @{ 'User-Agent' = 'Conduit-Installer' }
+    $releaseTag = [string]$release.tag_name
+} else {
+    $releaseTag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
+}
+if ($releaseTag -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+    throw "Invalid Conduit release tag: $releaseTag"
+}
+$releaseVersion = $releaseTag.Substring(1)
+$releaseBase = "https://github.com/$conduitRepository/releases/download/$releaseTag"
+$temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) "conduit-install-$([guid]::NewGuid().ToString('N'))"
+$packageName = "conduit-browser-$releaseVersion.tgz"
+$extensionName = "conduit-extension-$releaseVersion.zip"
+$packagePath = Join-Path $temporaryRoot $packageName
+$extensionArchive = Join-Path $temporaryRoot $extensionName
+$checksumsPath = Join-Path $temporaryRoot 'SHA256SUMS'
+
+try {
+    New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
+    Write-Host "Downloading Conduit $releaseTag..." -ForegroundColor Cyan
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$packageName" -OutFile $packagePath
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$extensionName" -OutFile $extensionArchive
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS" -OutFile $checksumsPath
+    Assert-Checksum $packagePath $checksumsPath
+    Assert-Checksum $extensionArchive $checksumsPath
+
+    $conduitDataRoot = Join-Path $env:LOCALAPPDATA 'Conduit'
+    $npmRoot = Join-Path $conduitDataRoot 'App'
+    $binRoot = Join-Path $conduitDataRoot 'bin'
+    $extensionRoot = Join-Path $conduitDataRoot "Extension\$releaseVersion"
+    New-Item -ItemType Directory -Force -Path $npmRoot, $binRoot, $extensionRoot | Out-Null
+
+    & npm install --prefix $npmRoot --omit=dev --no-audit --no-fund $packagePath
+    if ($LASTEXITCODE -ne 0) { throw 'npm failed to install the Conduit backend package.' }
+    Expand-Archive -LiteralPath $extensionArchive -DestinationPath $extensionRoot -Force
+
+    $cliPath = Join-Path $npmRoot 'node_modules\conduit-browser\dist\cli.cjs'
+    if (-not (Test-Path -LiteralPath $cliPath)) { throw 'The installed Conduit CLI is missing.' }
+    $nodePath = (Get-Command node).Source
+    $launcherPath = Join-Path $binRoot 'conduit.cmd'
+    Set-Content -LiteralPath $launcherPath -Encoding Ascii -Value "@echo off`r`n`"$nodePath`" `"$cliPath`" %*"
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $pathEntries = @($userPath -split ';' | Where-Object { $_ })
+    if (-not ($pathEntries | Where-Object { $_.TrimEnd('\') -ieq $binRoot.TrimEnd('\') })) {
+        [Environment]::SetEnvironmentVariable('Path', (($pathEntries + $binRoot) -join ';'), 'User')
+    }
+    $env:Path = "$binRoot;$env:Path"
+
+    if (-not $NoSetup) {
+        & node $cliPath setup
+        if ($LASTEXITCODE -ne 0) { throw 'Conduit was installed, but conduit setup failed.' }
+    }
+
+    Write-Host "Conduit $releaseTag installed without administrator access." -ForegroundColor Green
+    Write-Host "Extension folder: $extensionRoot" -ForegroundColor Magenta
+    Write-Host 'Load that folder from chrome://extensions or edge://extensions using Developer mode.'
+    if ($NoSetup) { Write-Host 'Run conduit setup before loading the extension.' }
+} finally {
+    if (Test-Path -LiteralPath $temporaryRoot) {
+        Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
     }
 }
-Write-Host "✅ Node.js is ready." -ForegroundColor Green
-
-# 2. Check for Git
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "Git not found. Installing Git via winget..." -ForegroundColor Yellow
-    winget install Git.Git --silent
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Host "Failed to install Git automatically. Please install it from https://git-scm.com/" -ForegroundColor Red
-        exit 1
-    }
-}
-Write-Host "Git is installed." -ForegroundColor Green
-
-# 3. Clone or Update Repositories
-if (-not (Test-Path $conduitDir)) {
-    New-Item -ItemType Directory -Path $conduitDir | Out-Null
-}
-
-$extensionDir = Join-Path $conduitDir "extension"
-
-if (Test-Path $appDir) {
-    Write-Host "Updating existing Conduit repository..." -ForegroundColor Yellow
-    Set-Location $appDir
-    git pull origin main
-} else {
-    Write-Host "Cloning Conduit repository..." -ForegroundColor Yellow
-    Set-Location $conduitDir
-    git clone https://github.com/err0rgod/conduit.git app
-}
-
-if (Test-Path $extensionDir) {
-    Write-Host "Updating existing Conduit Extension repository..." -ForegroundColor Yellow
-    Set-Location $extensionDir
-    git pull origin main
-} else {
-    Write-Host "Cloning Conduit Extension repository..." -ForegroundColor Yellow
-    Set-Location $conduitDir
-    git clone https://github.com/err0rgod/conduit-extension.git extension
-}
-
-# 4. Install Dependencies & Build
-Write-Host "Installing dependencies using pnpm..." -ForegroundColor Yellow
-# Ensure pnpm is available
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Write-Host "pnpm not found. Installing pnpm globally..." -ForegroundColor Yellow
-    npm install -g pnpm
-}
-
-Write-Host "Building Conduit (Daemon/CLI)..." -ForegroundColor Yellow
-Set-Location $appDir
-npx pnpm install
-if ($LASTEXITCODE -ne 0) { Write-Host "Failed to install dependencies" -ForegroundColor Red; exit 1 }
-npx pnpm build
-if ($LASTEXITCODE -ne 0) { Write-Host "Failed to build Conduit" -ForegroundColor Red; exit 1 }
-
-Write-Host "Building Conduit Extension..." -ForegroundColor Yellow
-Set-Location $extensionDir
-npx pnpm install
-if ($LASTEXITCODE -ne 0) { Write-Host "Failed to install extension dependencies" -ForegroundColor Red; exit 1 }
-npx pnpm build
-if ($LASTEXITCODE -ne 0) { Write-Host "Failed to build Extension" -ForegroundColor Red; exit 1 }
-
-# 5. Run Setup
-Write-Host "Configuring system..." -ForegroundColor Yellow
-Set-Location $appDir
-# Globally link the CLI
-Push-Location packages/cli
-npm link --force
-Pop-Location
-conduit setup
-
-# 6. Success Output
-$extPath = Join-Path $extensionDir "apps\extension\dist"
-
-Write-Host ""
-Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "CONDUIT INSTALLED SUCCESSFULLY! " -ForegroundColor Green
-Write-Host "===================================================" -ForegroundColor Cyan
-Write-Host "The Conduit Daemon is running in the background."
-Write-Host ""
-Write-Host "Final Step: Connect your browser" -ForegroundColor Yellow
-Write-Host "1. Open your browser and go to: chrome://extensions or edge://extensions"
-Write-Host "2. Turn on 'Developer mode' (top right corner)."
-Write-Host "3. Click 'Load unpacked'."
-Write-Host "4. Copy and paste this exact path:"
-Write-Host " $extPath" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "The extension will connect automatically."
-Write-Host "===================================================" -ForegroundColor Cyan

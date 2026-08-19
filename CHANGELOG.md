@@ -4,6 +4,8 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-20
+
 ### Added
 
 - pnpm TypeScript monorepo and versioned runtime-validated protocol.
@@ -14,9 +16,14 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Revocable P-256 remote-device pairing and TLS-gated non-loopback mode.
 - Dedicated unit, integration, security, coverage, and real Chromium E2E suites.
 - VitePress documentation site and open-source project policies.
+- Standalone extension repository integration with Native Messaging auto-discovery.
+- Checksummed GitHub Release artifacts and no-admin user installers.
 
 ### Security
 
 - Upload permission and confirmation are evaluated before inspecting host filesystem paths.
+- Clean installations grant only `browser.read` and ask before first-use domains.
+- Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[0.1.0]: https://github.com/err0rgod/conduit/releases/tag/v0.1.0

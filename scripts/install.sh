@@ -1,120 +1,110 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-CONDUIT_DIR="$HOME/.conduit"
-APP_DIR="$CONDUIT_DIR/app"
+conduit_repository='err0rgod/conduit'
+conduit_version=''
+run_setup=true
 
-echo -e "\033[0;36m===================================================\033[0m"
-echo -e "\033[0;36m INSTALLING CONDUIT...\033[0m"
-echo -e "\033[0;36m===================================================\033[0m"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --version)
+      conduit_version="${2:?--version requires a value}"
+      shift 2
+      ;;
+    --no-setup)
+      run_setup=false
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
-# 1. Check for Node.js
-NEEDS_NODE=false
-if ! command -v node >/dev/null 2>&1; then
-    NEEDS_NODE=true
+for conduit_command in node npm curl unzip; do
+  if ! command -v "$conduit_command" >/dev/null 2>&1; then
+    echo "$conduit_command is required. Install Node.js 22 or newer and retry." >&2
+    exit 1
+  fi
+done
+
+node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+if [[ "$node_major" -lt 22 ]]; then
+  echo "Conduit requires Node.js 22 or newer; found $(node --version)." >&2
+  exit 1
+fi
+
+if [[ -z "$conduit_version" ]]; then
+  release_tag="$(curl -fsSL -H 'User-Agent: Conduit-Installer' "https://api.github.com/repos/$conduit_repository/releases/latest" | node -e "let data='';process.stdin.on('data',chunk=>data+=chunk).on('end',()=>process.stdout.write(JSON.parse(data).tag_name||''))")"
 else
-    NODE_VERSION=$(node -v | cut -d 'v' -f 2 | cut -d '.' -f 1)
-    if [ "$NODE_VERSION" -lt 22 ]; then
-        echo -e "\033[0;33mNode.js $(node -v) is too old. Conduit requires Node.js 22+.\033[0m"
-        NEEDS_NODE=true
-    fi
+  release_tag="$conduit_version"
+  [[ "$release_tag" == v* ]] || release_tag="v$release_tag"
+fi
+if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid Conduit release tag: $release_tag" >&2
+  exit 1
 fi
 
-if [ "$NEEDS_NODE" = true ]; then
-    echo -e "\033[0;33mAttempting to install/update Node.js via package manager...\033[0m"
-    if command -v apt-get >/dev/null 2>&1; then
-        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    elif command -v brew >/dev/null 2>&1; then
-        brew install node
-    else
-        echo -e "\033[0;31mCould not automatically install Node.js. Please install Node 22+ from https://nodejs.org/\033[0m"
-        exit 1
-    fi
-fi
-echo -e "\033[0;32m✅ Node.js is ready.\033[0m"
+release_version="${release_tag#v}"
+release_base="https://github.com/$conduit_repository/releases/download/$release_tag"
+temporary_root="$(mktemp -d "${TMPDIR:-/tmp}/conduit-install.XXXXXXXX")"
+trap 'rm -rf -- "$temporary_root"' EXIT
+package_name="conduit-browser-$release_version.tgz"
+extension_name="conduit-extension-$release_version.zip"
 
-# 2. Check for Git
-if ! command -v git >/dev/null 2>&1; then
-    echo -e "\033[0;33mGit not found. Attempting to install...\033[0m"
-    if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get update && sudo apt-get install -y git
-    elif command -v brew >/dev/null 2>&1; then
-        brew install git
-    else
-        echo -e "\033[0;31mCould not automatically install Git. Please install it from https://git-scm.com/\033[0m"
-        exit 1
-    fi
-fi
-echo -e "\033[0;32m Git is installed.\033[0m"
+echo "Downloading Conduit $release_tag..."
+curl -fsSL "$release_base/$package_name" -o "$temporary_root/$package_name"
+curl -fsSL "$release_base/$extension_name" -o "$temporary_root/$extension_name"
+curl -fsSL "$release_base/SHA256SUMS" -o "$temporary_root/SHA256SUMS"
 
-# 3. Clone or Update Repositories
-mkdir -p "$CONDUIT_DIR"
+verify_checksum() {
+  local asset_name="$1"
+  local expected
+  local actual
+  expected="$(awk -v name="$asset_name" '$2 == name { print $1; exit }' "$temporary_root/SHA256SUMS")"
+  [[ -n "$expected" ]] || { echo "SHA256SUMS does not contain $asset_name." >&2; exit 1; }
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "$temporary_root/$asset_name" | awk '{print $1}')"
+  else
+    actual="$(shasum -a 256 "$temporary_root/$asset_name" | awk '{print $1}')"
+  fi
+  [[ "$actual" == "$expected" ]] || { echo "Checksum verification failed for $asset_name." >&2; exit 1; }
+}
 
-EXT_DIR="$CONDUIT_DIR/extension"
+verify_checksum "$package_name"
+verify_checksum "$extension_name"
 
-if [ -d "$APP_DIR" ]; then
-    echo -e "\033[0;33mUpdating existing Conduit repository...\033[0m"
-    cd "$APP_DIR"
-    git pull origin main
-else
-    echo -e "\033[0;33mCloning Conduit repository...\033[0m"
-    cd "$CONDUIT_DIR"
-    git clone https://github.com/err0rgod/conduit.git app
-fi
+conduit_data_home="${XDG_DATA_HOME:-$HOME/.local/share}/conduit"
+npm_root="$conduit_data_home/app"
+bin_root="$HOME/.local/bin"
+extension_root="$conduit_data_home/extension/$release_version"
+mkdir -p "$npm_root" "$bin_root" "$extension_root"
+npm install --prefix "$npm_root" --omit=dev --no-audit --no-fund "$temporary_root/$package_name"
+unzip -oq "$temporary_root/$extension_name" -d "$extension_root"
 
-if [ -d "$EXT_DIR" ]; then
-    echo -e "\033[0;33mUpdating existing Conduit Extension repository...\033[0m"
-    cd "$EXT_DIR"
-    git pull origin main
-else
-    echo -e "\033[0;33mCloning Conduit Extension repository...\033[0m"
-    cd "$CONDUIT_DIR"
-    git clone https://github.com/err0rgod/conduit-extension.git extension
-fi
+cli_path="$npm_root/node_modules/conduit-browser/dist/cli.cjs"
+[[ -f "$cli_path" ]] || { echo 'The installed Conduit CLI is missing.' >&2; exit 1; }
+node_path="$(command -v node)"
+printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$node_path" "$cli_path" > "$bin_root/conduit"
+chmod 700 "$bin_root/conduit"
+export PATH="$bin_root:$PATH"
 
-# 4. Install Dependencies & Build
-echo -e "\033[0;33mInstalling dependencies using pnpm...\033[0m"
-# Ensure pnpm is available
-if ! command -v pnpm >/dev/null 2>&1; then
-    echo -e "\033[0;33mpnpm not found. Installing pnpm globally...\033[0m"
-    npm install -g pnpm
+case "${SHELL:-}" in
+  */zsh) shell_profile="$HOME/.zprofile" ;;
+  *) shell_profile="$HOME/.profile" ;;
+esac
+if ! grep -Fq '# Conduit user commands' "$shell_profile" 2>/dev/null; then
+  printf '\n# Conduit user commands\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$shell_profile"
 fi
 
-echo -e "\033[0;33mBuilding Conduit (Daemon/CLI)...\033[0m"
-cd "$APP_DIR"
-npx pnpm install
-npx pnpm build
+if [[ "$run_setup" == true ]]; then
+  node "$cli_path" setup
+fi
 
-echo -e "\033[0;33mBuilding Conduit Extension...\033[0m"
-cd "$EXT_DIR"
-npx pnpm install
-npx pnpm build
-
-# 5. Run Setup
-echo -e "\033[0;33mConfiguring system...\033[0m"
-cd "$APP_DIR"
-# Globally link the CLI
-cd packages/cli
-npm link --force
-cd ../../
-conduit setup
-
-# 6. Success Output
-EXT_PATH="$EXT_DIR/apps/extension/dist"
-
-echo ""
-echo -e "\033[0;36m===================================================\033[0m"
-echo -e "\033[0;32m CONDUIT INSTALLED SUCCESSFULLY! \033[0m"
-echo -e "\033[0;36m===================================================\033[0m"
-echo "The Conduit Daemon is running in the background."
-echo ""
-echo -e "\033[0;33mFinal Step: Connect your browser\033[0m"
-echo "1. Open your browser and go to: chrome://extensions or edge://extensions"
-echo "2. Turn on 'Developer mode' (top right corner)."
-echo "3. Click 'Load unpacked'."
-echo "4. Copy and paste this exact path:"
-echo -e "     \033[0;35m$EXT_PATH\033[0m"
-echo ""
-echo "The extension will connect automatically."
-echo -e "\033[0;36m===================================================\033[0m"
+echo "Conduit $release_tag installed without administrator access."
+echo "Extension folder: $extension_root"
+echo 'Load that folder from chrome://extensions or edge://extensions using Developer mode.'
+if [[ "$run_setup" == false ]]; then
+  echo 'Run conduit setup before loading the extension.'
+fi
