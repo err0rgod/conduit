@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { chromium, BrowserContext, Worker } from '@playwright/test';
 import { createServer, Server } from 'node:http';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Daemon } from '../../apps/daemon/src/index';
 import { ConduitClient } from '../../packages/daemon-client/src/index';
+import { ConfigStore } from '../../packages/config/src/index';
+import { NativeHostInstaller } from '../../packages/cli/src/native-host';
 import { SecurityPolicy } from '../../packages/security/src/policy';
 import { AuditLogger, StoredAuditEvent } from '../../packages/security/src/audit';
 
@@ -16,12 +18,14 @@ let fixtureServer: Server;
 let fixturePort: number;
 let context: BrowserContext;
 let worker: Worker;
-let profilePath: string;
+let testRoot: string;
+let temporaryNativeHost: NativeHostInstaller | undefined;
 const auditEvents: StoredAuditEvent[] = [];
 
 test.beforeAll(async () => {
-  const extensionPath = path.resolve('apps/extension/dist');
-  await grantFixtureHostPermission(extensionPath);
+  const extensionPath = path.resolve(
+    process.env.CONDUIT_EXTENSION_PATH ?? '../conduit-extension/apps/extension/dist',
+  );
 
   fixtureServer = createServer((_request, response) => {
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -49,15 +53,53 @@ test.beforeAll(async () => {
     audit: new AuditLogger({ sink: (event) => auditEvents.push(event) }),
   });
   daemonPort = await daemon.start(0);
-  profilePath = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
+  testRoot = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
+  const profilePath = path.join(testRoot, 'profile');
+  const dataPath = path.join(testRoot, 'data');
+  const configPath = path.join(dataPath, 'config.json');
+  const nativeHostHome = path.join(testRoot, 'native-home');
+  await mkdir(dataPath, { recursive: true });
+  await writeFile(path.join(dataPath, 'auth.json'), `${JSON.stringify({ token }, null, 2)}\n`, {
+    mode: 0o600,
+  });
+  new ConfigStore({ configPath }).save({
+    daemon: { port: daemonPort },
+    security: {
+      permissions: ['browser.read', 'browser.navigate', 'browser.interact', 'browser.forms'],
+      domainMode: 'allowlist',
+      allowedDomains: ['127.0.0.1'],
+      allowLocalhost: true,
+    },
+  });
+
+  const nativeEnvironment = {
+    ...process.env,
+    CONDUIT_CONFIG_PATH: configPath,
+    CONDUIT_DATA_DIR: dataPath,
+    HOME: nativeHostHome,
+  };
+  const nativeHost = new NativeHostInstaller({
+    ...(process.platform === 'win32' ? {} : { homeDirectory: nativeHostHome }),
+    cliEntryPath: path.resolve('packages/cli/bin/conduit.js'),
+  });
+  if (process.platform === 'win32') {
+    expect(nativeHost.status().installed, 'Run `conduit setup` before Windows E2E tests.').toBe(
+      true,
+    );
+  } else {
+    expect(nativeHost.install().installed).toBe(true);
+    temporaryNativeHost = nativeHost;
+  }
+
   context = await chromium.launchPersistentContext(profilePath, {
     channel: 'chromium',
     headless: false,
+    env: nativeEnvironment,
     args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
   });
 
   worker = await extensionWorker(context);
-  await configureExtension(context, worker, daemonPort);
+  expect(new URL(worker.url()).host).toBe('jkdlmcpkgkooilffjegfjmkanoelbmbl');
   await expect
     .poll(async () => (await client().health()).extensionConnected, { timeout: 45_000 })
     .toBe(true);
@@ -65,9 +107,10 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   await context?.close();
+  temporaryNativeHost?.uninstall();
   await daemon?.stop();
   await closeServer(fixtureServer);
-  if (profilePath) await rm(profilePath, { recursive: true, force: true });
+  if (testRoot) await rm(testRoot, { recursive: true, force: true });
 });
 
 test('executes the browser vertical slice through the authenticated daemon', async () => {
@@ -174,36 +217,11 @@ function client(): ConduitClient {
   return new ConduitClient({ baseUrl: `http://127.0.0.1:${daemonPort}`, token });
 }
 
-async function grantFixtureHostPermission(extensionPath: string): Promise<void> {
-  const manifestPath = path.join(extensionPath, 'manifest.json');
-  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
-  // The production manifest keeps this optional. The controlled test build grants it
-  // so captureVisibleTab and scripting can be exercised without a manual Chrome prompt.
-  manifest.host_permissions = ['<all_urls>'];
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-}
-
 async function extensionWorker(browserContext: BrowserContext): Promise<Worker> {
   const matches = (worker: Worker) =>
     worker.url().startsWith('chrome-extension://') && worker.url().endsWith('/background.js');
   const existing = browserContext.serviceWorkers().find(matches);
   return existing ?? browserContext.waitForEvent('serviceworker', { predicate: matches });
-}
-
-async function configureExtension(
-  browserContext: BrowserContext,
-  worker: Worker,
-  port: number,
-): Promise<void> {
-  const pairing = await client().startExtensionPairing();
-  const extensionId = new URL(worker.url()).host;
-  const popup = await browserContext.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.locator('#port').fill(String(port));
-  await popup.locator('#code').fill(pairing.code);
-  await popup.locator('#save').click();
-  await expect(popup.locator('#status')).toContainText('Paired');
-  await popup.close();
 }
 
 function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): number {
