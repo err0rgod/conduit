@@ -161,8 +161,8 @@ export class NativeHostInstaller {
   public constructor(options: NativeHostInstallerOptions = {}) {
     this.platform = supportedPlatform(options.platform ?? process.platform);
     this.homeDirectory = path.resolve(options.homeDirectory ?? os.homedir());
-    this.cliEntryPath = path.resolve(options.cliEntryPath ?? resolveCliEntry());
-    this.nodePath = path.resolve(options.nodePath ?? process.execPath);
+    this.cliEntryPath = resolveTargetPath(options.cliEntryPath ?? resolveCliEntry(), this.platform);
+    this.nodePath = resolveTargetPath(options.nodePath ?? process.execPath, this.platform);
     this.runCommand = options.run ?? runCommand;
   }
 
@@ -356,6 +356,13 @@ function supportedPlatform(platform: NodeJS.Platform): NativeHostPlatform {
 
 function resolveCliEntry(): string {
   return resolveDistributionEntry('cli.cjs') ?? path.resolve(__dirname, '..', 'bin', 'conduit.js');
+}
+
+function resolveTargetPath(candidate: string, platform: NodeJS.Platform): string {
+  if (platform === 'win32' && path.win32.isAbsolute(candidate)) {
+    return path.win32.normalize(candidate);
+  }
+  return path.resolve(candidate);
 }
 
 function runCommand(command: string, args: string[]): NativeHostCommandResult {
