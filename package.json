@@ -1,5 +1,6 @@
 {
   "name": "conduit-monorepo",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -13,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run --workspace vitest.unit.config.ts && vitest run --workspace vitest.integration.config.ts && vitest run --workspace vitest.security.config.ts",
+    "test": "vitest run --workspace vitest.unit.config.ts && vitest run --workspace vitest.integration.config.ts && vitest run --workspace vitest.security.config.ts && node --test scripts/*.test.js",
     "test:unit": "vitest run --workspace vitest.unit.config.ts",
     "test:integration": "vitest run --workspace vitest.integration.config.ts",
     "test:e2e": "playwright test",
@@ -22,8 +23,9 @@
     "docs:dev": "pnpm --filter @conduit/docs dev",
     "docs:build": "pnpm --filter @conduit/docs build",
     "distribution:build": "pnpm --filter @conduit/distribution build",
-    "distribution:pack": "pnpm distribution:build && pnpm --filter @conduit/distribution pack",
+    "distribution:pack": "pnpm distribution:build && pnpm --filter @conduit/distribution run pack",
     "distribution:test": "pnpm distribution:build && pnpm --filter @conduit/distribution test:install",
+    "release:check": "node scripts/release-check.js",
     "daemon:start": "pnpm --filter @conduit/daemon start",
     "daemon:dev": "pnpm --filter @conduit/daemon dev",
     "mcp:start": "pnpm --filter @conduit/mcp-server start",

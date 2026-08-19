@@ -14,11 +14,15 @@ const npmArgs =
   process.platform === 'win32'
     ? [path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')]
     : [];
+const npmEnvironment = { ...process.env };
+delete npmEnvironment.npm_config_recursive;
+delete npmEnvironment.NPM_CONFIG_RECURSIVE;
 const result = spawnSync(
   npmCommand,
   [...npmArgs, 'pack', outputRoot, '--pack-destination', artifacts],
   {
     stdio: 'inherit',
+    env: npmEnvironment,
   },
 );
 if (result.error) throw result.error;

@@ -6,7 +6,7 @@ Conduit is an open-source, local-first browser-control bridge for AI agents. It 
 
 **Status:** pre-1.0 foundation software. The core vertical slice is implemented and exercised in real Chromium, but Conduit is not yet recommended for unattended use with sensitive accounts.
 
-[Documentation](https://err0rgod.github.io/conduit/) · [Security](SECURITY.md) · [Architecture](ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+[Documentation](https://err0rgod.github.io/conduit-web/) · [Security](SECURITY.md) · [Architecture](ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
 
 ## Why Conduit
 
@@ -50,7 +50,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ### The 1-Minute Setup
 
-Conduit provides automated installation scripts that download dependencies, build the project, set up the background daemon, and prepare the extension for your browser.
+Conduit provides release installers that download the prebuilt backend and compatible extension, verify both against the release SHA-256 checksums, install them in user-owned directories, and run `conduit setup`. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
 
 **Windows (PowerShell):**
 
@@ -64,13 +64,15 @@ irm https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.ps1 
 curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/install.sh | bash
 ```
 
-**What this script does:**
+**What the installer does:**
 
-1. Installs Node.js and Git if they are missing.
-2. Clones the Conduit repository to `~/.conduit/app`.
-3. Installs dependencies and builds the project.
-4. Runs `conduit setup` to securely configure the daemon and OS integration.
-5. Prints the exact folder path for you to load into your browser.
+1. Resolves the latest GitHub Release.
+2. Downloads the `conduit-browser` backend tarball and standalone extension ZIP.
+3. Verifies both artifacts using the release's `SHA256SUMS` file.
+4. Installs a user-local `conduit` command and runs `conduit setup`.
+5. Prints the exact versioned extension folder to load into Chromium.
+
+Pass a version when reproducibility matters: `./install.sh --version v0.1.0` or `./install.ps1 -Version v0.1.0`. The scripts never install Node, Git, networking software, or system packages for you.
 
 ### Connect the Extension
 
@@ -87,6 +89,7 @@ The extension will instantly and automatically connect to the daemon using Nativ
 
 ```bash
 git clone https://github.com/err0rgod/conduit.git
+git clone https://github.com/err0rgod/conduit-extension.git
 cd conduit
 corepack enable
 pnpm install --frozen-lockfile
@@ -97,9 +100,10 @@ Conduit is not yet published to npm or a browser extension store.
 
 ### Test the consumer package locally
 
-The release build produces a self-contained npm tarball named `conduit-browser`. It
-includes the CLI, daemon, MCP adapter, and unpacked extension without runtime
-`workspace:*` dependencies:
+The backend release build produces a self-contained npm tarball named `conduit-browser`.
+It includes the CLI, daemon, and MCP adapter without runtime `workspace:*`
+dependencies. The browser extension is built and released separately from
+[`conduit-extension`](https://github.com/err0rgod/conduit-extension):
 
 ```bash
 pnpm distribution:pack
@@ -107,9 +111,10 @@ npm install --global ./artifacts/conduit-browser-0.1.0.tgz
 conduit setup
 ```
 
-This exercises the same artifact intended for npm publication. The CI matrix also
-installs the tarball into a clean prefix and verifies setup, extension discovery,
-and the daemon start/status/stop lifecycle.
+This exercises the same backend artifact intended for npm publication. The CI matrix
+also installs the tarball into a clean prefix and verifies setup and the daemon
+start/status/stop lifecycle. Browser E2E checks build the pinned standalone extension
+repository and verify automatic Native Messaging authentication in a fresh profile.
 
 `conduit setup` creates secure local configuration, registers current-user automatic startup for
 the current user without administrator rights, starts the daemon, and prints the
@@ -188,15 +193,14 @@ pnpm typecheck
 pnpm test
 pnpm test:coverage
 pnpm build
-pnpm docs:build
-pnpm test:e2e
+CONDUIT_EXTENSION_PATH=../conduit-extension/apps/extension/dist pnpm test:e2e
 ```
 
-The E2E suite launches Chromium with the built extension and exercises the authenticated daemon path against a controlled page.
+Build the sibling `conduit-extension` repository before running E2E. The suite launches Chromium with that standalone build and exercises Native Messaging, authenticated daemon connection, and browser actions against a controlled page.
 
 ## Known limitations
 
-- source/unpacked-extension distribution only;
+- the extension is currently distributed as a checksummed unpacked ZIP rather than through a browser store;
 - reliable interaction focuses on the main document; cross-origin nested frames remain limited;
 - extension confirmation/audit management UI is not complete;
 - config fields for retention and screenshot persistence precede their full scheduled behavior;

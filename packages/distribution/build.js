@@ -4,6 +4,7 @@ const esbuild = require('esbuild');
 
 const packageRoot = __dirname;
 const repositoryRoot = path.resolve(packageRoot, '../..');
+const repositoryPackage = require(path.join(repositoryRoot, 'package.json'));
 const outputRoot = path.join(packageRoot, 'package');
 const outputDist = path.join(outputRoot, 'dist');
 async function bundle(entryPoint, outfile, executable = false) {
@@ -34,7 +35,7 @@ async function main() {
     `${JSON.stringify(
       {
         name: 'conduit-browser',
-        version: '0.1.0',
+        version: repositoryPackage.version,
         description: 'Open-source, local-first browser-control bridge for AI agents.',
         bin: { conduit: 'dist/cli.cjs' },
         files: ['dist', 'README.md', 'LICENSE'],
@@ -42,7 +43,7 @@ async function main() {
         license: 'MIT',
         repository: { type: 'git', url: 'git+https://github.com/err0rgod/conduit.git' },
         bugs: { url: 'https://github.com/err0rgod/conduit/issues' },
-        homepage: 'https://err0rgod.github.io/conduit/',
+        homepage: 'https://err0rgod.github.io/conduit-web/',
         keywords: ['ai-agents', 'browser-automation', 'chrome-extension', 'local-first', 'mcp'],
         publishConfig: { access: 'public' },
       },
