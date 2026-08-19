@@ -36,4 +36,20 @@ describe('audit redaction', () => {
     expect(contents).not.toContain('private');
     expect(logger.read(1)).toHaveLength(1);
   });
+
+  it('keeps a bounded redacted read view when an injected sink is used', () => {
+    const sinkEvents: unknown[] = [];
+    const logger = new AuditLogger({ sink: (event) => sinkEvents.push(event) });
+    logger.log({ type: 'first', outcome: 'success' });
+    logger.log({ type: 'second', outcome: 'denied', details: { token: 'never expose me' } });
+
+    expect(sinkEvents).toHaveLength(2);
+    expect(logger.read(1)).toEqual([
+      expect.objectContaining({
+        type: 'second',
+        details: { token: '[redacted]' },
+      }),
+    ]);
+    expect(logger.read(Number.POSITIVE_INFINITY)).toEqual([]);
+  });
 });

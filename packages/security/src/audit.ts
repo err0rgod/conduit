@@ -47,16 +47,22 @@ export class AuditLogger {
   private readonly filePath: string;
   private readonly maxBytes: number;
   private readonly sink?: (event: StoredAuditEvent) => void;
+  private readonly recentEvents: StoredAuditEvent[] | undefined;
 
   public constructor(options: AuditLoggerOptions = {}) {
     this.filePath = options.filePath ?? path.join(getAppDataDir(), 'audit.jsonl');
     this.maxBytes = options.maxBytes ?? 5 * 1024 * 1024;
     this.sink = options.sink;
+    this.recentEvents = options.sink ? [] : undefined;
   }
 
   public log(event: AuditEvent): StoredAuditEvent {
     const stored = redact({ ...event, id: randomUUID(), timestamp: Date.now() });
     this.sink?.(stored);
+    if (this.recentEvents) {
+      this.recentEvents.push(stored);
+      if (this.recentEvents.length > 1_000) this.recentEvents.shift();
+    }
     if (!this.sink) {
       this.prepareFile();
       fs.appendFileSync(this.filePath, `${JSON.stringify(stored)}\n`, { mode: 0o600 });
@@ -65,12 +71,17 @@ export class AuditLogger {
   }
 
   public read(limit = 200): StoredAuditEvent[] {
+    const boundedLimit = Number.isFinite(limit)
+      ? Math.min(1_000, Math.max(0, Math.trunc(limit)))
+      : 0;
+    if (boundedLimit === 0) return [];
+    if (this.recentEvents) return this.recentEvents.slice(-boundedLimit);
     if (!fs.existsSync(this.filePath)) return [];
     return fs
       .readFileSync(this.filePath, 'utf8')
       .split(/\r?\n/u)
       .filter(Boolean)
-      .slice(-Math.max(0, limit))
+      .slice(-boundedLimit)
       .flatMap((line) => {
         try {
           return [JSON.parse(line) as StoredAuditEvent];

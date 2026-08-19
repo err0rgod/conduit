@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BrowserRequestEnvelopeSchema,
+  AuditEventSchema,
   ConfirmationRequestSchema,
   ConfirmationResponseSchema,
   ExtensionManagementRequestSchema,
@@ -126,6 +127,33 @@ describe('Confirmations', () => {
         payload: { confirmationId: baseEnvelope.id, approved: 'yes' },
       }).success,
     ).toBe(false);
+  });
+
+  it('validates bounded extension audit requests and structured events', () => {
+    expect(
+      ExtensionManagementRequestSchema.safeParse({
+        ...baseEnvelope,
+        type: 'extension.audit.list',
+        payload: { limit: 25 },
+      }).success,
+    ).toBe(true);
+    expect(
+      ExtensionManagementRequestSchema.safeParse({
+        ...baseEnvelope,
+        type: 'extension.audit.list',
+        payload: { limit: 101 },
+      }).success,
+    ).toBe(false);
+    expect(
+      AuditEventSchema.safeParse({
+        id: baseEnvelope.id,
+        timestamp: baseEnvelope.timestamp,
+        type: 'browser.action',
+        outcome: 'success',
+        operation: 'browser.snapshot',
+        domain: 'example.com',
+      }).success,
+    ).toBe(true);
   });
 });
 

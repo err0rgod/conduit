@@ -171,6 +171,22 @@ export const ConfirmationResponseSchema = z
   })
   .strict();
 
+export const AuditOutcomeSchema = z.enum(['success', 'denied', 'failure', 'pending']);
+
+export const AuditEventSchema = z
+  .object({
+    id: z.string().uuid(),
+    timestamp: z.number().int().nonnegative(),
+    type: z.string().min(1).max(100),
+    outcome: AuditOutcomeSchema,
+    requestId: z.string().uuid().optional(),
+    correlationId: z.string().uuid().optional(),
+    operation: z.string().min(1).max(100).optional(),
+    domain: z.string().min(1).max(253).optional(),
+    details: z.record(z.unknown()).optional(),
+  })
+  .strict();
+
 export const ExtensionConfirmationListRequestSchema = EnvelopeBaseSchema.extend({
   type: z.literal('extension.confirmations.list'),
   payload: z.object({}).strict(),
@@ -181,9 +197,15 @@ export const ExtensionConfirmationRespondRequestSchema = EnvelopeBaseSchema.exte
   payload: ConfirmationResponseSchema,
 }).strict();
 
+export const ExtensionAuditListRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('extension.audit.list'),
+  payload: z.object({ limit: z.number().int().min(1).max(100).default(50) }).strict(),
+}).strict();
+
 export const ExtensionManagementRequestSchema = z.discriminatedUnion('type', [
   ExtensionConfirmationListRequestSchema,
   ExtensionConfirmationRespondRequestSchema,
+  ExtensionAuditListRequestSchema,
 ]);
 
 export const BrowserOperationSchema = z.enum([
@@ -513,6 +535,7 @@ export type Permission = z.infer<typeof PermissionSchema>;
 export type RiskLevel = z.infer<typeof RiskLevelSchema>;
 export type ConfirmationRequest = z.infer<typeof ConfirmationRequestSchema>;
 export type ConfirmationResponse = z.infer<typeof ConfirmationResponseSchema>;
+export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type ExtensionManagementRequest = z.infer<typeof ExtensionManagementRequestSchema>;
 export type BrowserOperation = z.infer<typeof BrowserOperationSchema>;
 export type BrowserRequestEnvelope = z.infer<typeof BrowserRequestEnvelopeSchema>;

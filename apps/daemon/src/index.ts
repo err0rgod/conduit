@@ -763,6 +763,15 @@ export class Daemon {
       return;
     }
 
+    if (request.type === 'extension.audit.list') {
+      ws.send(
+        JSON.stringify(
+          createSuccessResponse({ events: this.audit.read(request.payload.limit) }, request.id),
+        ),
+      );
+      return;
+    }
+
     const accepted = this.respondToConfirmation(
       request.payload.confirmationId,
       request.payload.approved,
