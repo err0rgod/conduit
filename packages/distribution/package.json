@@ -12,6 +12,6 @@
     "@conduit/cli": "workspace:*",
     "@conduit/daemon": "workspace:*",
     "@conduit/mcp-server": "workspace:*",
-    "esbuild": "0.21.5"
+    "esbuild": "0.28.2"
   }
 }
