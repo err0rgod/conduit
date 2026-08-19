@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { chromium, BrowserContext, Worker } from '@playwright/test';
 import { createServer, Server } from 'node:http';
-import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { Daemon } from '../../apps/daemon/src/index';
@@ -23,7 +23,7 @@ let temporaryNativeHost: NativeHostInstaller | undefined;
 const auditEvents: StoredAuditEvent[] = [];
 
 test.beforeAll(async () => {
-  const extensionPath = path.resolve(
+  const extensionSourcePath = path.resolve(
     process.env.CONDUIT_EXTENSION_PATH ?? '../conduit-extension/apps/extension/dist',
   );
 
@@ -54,6 +54,8 @@ test.beforeAll(async () => {
   });
   daemonPort = await daemon.start(0);
   testRoot = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
+  const extensionPath = path.join(testRoot, 'extension');
+  await prepareExtensionWithFixtureGrant(extensionSourcePath, extensionPath);
   const profilePath = path.join(testRoot, 'profile');
   const dataPath = path.join(testRoot, 'data');
   const configPath = path.join(dataPath, 'config.json');
@@ -231,6 +233,23 @@ async function extensionWorker(browserContext: BrowserContext): Promise<Worker> 
     worker.url().startsWith('chrome-extension://') && worker.url().endsWith('/background.js');
   const existing = browserContext.serviceWorkers().find(matches);
   return existing ?? browserContext.waitForEvent('serviceworker', { predicate: matches });
+}
+
+async function prepareExtensionWithFixtureGrant(
+  source: string,
+  destination: string,
+): Promise<void> {
+  await cp(source, destination, { recursive: true });
+  const manifestPath = path.join(destination, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+  if (manifest.host_permissions !== undefined) {
+    throw new Error('Production extension unexpectedly includes default host permissions.');
+  }
+  // Chromium's permission prompt and toolbar activeTab grant are browser UI with no supported
+  // CI auto-accept switch. The disposable test copy gets captureVisibleTab capability; daemon
+  // policy still confines it to the controlled fixture. Production remains optional per-origin.
+  manifest.host_permissions = ['<all_urls>'];
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
 }
 
 function payloadTabId(response: Awaited<ReturnType<ConduitClient['browser']>>): number {
