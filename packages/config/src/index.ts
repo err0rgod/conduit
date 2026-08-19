@@ -37,16 +37,8 @@ export const ConduitConfigSchema = z
       .default({}),
     security: z
       .object({
-        permissions: z
-          .array(PermissionSchema)
-          .default([
-            'browser.read',
-            'browser.navigate',
-            'browser.interact',
-            'browser.forms',
-            'browser.download',
-          ]),
-        domainMode: z.enum(['allowlist', 'blocklist', 'ask']).default('blocklist'),
+        permissions: z.array(PermissionSchema).default(['browser.read']),
+        domainMode: z.enum(['allowlist', 'blocklist', 'ask']).default('ask'),
         allowedDomains: z.array(DomainPatternSchema).default([]),
         blockedDomains: z.array(DomainPatternSchema).default([]),
         allowLocalhost: z.boolean().default(false),
