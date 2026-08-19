@@ -84,6 +84,29 @@ describe('SetupManager', () => {
     expect(fs.existsSync(directory)).toBe(false);
   });
 
+  it('can skip native-host registration for isolated package validation', async () => {
+    const directory = temporaryDirectory();
+    const manager = new SetupManager({
+      configStore: new ConfigStore({ configPath: path.join(directory, 'config.json') }),
+      auth: new LocalAuth({ configPath: path.join(directory, 'auth.json') }),
+      lifecycle: {
+        start: async () => ({ running: true, message: 'started' }),
+        status: async () => ({ running: false, message: 'offline' }),
+        stop: async () => ({ running: false, message: 'stopped' }),
+      },
+      service: { install: () => serviceResult(true), uninstall: () => serviceResult(false) },
+      dataDirectory: directory,
+    });
+
+    const report = await manager.setup({
+      installService: false,
+      startDaemon: false,
+      installNativeHost: false,
+    });
+
+    expect(report.nativeHost).toBeUndefined();
+  });
+
   function temporaryDirectory(): string {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-setup-'));
     directories.push(directory);

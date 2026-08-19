@@ -10,6 +10,7 @@ import { NativeHostInstaller, NativeHostStatus } from './native-host';
 export interface SetupOptions {
   installService?: boolean;
   startDaemon?: boolean;
+  installNativeHost?: boolean;
 }
 
 export interface UninstallOptions {
@@ -66,12 +67,13 @@ export class SetupManager {
   public async setup(options: SetupOptions = {}): Promise<SetupReport> {
     const installService = options.installService ?? true;
     const startDaemon = options.startDaemon ?? true;
+    const installNativeHost = options.installNativeHost ?? true;
     this.configStore.save(this.configStore.load());
     this.auth.ensureToken();
 
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
-    const nativeHost = new NativeHostInstaller().install();
+    const nativeHost = installNativeHost ? new NativeHostInstaller().install() : undefined;
     return {
       configured: true,
       configPath: this.configStore.getPath(),
