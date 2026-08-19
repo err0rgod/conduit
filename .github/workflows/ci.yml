@@ -33,6 +33,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Checkout pinned documentation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: err0rgod/conduit-web
+          ref: baf7ddf71478810f12b85810d958756b76996167
+          path: conduit-web
       - name: Install pnpm
         uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
       - name: Set up Node
@@ -42,6 +48,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install documentation dependencies
+        working-directory: conduit-web
+        run: pnpm install --frozen-lockfile --ignore-workspace
       - name: Check formatting
         run: pnpm format:check
       - name: Lint

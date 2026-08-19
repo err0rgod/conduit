@@ -72,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 4. Installs a user-local `conduit` command and runs `conduit setup`.
 5. Prints the exact versioned extension folder to load into Chromium.
 
-Pass a version when reproducibility matters: `./install.sh --version v0.1.0` or `./install.ps1 -Version v0.1.0`. The scripts never install Node, Git, networking software, or system packages for you.
+Pass a version when reproducibility matters: `./install.sh --version v0.1.1` or `./install.ps1 -Version v0.1.1`. The scripts never install Node, Git, networking software, or system packages for you.
 
 ### Connect the Extension
 
@@ -84,6 +84,8 @@ After the script finishes, simply open your browser and load the extension:
 4. Paste the folder path provided by the installation script at the very end of the output.
 
 The extension will instantly and automatically connect to the daemon using Native Messaging. No tokens or ports to configure!
+
+Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. Chromium displays the native permission prompt. You can revoke the origin from the same popup at any time.
 
 ## Install from source (for contributors)
 
@@ -107,7 +109,7 @@ dependencies. The browser extension is built and released separately from
 
 ```bash
 pnpm distribution:pack
-npm install --global ./artifacts/conduit-browser-0.1.0.tgz
+npm install --global ./artifacts/conduit-browser-0.1.1.tgz
 conduit setup
 ```
 
@@ -207,7 +209,7 @@ Build the sibling `conduit-extension` repository before running E2E. The suite l
 - remote networking must be supplied and secured by the operator;
 - no stable release or compatibility guarantee yet.
 
-See the [roadmap](https://err0rgod.github.io/conduit/roadmap).
+See the [documentation and roadmap](https://err0rgod.github.io/conduit-web/).
 
 ## Contributing
 

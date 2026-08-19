@@ -8,6 +8,7 @@ test-results/
 coverage/
 artifacts/
 packages/distribution/package/
+conduit-web/
 
 # Private maintainer handoff notes and local browser probes
 deployment.txt
