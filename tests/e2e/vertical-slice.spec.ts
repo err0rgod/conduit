@@ -222,6 +222,26 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   const screenshot = await conduit.browser('browser.screenshot', { tabId, format: 'png' });
   if (!screenshot.success) throw new Error(`${screenshot.error.code}: ${screenshot.error.message}`);
   expect(screenshotData(screenshot.payload).length).toBeGreaterThan(100);
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
+  await expect(popup.locator('#control-state')).toHaveText('ready');
+  await expect(popup.locator('#last-action')).toContainText('screenshot');
+
+  await popup.locator('#disconnect').click();
+  await expect
+    .poll(async () => (await conduit.health()).extensionConnected, { timeout: 10_000 })
+    .toBe(false);
+  await expect(popup.locator('#control-state')).toHaveText('paused');
+  await expect(popup.locator('#resume')).toBeVisible();
+
+  await popup.locator('#resume').click();
+  await expect
+    .poll(async () => (await conduit.health()).extensionConnected, { timeout: 45_000 })
+    .toBe(true);
+  await expect(popup.locator('#control-state')).toHaveText('ready');
+  await expect(popup.locator('#disconnect')).toBeVisible();
+  await popup.close();
 });
 
 function client(): ConduitClient {
