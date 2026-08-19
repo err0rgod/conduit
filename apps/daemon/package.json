@@ -13,7 +13,7 @@
     "@conduit/config": "workspace:*",
     "@conduit/protocol": "workspace:*",
     "@conduit/security": "workspace:*",
-    "ws": "^8.16.0"
+    "ws": "^8.21.2"
   },
   "devDependencies": {
     "@types/ws": "^8.5.10"
