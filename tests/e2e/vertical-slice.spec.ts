@@ -19,6 +19,7 @@ let fixturePort: number;
 let context: BrowserContext;
 let worker: Worker;
 let testRoot: string;
+let authorizedUploadPath: string;
 let temporaryNativeHost: NativeHostInstaller | undefined;
 const auditEvents: StoredAuditEvent[] = [];
 
@@ -39,21 +40,31 @@ test.beforeAll(async () => {
   });
   fixturePort = await listen(fixtureServer);
 
+  testRoot = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
+  authorizedUploadPath = path.join(testRoot, 'authorized-upload.txt');
+  await writeFile(authorizedUploadPath, 'Conduit upload fixture', { mode: 0o600 });
+
   daemon = new Daemon({
     auth: {
       ensureToken: () => token,
       verifyToken: (candidate) => candidate === token,
     },
     policy: new SecurityPolicy({
-      permissions: ['browser.read', 'browser.navigate', 'browser.interact', 'browser.forms'],
+      permissions: [
+        'browser.read',
+        'browser.navigate',
+        'browser.interact',
+        'browser.forms',
+        'browser.upload',
+      ],
       domainMode: 'allowlist',
       allowedDomains: ['127.0.0.1'],
       allowLocalhost: true,
     }),
     audit: new AuditLogger({ sink: (event) => auditEvents.push(event) }),
+    uploadAllowlist: [testRoot],
   });
   daemonPort = await daemon.start(0);
-  testRoot = await mkdtemp(path.join(tmpdir(), 'conduit-e2e-'));
   const extensionPath = path.join(testRoot, 'extension');
   await prepareExtensionWithFixtureGrant(extensionSourcePath, extensionPath);
   const profilePath = path.join(testRoot, 'profile');
@@ -67,7 +78,13 @@ test.beforeAll(async () => {
   new ConfigStore({ configPath }).save({
     daemon: { port: daemonPort },
     security: {
-      permissions: ['browser.read', 'browser.navigate', 'browser.interact', 'browser.forms'],
+      permissions: [
+        'browser.read',
+        'browser.navigate',
+        'browser.interact',
+        'browser.forms',
+        'browser.upload',
+      ],
       domainMode: 'allowlist',
       allowedDomains: ['127.0.0.1'],
       allowLocalhost: true,
@@ -135,6 +152,8 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   }
   const tabId = payloadTabId(opened);
   const url = `http://127.0.0.1:${fixturePort}/fixture`;
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
 
   expect((await conduit.browser('browser.list_tabs')).success).toBe(true);
   expect((await conduit.browser('browser.navigate', { tabId, url })).success).toBe(true);
@@ -223,10 +242,34 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   if (!screenshot.success) throw new Error(`${screenshot.error.code}: ${screenshot.error.message}`);
   expect(screenshotData(screenshot.payload).length).toBeGreaterThan(100);
 
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
+  const pendingUpload = await conduit.browser('browser.upload_file', {
+    tabId,
+    target: { elementId: input?.elementId },
+    files: [authorizedUploadPath],
+  });
+  expect(pendingUpload.success).toBe(false);
+  if (pendingUpload.success) throw new Error('Expected upload confirmation.');
+  expect(pendingUpload.error.code).toBe('USER_CONFIRMATION_REQUIRED');
+  const confirmation = pendingUpload.error.details?.confirmation as { id?: unknown };
+  if (typeof confirmation.id !== 'string') throw new Error('Confirmation ID was missing.');
+
+  await popup.locator('#refresh-confirmations').click();
+  await expect(popup.locator('#confirmation-count')).toHaveText('1');
+  await expect(popup.locator('.confirmation-card')).toContainText('browser.upload_file');
+  await expect(popup.locator('.confirmation-card')).toContainText('127.0.0.1');
+  await popup.locator('.confirmation-card button.danger').click();
+  await expect(popup.locator('#confirmation-count')).toHaveText('0');
+
+  const approvedUpload = await conduit.browser(
+    'browser.upload_file',
+    { tabId, target: { elementId: input?.elementId }, files: [authorizedUploadPath] },
+    { confirmationId: confirmation.id },
+  );
+  expect(approvedUpload.success).toBe(false);
+  if (!approvedUpload.success) expect(approvedUpload.error.code).toBe('PERMISSION_DENIED');
+
   await expect(popup.locator('#control-state')).toHaveText('ready');
-  await expect(popup.locator('#last-action')).toContainText('screenshot');
+  await expect(popup.locator('#last-action')).toContainText('upload file');
 
   await popup.locator('#disconnect').click();
   await expect
