@@ -4,6 +4,19 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-20
+
+### Changed
+
+- The production extension now requests site access explicitly per origin instead of declaring broad host access.
+- Browser E2E validates a fresh extension and daemon connection through Native Messaging using the standalone extension repository.
+- Browser CI reuses the runner's installed libraries and installs only Playwright Chromium for faster, more reliable validation.
+
+### Security
+
+- Page inspection, interaction, and screenshots are rejected until the user grants the current site from the extension popup.
+- Release builds pin the standalone extension to an immutable, fully validated commit.
+
 ## [0.1.0] - 2026-08-20
 
 ### Added
@@ -26,4 +39,5 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[0.1.1]: https://github.com/err0rgod/conduit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/err0rgod/conduit/releases/tag/v0.1.0
