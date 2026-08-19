@@ -2123,6 +2123,7 @@ Last updated: 2026-08-20.
 - Backend PR #36 pinned the emergency-control extension build and exercised disconnect, persisted pause state, popup status, and authenticated resume in real Chromium.
 - Backend PR #37 added runtime-validated confirmation management over the authenticated extension WebSocket and removed approved items from pending-review lists.
 - Backend PR #38 pinned the confirmation-review extension and validated high-risk review, one-time consumption, independent Chromium permission enforcement, and emergency controls in real Chromium.
+- Backend PR #39 added bounded runtime-validated access to recent redacted audit events over the authenticated extension WebSocket.
 - Extension PR #3 removed required broad host access, added popup Allow/Revoke controls, and enforced origin grants before scripting or screenshots.
 - Extension PR #4 prepared the versioned `0.1.1` release build.
 - Extension PR #5 added a persistent emergency disconnect/resume control, a red paused-state badge, and privacy-safe current action/target status in the popup.
@@ -2133,11 +2134,11 @@ Last updated: 2026-08-20.
 
 ## Current verified state
 
-- Backend `main`: `002c7b6c51c04d0b2b29b6dd95e19d050bdbe9b3` before the confirmation-review E2E milestone branch.
+- Backend `main`: `a434e24c8a8bace085836e0c0c19f69672d2547a` before the audit-transport milestone branch.
 - Extension `main`: `e6104e70ea225d3241f9bf7a7326e7daf7be89fc`.
 - Documentation `main`: `9aa12a3305a83c580d3823a0a6d82eb6bc3e9fcd`.
 - All three working trees were clean at the start of this milestone.
-- Backend: 66 unit, 24 integration, 29 security, 5 Node release/docs tests after the confirmation-transport milestone, plus real Chromium E2E.
+- Backend: 68 unit, 24 integration, 30 security, 5 Node release/docs tests after the audit-transport milestone, plus real Chromium E2E.
 - Extension: 24 tests plus build, typecheck, lint, formatting, real Chromium integration, and three-OS CI.
 - Documentation: route/content integrity tests, formatting, lint, typecheck, production build, desktop/mobile visual inspection, and live HTTPS/asset/route checks.
 - `v0.1.1` assets were downloaded from the public release. All SHA-256 values matched; the tarball and extension manifest reported `0.1.1`; the extension contained optional HTTP/HTTPS origins and no required `host_permissions`.
@@ -2146,7 +2147,7 @@ Last updated: 2026-08-20.
 ## Remaining milestone order
 
 1. Audit the implementation against the long-form requirements and turn each confirmed gap into a focused tested PR. Do not reimplement the completed vertical slice.
-2. Complete the extension control surfaces still documented as limited: audit viewing, active sessions, and settings/permission management remain. Confirmation review, emergency pause/resume, and privacy-safe current action/tab status are implemented.
+2. Complete the extension control surfaces still documented as limited: audit transport is implemented but its popup view remains; active sessions and settings/permission management are also pending. Confirmation review, emergency pause/resume, and privacy-safe current action/tab status are implemented.
 3. Expand real-browser fixtures for iframes, shadow DOM, SPA rerenders, popup/new-tab, and completed upload/download behavior. A blocked optional-permission upload and high-risk confirmation are covered. Keep production host permissions optional; only disposable E2E copies may receive fixture-wide access.
 4. Review MCP/CLI parity. The current MCP surface has `conduit_status` and browser tools but not a separate `conduit_doctor` tool. Add only tools backed by real daemon behavior.
 5. Exercise and document an end-to-end trusted remote client over a private TLS network. Do not expose a public unauthenticated socket or build a custom internet relay.

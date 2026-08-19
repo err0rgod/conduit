@@ -316,6 +316,19 @@ describe('Daemon authorization', () => {
       expect(events).toContainEqual(
         expect.objectContaining({ type: 'confirmation.responded', outcome: 'success' }),
       );
+
+      const auditRequest = {
+        ...createEnvelopeBase(),
+        type: 'extension.audit.list',
+        payload: { limit: 10 },
+      };
+      const auditPromise = onceExtensionResponse(ws, auditRequest.id);
+      ws.send(JSON.stringify(auditRequest));
+      const auditResponse = await auditPromise;
+      if (!auditResponse.success) throw new Error(auditResponse.error.message);
+      expect((auditResponse.payload as { events: StoredAuditEvent[] }).events).toContainEqual(
+        expect.objectContaining({ type: 'confirmation.responded', outcome: 'success' }),
+      );
     } finally {
       ws?.close();
       await secured.stop();
