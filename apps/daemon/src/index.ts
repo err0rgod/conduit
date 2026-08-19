@@ -6,6 +6,8 @@ import {
   BrowserRequestEnvelopeSchema,
   ConfirmationResponseSchema,
   DeviceRevocationRequestSchema,
+  ExtensionManagementRequest,
+  ExtensionManagementRequestSchema,
   ExtensionPairingRequestSchema,
   PairingDecisionSchema,
   PairingRequestSchema,
@@ -697,6 +699,12 @@ export class Daemon {
         return;
       }
 
+      const managementRequest = ExtensionManagementRequestSchema.safeParse(parsed.value);
+      if (managementRequest.success) {
+        this.handleExtensionManagementRequest(ws, managementRequest.data);
+        return;
+      }
+
       const response = ResponseEnvelopeSchema.safeParse(parsed.value);
       if (!response.success) {
         this.audit.log({
@@ -740,6 +748,26 @@ export class Daemon {
         this.audit.log({ type: 'extension.disconnected', outcome: 'success' });
       }
     });
+  }
+
+  private handleExtensionManagementRequest(
+    ws: WebSocket,
+    request: ExtensionManagementRequest,
+  ): void {
+    if (request.type === 'extension.confirmations.list') {
+      ws.send(
+        JSON.stringify(
+          createSuccessResponse({ confirmations: this.confirmations.list() }, request.id),
+        ),
+      );
+      return;
+    }
+
+    const accepted = this.respondToConfirmation(
+      request.payload.confirmationId,
+      request.payload.approved,
+    );
+    ws.send(JSON.stringify(createSuccessResponse({ accepted }, request.id)));
   }
 
   private async handleLocalExtensionPairing(
@@ -1130,13 +1158,18 @@ export class Daemon {
       );
       return;
     }
-    const accepted = this.confirmations.respond(parsed.data.confirmationId, parsed.data.approved);
+    const accepted = this.respondToConfirmation(parsed.data.confirmationId, parsed.data.approved);
+    this.writeJson(res, accepted ? 200 : 404, { accepted });
+  }
+
+  private respondToConfirmation(confirmationId: string, approved: boolean): boolean {
+    const accepted = this.confirmations.respond(confirmationId, approved);
     this.audit.log({
       type: 'confirmation.responded',
-      outcome: accepted && parsed.data.approved ? 'success' : 'denied',
-      details: { confirmationId: parsed.data.confirmationId, approved: parsed.data.approved },
+      outcome: accepted && approved ? 'success' : 'denied',
+      details: { confirmationId, approved },
     });
-    this.writeJson(res, accepted ? 200 : 404, { accepted });
+    return accepted;
   }
 
   private currentUrlFor(
