@@ -9,6 +9,7 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Authenticated extension management messages for listing and responding to pending confirmations without additional host permissions.
 - Extension confirmation review controls showing the risk, operation, domain, summary, and expiry with explicit approve-once or deny decisions.
 - Bounded, runtime-validated recent audit-event access over the authenticated extension connection.
+- A scrollable extension audit viewer limited to event type, outcome, operation/domain scope, and time.
 
 ### Security
 

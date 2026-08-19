@@ -204,7 +204,7 @@ Build the sibling `conduit-extension` repository before running E2E. The suite l
 
 - the extension is currently distributed as a checksummed unpacked ZIP rather than through a browser store;
 - reliable interaction focuses on the main document; cross-origin nested frames remain limited;
-- extension audit viewing and broader settings/session management UI are not complete;
+- broader extension settings and active-session management UI are not complete;
 - config fields for retention and screenshot persistence precede their full scheduled behavior;
 - remote networking must be supplied and secured by the operator;
 - no stable release or compatibility guarantee yet.
