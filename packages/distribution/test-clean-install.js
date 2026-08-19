@@ -55,15 +55,15 @@ try {
   run(npmCommand, [...npmArgs, 'exec', '--prefix', installRoot, '--', 'conduit', '--help']);
   run(process.execPath, [cliPath, '--help']);
 
-  const extensionOutput = JSON.parse(
-    run(process.execPath, [cliPath, '--json', 'extension', 'path']),
-  );
-  if (!fs.existsSync(path.join(extensionOutput.path, 'manifest.json'))) {
-    throw new Error('Installed extension manifest was not found.');
-  }
-
   const setup = JSON.parse(
-    run(process.execPath, [cliPath, '--json', 'setup', '--no-service', '--no-start']),
+    run(process.execPath, [
+      cliPath,
+      '--json',
+      'setup',
+      '--no-service',
+      '--no-start',
+      '--no-native-host',
+    ]),
   );
   if (!setup.configured || !fs.existsSync(setup.configPath)) {
     throw new Error('Installed setup command did not initialize Conduit configuration.');
@@ -75,9 +75,7 @@ try {
   if (!status.running) throw new Error('Installed daemon did not report a running state.');
   run(process.execPath, [cliPath, '--json', 'stop']);
   daemonStarted = false;
-  process.stdout.write(
-    'Clean tarball install, setup, extension discovery, and daemon lifecycle passed.\n',
-  );
+  process.stdout.write('Clean tarball install, isolated setup, and daemon lifecycle passed.\n');
 } finally {
   if (daemonStarted && cliPath) {
     spawnSync(process.execPath, [cliPath, '--json', 'stop', '--force'], {

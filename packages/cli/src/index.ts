@@ -57,11 +57,13 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .description('Configure Conduit, install its user service, and start the daemon')
     .option('--no-service', 'Do not install automatic startup for this user')
     .option('--no-start', 'Do not start the daemon now')
-    .action(async (options: { service: boolean; start: boolean }) =>
+    .option('--no-native-host', 'Do not register the Chromium native messaging host')
+    .action(async (options: { service: boolean; start: boolean; nativeHost: boolean }) =>
       output(
         await setupManager.setup({
           installService: options.service,
           startDaemon: options.start,
+          installNativeHost: options.nativeHost,
         }),
       ),
     );
