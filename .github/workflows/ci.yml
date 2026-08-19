@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: err0rgod/conduit-web
-          ref: baf7ddf71478810f12b85810d958756b76996167
+          ref: 9aa12a3305a83c580d3823a0a6d82eb6bc3e9fcd
           path: conduit-web
       - name: Install pnpm
         uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
