@@ -141,11 +141,13 @@ export async function runDoctor(
     message: mcpPath ? `MCP server build found at ${mcpPath}.` : 'MCP server build is missing.',
   });
 
-  const docsPath = resolvePackage('@conduit/docs');
+  const docsPath = findDocumentationBuild();
   checks.push({
     name: 'documentation',
     status: docsPath && fs.existsSync(docsPath) ? 'pass' : 'warn',
-    message: docsPath ? `Documentation build found at ${docsPath}.` : 'Documentation is not built.',
+    message: docsPath
+      ? `Documentation build found at ${docsPath}.`
+      : 'Documentation is maintained at https://err0rgod.github.io/conduit-web/.',
   });
 
   return { healthy: checks.every((check) => check.status !== 'fail'), checks };
@@ -162,4 +164,15 @@ function resolvePackage(packageName: string): string | undefined {
 function resolvePackageSibling(packageName: string, filename: string): string | undefined {
   const entry = resolvePackage(packageName);
   return entry ? path.join(path.dirname(entry), filename) : undefined;
+}
+
+function findDocumentationBuild(): string | undefined {
+  const candidates = [
+    process.env.CONDUIT_DOCS_PATH,
+    path.resolve(process.cwd(), 'conduit-web'),
+    path.resolve(process.cwd(), '..', 'conduit-web'),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+  return candidates
+    .map((candidate) => path.join(candidate, 'dist', 'index.html'))
+    .find((candidate) => fs.existsSync(candidate));
 }

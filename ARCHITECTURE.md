@@ -22,13 +22,19 @@ It binds to `127.0.0.1` by default. Public/LAN binding is rejected unless remote
 
 ### Browser core and extension
 
-`packages/browser-core` implements browser operations through `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. `apps/extension` owns connection state and dispatch. The production manifest keeps host access optional.
+The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin.
+
+Backend CI and releases pin the extension to an immutable commit. This preserves separate release ownership without allowing an unreviewed extension change to enter a backend build.
 
 Structured snapshots generate short-lived element references. Semantic role/name, label, text, and selector targeting remain fallbacks. Page content is always untrusted data.
 
 ### Clients
 
 `packages/daemon-client` validates daemon responses and centralizes authentication. `packages/mcp-server` maps JSON-schema-described MCP tools to the shared protocol. `packages/cli` supplies cross-platform lifecycle, configuration, diagnostics, policy, pairing, and browser commands.
+
+### Documentation
+
+The public React/Vite documentation site is maintained in [`conduit-web`](https://github.com/err0rgod/conduit-web) and deployed independently to GitHub Pages. Backend `docs:dev` and `docs:build` commands locate a nested CI checkout, a sibling checkout, or `CONDUIT_DOCS_PATH`; they fail clearly when the website source is unavailable.
 
 ## Data flow
 

@@ -1,6 +1,7 @@
 **/dist/
 artifacts/
 packages/distribution/package/
+conduit-web/
 deployment.txt
 resume.txt
 resume_work.md

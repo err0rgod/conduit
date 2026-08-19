@@ -17,7 +17,14 @@ pnpm build
 pnpm test
 ```
 
-Node 22+ and pnpm 9.15.9 are required. Node 24 LTS is recommended. Load `apps/extension/dist` as an unpacked extension for manual browser testing.
+Node 22+ and pnpm 9.15.9 are required. Node 24 LTS is recommended. The browser extension and documentation are separate sibling repositories:
+
+```bash
+git clone https://github.com/err0rgod/conduit-extension.git
+git clone https://github.com/err0rgod/conduit-web.git
+```
+
+Build `conduit-extension`, then load its `apps/extension/dist` directory as an unpacked extension for manual browser testing. Backend `pnpm docs:build` locates a sibling `conduit-web` checkout; set `CONDUIT_DOCS_PATH` for a different layout.
 
 ## Standards
 
