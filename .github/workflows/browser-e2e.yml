@@ -67,8 +67,8 @@ jobs:
       - name: Build pinned extension
         working-directory: conduit-extension
         run: pnpm build
-      - name: Install Chromium dependencies
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Chromium
+        run: pnpm exec playwright install chromium
       - name: Run extension E2E
         env:
           CONDUIT_EXTENSION_PATH: ${{ github.workspace }}/conduit-extension/apps/extension/dist
