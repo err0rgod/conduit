@@ -22,7 +22,7 @@ It binds to `127.0.0.1` by default. Public/LAN binding is rejected unless remote
 
 ### Browser core and extension
 
-The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin.
+The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin, pausing all control, and reviewing pending one-time confirmations.
 
 Backend CI and releases pin the extension to an immutable commit. This preserves separate release ownership without allowing an unreviewed extension change to enter a backend build.
 
