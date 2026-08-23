@@ -52,6 +52,31 @@ describe('daemon security boundaries', () => {
     if (!body.success) expect(body.error.code).toBe('DOMAIN_NOT_ALLOWED');
   });
 
+  it('keeps blocked domains and private networks denied in allow-all mode', async () => {
+    const daemon = new Daemon({
+      policy: new SecurityPolicy({
+        permissions: ['browser.navigate'],
+        domainMode: 'allow-all',
+        blockedDomains: ['blocked.example.com'],
+      }),
+      audit: quietAudit(),
+    });
+    daemons.push(daemon);
+    const port = await daemon.start(0);
+
+    for (const url of ['https://blocked.example.com', 'http://192.168.1.10']) {
+      const response = await postAction(port, daemon.getToken(), {
+        ...createEnvelopeBase(),
+        type: 'browser.navigate',
+        payload: { url },
+      });
+      const body = (await response.json()) as ResponseEnvelope;
+      expect(response.status).toBe(403);
+      expect(body.success).toBe(false);
+      if (!body.success) expect(body.error.code).toBe('DOMAIN_NOT_ALLOWED');
+    }
+  });
+
   it('denies file upload when the explicit upload permission is absent', async () => {
     const daemon = new Daemon({
       policy: new SecurityPolicy({ permissions: ['browser.read'] }),

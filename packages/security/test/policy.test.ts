@@ -38,6 +38,19 @@ describe('SecurityPolicy', () => {
     expect(policy.evaluateUrl('http://127.0.0.1').outcome).toBe('deny');
     expect(policy.evaluateUrl('http://192.168.1.10').outcome).toBe('deny');
   });
+
+  it('allows public domains in allow-all mode without bypassing hard guards', () => {
+    const policy = new SecurityPolicy({
+      permissions: ['browser.navigate'],
+      domainMode: 'allow-all',
+      blockedDomains: ['blocked.example.com'],
+    });
+    expect(policy.evaluateUrl('https://example.com').outcome).toBe('allow');
+    expect(policy.evaluateUrl('https://blocked.example.com').outcome).toBe('deny');
+    expect(policy.evaluateUrl('http://127.0.0.1').outcome).toBe('deny');
+    expect(policy.evaluateUrl('http://192.168.1.10').outcome).toBe('deny');
+    expect(policy.evaluateUrl('file:///private.txt').outcome).toBe('deny');
+  });
 });
 
 describe('domain matching', () => {

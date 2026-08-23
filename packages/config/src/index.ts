@@ -38,7 +38,7 @@ export const ConduitConfigSchema = z
     security: z
       .object({
         permissions: z.array(PermissionSchema).default(['browser.read']),
-        domainMode: z.enum(['allowlist', 'blocklist', 'ask']).default('ask'),
+        domainMode: z.enum(['allowlist', 'blocklist', 'ask', 'allow-all']).default('ask'),
         allowedDomains: z.array(DomainPatternSchema).default([]),
         blockedDomains: z.array(DomainPatternSchema).default([]),
         allowLocalhost: z.boolean().default(false),
@@ -67,6 +67,13 @@ export const ConduitConfigSchema = z
   .strict()
   .superRefine((config, context) => {
     const loopback = ['127.0.0.1', '::1', 'localhost'].includes(config.daemon.bindAddress);
+    if (config.remote.enabled && config.security.domainMode === 'allow-all') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['security', 'domainMode'],
+        message: 'Allow-all domain mode cannot be enabled while remote mode is enabled.',
+      });
+    }
     if (!loopback && !config.remote.enabled) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
