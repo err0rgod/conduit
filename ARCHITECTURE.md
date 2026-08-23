@@ -22,7 +22,7 @@ It binds to `127.0.0.1` by default. Public/LAN binding is rejected unless remote
 
 ### Browser core and extension
 
-The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin, pausing all control, reviewing pending one-time confirmations, and viewing bounded redacted audit metadata.
+The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin, explicitly requesting or revoking the exact broad patterns `http://*/*` and `https://*/*`, pausing all control, reviewing pending one-time confirmations, and viewing bounded redacted audit metadata. The broad request runs only from the popup click gesture; the background service worker never requests it, and Chromium owns the permission state rather than Conduit storage.
 
 Backend CI and releases pin the extension to an immutable commit. This preserves separate release ownership without allowing an unreviewed extension change to enter a backend build.
 
@@ -41,12 +41,21 @@ The public React/Vite documentation site is maintained in [`conduit-web`](https:
 1. A client creates a versioned request envelope.
 2. The daemon authenticates the local token or remote session.
 3. Zod validates the full operation and payload.
-4. Remote device grants and host security policy are evaluated.
+4. Remote device grants, daemon capability/domain policy, and the independent Chromium host grant are evaluated.
 5. A required confirmation is created or consumed.
 6. Upload paths, if any, are normalized only after authorization and confirmation.
 7. The request is placed in a bounded pending map and sent to the authenticated extension.
 8. The extension executes the browser operation and returns a correlated response.
 9. The daemon updates minimal tab state, writes a redacted audit event, and returns a structured result.
+
+## Independent authorization gates
+
+There are two intentionally separate opt-in decisions:
+
+- The extension's per-site grant is the recommended default. **Allow all sites** is an explicit popup-only Chromium request for `http://*/*` and `https://*/*`; **Revoke all sites** removes those patterns. This gate does not grant daemon capabilities or domain access.
+- The daemon's `security.domainMode` remains `ask` by default. `allow-all` is a local-only configuration for public HTTP(S) domains that pass every hard guard. It is rejected when `remote.enabled` is true and requires a daemon restart because configuration is not hot-reloaded.
+
+Neither gate disables blocked-domain precedence, protocol checks, localhost/private-network controls, capability checks, confirmations, or audit behavior.
 
 ## Lifecycles
 

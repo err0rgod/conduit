@@ -85,7 +85,9 @@ After the script finishes, simply open your browser and load the extension:
 
 The extension will instantly and automatically connect to the daemon using Native Messaging. No tokens or ports to configure!
 
-Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. Chromium displays the native permission prompt. You can revoke the origin from the same popup at any time.
+Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. Chromium displays the native permission prompt. You can revoke the origin from the same popup at any time. Per-site access is the recommended default.
+
+For an explicitly broad local workflow, the popup's **Allow all sites** button requests exactly `http://*/*` and `https://*/*` during the user's click gesture. Chromium owns that permission state; Conduit does not persist a separate flag, and the background service worker never requests broad origins. **Revoke all sites** removes those two patterns. This browser grant is independent from daemon capabilities and domain policy, so it does not bypass blocked domains or other enforcement points.
 
 ## Install from source (for contributors)
 
