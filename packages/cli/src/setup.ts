@@ -83,8 +83,9 @@ export class SetupManager {
       nextSteps: [
         'Open chrome://extensions or edge://extensions.',
         'Enable Developer mode and choose Load unpacked.',
-        'Select the extension dist folder.',
+        'Select the versioned extension directory printed by the installer, or apps/extension/dist from a source build.',
         'The extension will connect automatically.',
+        'Agent Skill: https://github.com/err0rgod/skills/tree/main/conduit',
       ],
     };
   }

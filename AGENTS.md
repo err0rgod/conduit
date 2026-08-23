@@ -2167,9 +2167,9 @@ Last updated: 2026-08-23.
 6. Finish scheduled audit retention and screenshot/download persistence behavior or remove premature configuration fields.
 7. Verify the private browser-store item preserves extension ID
    `jkdlmcpkgkooilffjegfjmkanoelbmbl`, then configure ownership and update behavior before
-   public promotion. Backend `v0.1.1` remains the current bundled installer release; extension
-   `v0.1.2` is also available as a separately checksummed extension release until a coordinated
-   backend release consumes it.
+   public promotion. Backend `v0.1.1` remains the current bundled release; extension `v0.1.2`
+   is separately checksummed, and current installers resolve the newest standalone extension
+   release independently unless explicitly pinned.
 8. Define the pre-1.0 compatibility/support policy before declaring a stable release.
 
 ## Workspace safety and validation

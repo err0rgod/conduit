@@ -97,6 +97,22 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
+  it('prints installer-provided extension and skill locations', async () => {
+    await program().parseAsync(['node', 'conduit', '--json', 'extension', 'install-help']);
+
+    expect(JSON.parse(output)).toMatchObject({
+      steps: expect.arrayContaining([
+        'Use the exact extension directory printed by the Conduit installer.',
+        'Choose Load unpacked and select the printed extension directory.',
+      ]),
+      skill: {
+        directory: 'https://github.com/err0rgod/skills/tree/main/conduit',
+        entry: 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md',
+      },
+    });
+    expect(output).not.toContain('Clone https://github.com/err0rgod/conduit-extension');
+  });
+
   function program(client = new ConduitClient({ token: 'unused' })) {
     const lifecycle = new DaemonLifecycle({
       configStore,

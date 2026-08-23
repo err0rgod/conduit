@@ -24,7 +24,7 @@ It binds to `127.0.0.1` by default. Public/LAN binding is rejected unless remote
 
 The standalone [`conduit-extension`](https://github.com/err0rgod/conduit-extension) repository owns `packages/browser-core` and `apps/extension`. Browser operations use `chrome.tabs`, `chrome.scripting`, and narrowly requested optional APIs. The production manifest keeps HTTP and HTTPS host access optional, and the popup is the user-controlled boundary for granting or revoking the current origin, explicitly requesting or revoking the exact broad patterns `http://*/*` and `https://*/*`, pausing all control, reviewing pending one-time confirmations, and viewing bounded redacted audit metadata. The broad request runs only from the popup click gesture; the background service worker never requests it, and Chromium owns the permission state rather than Conduit storage.
 
-Backend CI and releases pin the extension to an immutable commit. This preserves separate release ownership without allowing an unreviewed extension change to enter a backend build.
+Backend CI and bundled release artifacts pin the extension to an immutable commit. The user installers resolve the standalone extension's newest published release independently unless an extension version is explicitly pinned. This preserves reproducible backend builds while allowing extension security and UX releases to reach new installations without waiting for a backend release.
 
 Structured snapshots generate short-lived element references. Semantic role/name, label, text, and selector targeting remain fallbacks. Page content is always untrusted data.
 

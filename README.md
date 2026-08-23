@@ -50,7 +50,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ### The 1-Minute Setup
 
-Conduit provides release installers that download the prebuilt backend and compatible extension, verify both against the release SHA-256 checksums, install them in user-owned directories, and run `conduit setup`. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
+Conduit provides release installers that download the prebuilt backend and newest standalone extension release, verify both against their published SHA-256 checksums, install them in user-owned directories, and run `conduit setup`. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
 
 **Windows (PowerShell):**
 
@@ -66,13 +66,14 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 
 **What the installer does:**
 
-1. Resolves the latest GitHub Release.
+1. Resolves the latest backend release and the latest standalone extension release independently.
 2. Downloads the `conduit-browser` backend tarball and standalone extension ZIP.
-3. Verifies both artifacts using the release's `SHA256SUMS` file.
+3. Verifies the backend against its `SHA256SUMS` file and the extension against its own published SHA-256 file.
 4. Installs a user-local `conduit` command and runs `conduit setup`.
 5. Prints the exact versioned extension folder to load into Chromium.
+6. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links for compatible AI harnesses.
 
-Pass a version when reproducibility matters: `./install.sh --version v0.1.1` or `./install.ps1 -Version v0.1.1`. The scripts never install Node, Git, networking software, or system packages for you.
+By default, each release stream resolves to its newest published version. Pin both when reproducibility matters: `./install.sh --version v0.1.1 --extension-version v0.1.2` or `./install.ps1 -Version v0.1.1 -ExtensionVersion v0.1.2`. The scripts never install Node, Git, networking software, or system packages for you.
 
 ### Connect the Extension
 
@@ -84,6 +85,13 @@ After the script finishes, simply open your browser and load the extension:
 4. Paste the folder path provided by the installation script at the very end of the output.
 
 The extension will instantly and automatically connect to the daemon using Native Messaging. No tokens or ports to configure!
+
+The installer also prints these stable skill locations for Agent Skills-compatible harnesses:
+
+- Skill directory: `https://github.com/err0rgod/skills/tree/main/conduit`
+- Raw entry file: `https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md`
+
+Prefer installing the complete skill directory so future sibling references remain available.
 
 Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. Chromium displays the native permission prompt. You can revoke the origin from the same popup at any time. Per-site access is the recommended default.
 

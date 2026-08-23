@@ -210,13 +210,16 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .action(() =>
       output({
         steps: [
-          'Clone https://github.com/err0rgod/conduit-extension',
-          'Run pnpm install and pnpm build in the conduit-extension directory.',
+          'Use the exact extension directory printed by the Conduit installer.',
           'Open chrome://extensions or edge://extensions.',
           'Enable Developer mode.',
-          `Choose Load unpacked and select the apps/extension/dist folder.`,
+          'Choose Load unpacked and select the printed extension directory.',
           'The extension will connect automatically.',
         ],
+        skill: {
+          directory: 'https://github.com/err0rgod/skills/tree/main/conduit',
+          entry: 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md',
+        },
       }),
     );
   program
