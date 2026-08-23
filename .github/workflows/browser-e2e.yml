@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: err0rgod/conduit-extension
-          ref: 385cb787e7224f0ef7e135cd1e13599277cd7e80
+          ref: 01461c01eab2ca4c40608a4629d9d857b00a286f
           path: conduit-extension
       - name: Install pnpm
         uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
