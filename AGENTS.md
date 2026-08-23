@@ -2130,6 +2130,9 @@ Last updated: 2026-08-20.
 - Extension PR #5 added a persistent emergency disconnect/resume control, a red paused-state badge, and privacy-safe current action/target status in the popup.
 - Extension PR #6 added authenticated pending-confirmation review with risk/domain/expiry display and popup-only approve-once or deny controls.
 - Extension PR #7 added a bounded recent audit viewer that omits arbitrary event details.
+- Extension PR #8 hardened the daemon authentication boundary, added current-session and
+  optional Chromium permission controls, and introduced deterministic checksummed `0.1.2`
+  packaging plus store-submission documentation.
 - Documentation PRs #1-#5 created the complete 22-section site, hardened/updated Pages actions, migrated the default branch to `main`, and aligned deployment environment policy.
 - Public release: `https://github.com/err0rgod/conduit/releases/tag/v0.1.1`.
 - Public documentation: `https://err0rgod.github.io/conduit-web/`.
@@ -2137,11 +2140,12 @@ Last updated: 2026-08-20.
 ## Current verified state
 
 - Backend `main`: `2f3ba6a81de111476b81be7d2521eae111ee3ac6` before the audit-viewer E2E milestone branch.
-- Extension `main`: `d150754b1e2911ab402a6df535feda0e003768f0`.
+- Extension `main`: `385cb787e7224f0ef7e135cd1e13599277cd7e80`.
 - Documentation `main`: `9aa12a3305a83c580d3823a0a6d82eb6bc3e9fcd`.
 - All three working trees were clean at the start of this milestone.
 - Backend: 68 unit, 24 integration, 30 security, 5 Node release/docs tests after the audit-transport milestone, plus real Chromium E2E.
-- Extension: 27 tests plus build, typecheck, lint, formatting, real Chromium integration, and three-OS CI.
+- Extension: 33 tests plus build, typecheck, lint, formatting, deterministic package validation,
+  real Chromium integration, and three-OS CI.
 - Documentation: route/content integrity tests, formatting, lint, typecheck, production build, desktop/mobile visual inspection, and live HTTPS/asset/route checks.
 - `v0.1.1` assets were downloaded from the public release. All SHA-256 values matched; the tarball and extension manifest reported `0.1.1`; the extension contained optional HTTP/HTTPS origins and no required `host_permissions`.
 - A published PowerShell installer was previously exercised in an isolated user-local destination with `-NoSetup`, and its CLI, launcher, extension path, version, and PATH restoration were verified.
@@ -2149,12 +2153,18 @@ Last updated: 2026-08-20.
 ## Remaining milestone order
 
 1. Audit the implementation against the long-form requirements and turn each confirmed gap into a focused tested PR. Do not reimplement the completed vertical slice.
-2. Complete the extension control surfaces still documented as limited: active sessions and settings/permission management remain. Audit viewing, confirmation review, emergency pause/resume, and privacy-safe current action/tab status are implemented.
+2. Complete remote-session management and any remaining daemon settings UI. Current
+   extension-session visibility, site and optional Chromium permission management, audit
+   viewing, confirmation review, emergency pause/resume, and privacy-safe action status are
+   implemented.
 3. Expand real-browser fixtures for iframes, shadow DOM, SPA rerenders, popup/new-tab, and completed upload/download behavior. A blocked optional-permission upload and high-risk confirmation are covered. Keep production host permissions optional; only disposable E2E copies may receive fixture-wide access.
 4. Review MCP/CLI parity. The current MCP surface has `conduit_status` and browser tools but not a separate `conduit_doctor` tool. Add only tools backed by real daemon behavior.
 5. Exercise and document an end-to-end trusted remote client over a private TLS network. Do not expose a public unauthenticated socket or build a custom internet relay.
 6. Finish scheduled audit retention and screenshot/download persistence behavior or remove premature configuration fields.
-7. Prepare npm and browser-store publication only after package ownership, signing, release compatibility, and update behavior are deliberately configured. GitHub `v0.1.1` is the current supported distribution path.
+7. Verify the private browser-store item preserves extension ID
+   `jkdlmcpkgkooilffjegfjmkanoelbmbl`, then configure ownership and update behavior before
+   public promotion. GitHub `v0.1.1` remains the current published distribution until a
+   coordinated backend release consumes the extension's checksummed `0.1.2` artifact.
 8. Define the pre-1.0 compatibility/support policy before declaring a stable release.
 
 ## Workspace safety and validation
