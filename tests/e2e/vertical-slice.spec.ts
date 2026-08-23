@@ -154,6 +154,10 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   const url = `http://127.0.0.1:${fixturePort}/fixture`;
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
+  await expect(popup.locator('#session-started')).not.toHaveText('No authenticated session');
+  await expect(popup.locator('.capability-card')).toHaveCount(2);
+  await expect(popup.locator('#capability-list')).toContainText('Advanced interaction');
+  await expect(popup.locator('#capability-list')).toContainText('Download visibility');
 
   expect((await conduit.browser('browser.list_tabs')).success).toBe(true);
   expect((await conduit.browser('browser.navigate', { tabId, url })).success).toBe(true);
