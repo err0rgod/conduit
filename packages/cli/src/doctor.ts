@@ -149,7 +149,7 @@ export async function runDoctor(
     status: docsPath && fs.existsSync(docsPath) ? 'pass' : 'warn',
     message: docsPath
       ? `Documentation build found at ${docsPath}.`
-      : 'Documentation is maintained at https://err0rgod.github.io/conduit-web/.',
+      : 'Documentation is maintained at https://conduit.zerodaily.in/.',
   });
 
   return { healthy: checks.every((check) => check.status !== 'fail'), checks };

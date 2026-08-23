@@ -43,7 +43,7 @@ async function main() {
         license: 'MIT',
         repository: { type: 'git', url: 'git+https://github.com/err0rgod/conduit.git' },
         bugs: { url: 'https://github.com/err0rgod/conduit/issues' },
-        homepage: 'https://err0rgod.github.io/conduit-web/',
+        homepage: 'https://conduit.zerodaily.in/',
         keywords: ['ai-agents', 'browser-automation', 'chrome-extension', 'local-first', 'mcp'],
         publishConfig: { access: 'public' },
       },
