@@ -154,6 +154,10 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   const url = `http://127.0.0.1:${fixturePort}/fixture`;
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
+  await expect(popup.locator('#session-started')).not.toHaveText('No authenticated session');
+  await expect(popup.locator('.capability-card')).toHaveCount(2);
+  await expect(popup.locator('#capability-list')).toContainText('Advanced interaction');
+  await expect(popup.locator('#capability-list')).toContainText('Download visibility');
 
   expect((await conduit.browser('browser.list_tabs')).success).toBe(true);
   expect((await conduit.browser('browser.navigate', { tabId, url })).success).toBe(true);
@@ -267,6 +271,17 @@ test('executes the browser vertical slice through the authenticated daemon', asy
   );
   expect(approvedUpload.success).toBe(false);
   if (!approvedUpload.success) expect(approvedUpload.error.code).toBe('PERMISSION_DENIED');
+
+  await popup.locator('#refresh-audit').click();
+  await expect(popup.locator('.audit-event').first()).toBeVisible();
+  await expect(
+    popup.locator('.audit-event').filter({ hasText: 'confirmation.responded / success' }),
+  ).toHaveCount(1);
+  await expect(
+    popup.locator('.audit-event').filter({ hasText: 'browser.action / failure' }),
+  ).not.toHaveCount(0);
+  await expect(popup.locator('#audit-list')).not.toContainText(authorizedUploadPath);
+  await expect(popup.locator('#audit-list')).not.toContainText('Conduit upload fixture');
 
   await expect(popup.locator('#control-state')).toHaveText('ready');
   await expect(popup.locator('#last-action')).toContainText('upload file');
