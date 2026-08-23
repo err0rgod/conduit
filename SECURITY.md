@@ -38,7 +38,7 @@ Untrusted:
 - local random token and authenticated extension connection;
 - runtime validation at protocol/config boundaries;
 - deny-by-default capability and domain checks;
-- per-site Chromium host grants by default, with broad host access available only through an explicit popup click;
+- per-site browser host grants by default, with broad host access available only through an explicit popup click;
 - local-only `security.domainMode: "allow-all"` is rejected with remote mode and does not bypass blocked domains or network guards;
 - expiring one-time high-risk confirmations;
 - bounded messages, queues, timeouts, replay windows, sessions, and auth attempts;
@@ -53,7 +53,9 @@ Page content is data, not trusted agent instruction. Conduit prevents webpage te
 
 ## Opt-in access expansion
 
-The extension and daemon expose separate authority gates. The extension's **Allow all sites** control requests exactly `http://*/*` and `https://*/*` from a popup click and Chromium's native prompt. Conduit does not persist a parallel flag, and the background service worker never requests those origins. The control can be revoked with **Revoke all sites**.
+The extension and daemon expose separate authority gates. The extension's **Allow all sites** control requests exactly `http://*/*` and `https://*/*` from a popup click and the browser's native prompt. Conduit does not persist a parallel flag, and background code never requests those origins. The control can be revoked with **Revoke all sites**.
+
+Native Messaging accepts only configured extension identities. The unpacked Chromium build and the Firefox build have stable default IDs. Chrome and Edge store IDs are explicitly added with `conduit extension trust <id>`; the native host never accepts arbitrary extension origins.
 
 The backend's `security.domainMode: "allow-all"` is intentionally local-only and never the default. It requires `conduit restart` after configuration changes and cannot be combined with `remote.enabled: true`. Even when enabled, invalid URLs, non-HTTP(S) protocols, blocked domains, localhost without its opt-in, and private networks without their opt-in remain denied.
 

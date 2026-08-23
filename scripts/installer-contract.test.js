@@ -10,20 +10,15 @@ const shell = fs.readFileSync(path.join(root, 'scripts', 'install.sh'), 'utf8');
 const skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit';
 const skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md';
 
-test('installers resolve the extension release independently from the backend', () => {
-  assert.match(powershell, /\[string\]\$ExtensionVersion/u);
-  assert.match(powershell, /err0rgod\/conduit-extension/u);
-  assert.match(powershell, /conduit-extension-\$extensionReleaseTag\.zip/u);
-  assert.match(powershell, /\$extensionName\.sha256/u);
-  assert.match(powershell, /Extension\\\$resolvedExtensionVersion/u);
-  assert.doesNotMatch(powershell, /conduit-extension-\$releaseVersion\.zip/u);
-
-  assert.match(shell, /--extension-version/u);
-  assert.match(shell, /err0rgod\/conduit-extension/u);
-  assert.match(shell, /conduit-extension-\$extension_release_tag\.zip/u);
-  assert.match(shell, /\$extension_name\.sha256/u);
-  assert.match(shell, /extension\/\$resolved_extension_version/u);
-  assert.doesNotMatch(shell, /conduit-extension-\$release_version\.zip/u);
+test('installers install only the backend and direct users to browser stores', () => {
+  for (const installer of [powershell, shell]) {
+    assert.doesNotMatch(installer, /err0rgod\/conduit-extension/u);
+    assert.doesNotMatch(installer, /extension-version/iu);
+    assert.match(installer, /chromewebstore\.google\.com/u);
+    assert.match(installer, /microsoftedge\.microsoft\.com\/addons/u);
+    assert.match(installer, /addons\.mozilla\.org/u);
+    assert.match(installer, /conduit extension trust/u);
+  }
 });
 
 test('installers publish portable Conduit skill locations', () => {

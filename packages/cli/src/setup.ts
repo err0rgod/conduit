@@ -73,7 +73,9 @@ export class SetupManager {
 
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;
-    const nativeHost = installNativeHost ? new NativeHostInstaller().install() : undefined;
+    const nativeHost = installNativeHost
+      ? new NativeHostInstaller({ configStore: this.configStore }).install()
+      : undefined;
     return {
       configured: true,
       configPath: this.configStore.getPath(),
@@ -81,9 +83,9 @@ export class SetupManager {
       ...(daemon ? { daemon } : {}),
       ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
-        'Open chrome://extensions or edge://extensions.',
-        'Enable Developer mode and choose Load unpacked.',
-        'Select the versioned extension directory printed by the installer, or apps/extension/dist from a source build.',
+        'Install the Conduit Extension from the store for Chrome, Edge, Brave, or Firefox.',
+        'For a Chromium store item, run conduit extension trust <store-extension-id> once.',
+        'Restart the browser after installing the extension or changing its trusted ID.',
         'The extension will connect automatically.',
         'Agent Skill: https://github.com/err0rgod/skills/tree/main/conduit',
       ],
@@ -97,7 +99,7 @@ export class SetupManager {
         ? await this.lifecycle.stop()
         : { running: false, message: 'No CLI-managed Conduit daemon was running.' };
     const service = this.service.uninstall();
-    const nativeHost = new NativeHostInstaller().uninstall();
+    const nativeHost = new NativeHostInstaller({ configStore: this.configStore }).uninstall();
     let dataRemoved = false;
     if (options.purge) {
       assertSafeDataDirectory(this.dataDirectory);

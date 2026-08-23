@@ -5,12 +5,14 @@ import { Readable, Writable } from 'node:stream';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConduitConfigSchema } from '@conduit/config';
 import {
+  EXPECTED_FIREFOX_EXTENSION_ID,
   EXPECTED_EXTENSION_ORIGIN,
   MAX_NATIVE_REQUEST_BYTES,
   NATIVE_HOST_NAME,
   NativeHostCommandResult,
   NativeHostInstaller,
   encodeNativeMessage,
+  nativeCallerFromArguments,
   parseNativeRequest,
   readNativeMessage,
   runNativeHost,
@@ -98,8 +100,43 @@ describe('native messaging protocol', () => {
       runNativeHost('chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/', {
         input: Readable.from([]),
         output,
+        configStore: { load: () => ConduitConfigSchema.parse({}) },
       }),
-    ).rejects.toThrow('unauthorized extension origin');
+    ).rejects.toThrow('unauthorized browser extension');
+  });
+
+  it('accepts configured store identities and parses browser launch arguments', async () => {
+    const chromiumId = 'abcdefghijklmnopabcdefghijklmnop';
+    expect(nativeCallerFromArguments([`chrome-extension://${chromiumId}`, '123'])).toBe(
+      `chrome-extension://${chromiumId}/`,
+    );
+    expect(
+      nativeCallerFromArguments(['/native/manifest.json', EXPECTED_FIREFOX_EXTENSION_ID]),
+    ).toBe(EXPECTED_FIREFOX_EXTENSION_ID);
+
+    for (const caller of [`chrome-extension://${chromiumId}/`, EXPECTED_FIREFOX_EXTENSION_ID]) {
+      const outputChunks: Buffer[] = [];
+      const output = new Writable({
+        write(chunk: Buffer, _encoding, callback) {
+          outputChunks.push(Buffer.from(chunk));
+          callback();
+        },
+      });
+      await runNativeHost(caller, {
+        input: Readable.from([
+          encodeNativeMessage({ type: 'conduit.get-connection-settings', protocolVersion: 1 }),
+        ]),
+        output,
+        configStore: {
+          load: () =>
+            ConduitConfigSchema.parse({ browser: { chromiumExtensionIds: [chromiumId] } }),
+        },
+        auth: { ensureToken: () => 'b'.repeat(64) },
+      });
+      await expect(readNativeMessage(Readable.from(outputChunks))).resolves.toMatchObject({
+        daemonToken: 'b'.repeat(64),
+      });
+    }
   });
 });
 
@@ -126,9 +163,10 @@ describe('NativeHostInstaller', () => {
     expect(installer.status().installed).toBe(false);
     const installed = installer.install();
     expect(installed.installed).toBe(true);
-    expect(installed.manifestPaths).toHaveLength(4);
+    expect(installed.manifestPaths).toHaveLength(6);
     expect(installed.manifestPaths?.[0].replaceAll('\\', '/')).toContain(expectedSegment);
-    for (const manifestPath of installed.manifestPaths ?? []) {
+    const paths = installer.platformPaths();
+    for (const manifestPath of paths.chromiumManifestPaths) {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
         allowed_origins: string[];
         path: string;
@@ -136,11 +174,19 @@ describe('NativeHostInstaller', () => {
       expect(manifest.allowed_origins).toEqual([EXPECTED_EXTENSION_ORIGIN]);
       expect(path.isAbsolute(manifest.path)).toBe(true);
     }
+    for (const manifestPath of paths.firefoxManifestPaths) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+        allowed_extensions: string[];
+        path: string;
+      };
+      expect(manifest.allowed_extensions).toEqual([EXPECTED_FIREFOX_EXTENSION_ID]);
+      expect(path.isAbsolute(manifest.path)).toBe(true);
+    }
     expect(installer.uninstall().installed).toBe(false);
     expect(installer.status().installed).toBe(false);
   });
 
-  it('registers and verifies Chrome, Edge, and Chromium under HKCU on Windows', () => {
+  it('registers Chrome, Edge, Brave, Chromium, and Firefox under HKCU on Windows', () => {
     const homeDirectory = temporaryDirectory();
     const registry = new FakeRegistry();
     const installer = new NativeHostInstaller({
@@ -153,7 +199,7 @@ describe('NativeHostInstaller', () => {
 
     const installed = installer.install();
     expect(installed.installed).toBe(true);
-    expect(registry.values.size).toBe(3);
+    expect(registry.values.size).toBe(5);
     expect(installer.status().installed).toBe(true);
     const wrapper = fs.readFileSync(installer.platformPaths().wrapperPath, 'utf8');
     expect(wrapper).toContain('"C:\\Program Files\\nodejs\\node.exe"');
@@ -162,6 +208,26 @@ describe('NativeHostInstaller', () => {
 
     expect(installer.uninstall().installed).toBe(false);
     expect(registry.values.size).toBe(0);
+  });
+
+  it('writes explicitly trusted Chromium store IDs into browser manifests', () => {
+    const homeDirectory = temporaryDirectory();
+    const storeId = 'abcdefghijklmnopabcdefghijklmnop';
+    const installer = new NativeHostInstaller({
+      platform: 'linux',
+      homeDirectory,
+      nodePath: path.join(homeDirectory, 'node'),
+      cliEntryPath: path.join(homeDirectory, 'cli.cjs'),
+      configStore: {
+        load: () => ConduitConfigSchema.parse({ browser: { chromiumExtensionIds: [storeId] } }),
+      },
+    });
+
+    expect(installer.install().installed).toBe(true);
+    const manifest = JSON.parse(
+      fs.readFileSync(installer.platformPaths().chromiumManifestPaths[0], 'utf8'),
+    ) as { allowed_origins: string[] };
+    expect(manifest.allowed_origins).toEqual([`chrome-extension://${storeId}/`]);
   });
 
   it('rolls back files and reports failure when registry registration fails', () => {

@@ -108,8 +108,7 @@ test.beforeAll(async () => {
   } else {
     const installed = nativeHost.install();
     expect(installed.installed).toBe(true);
-    const sourceManifest = installed.manifestPaths?.at(-1);
-    if (!sourceManifest) throw new Error('Native host installation did not return a manifest.');
+    const sourceManifest = nativeHost.platformPaths().chromiumManifestPaths[0];
     const profileManifestDirectory = path.join(profilePath, 'NativeMessagingHosts');
     await mkdir(profileManifestDirectory, { recursive: true });
     await copyFile(

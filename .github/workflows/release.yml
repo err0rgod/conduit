@@ -29,12 +29,6 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ env.RELEASE_TAG }}
-      - name: Checkout compatible extension
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: err0rgod/conduit-extension
-          ref: d150754b1e2911ab402a6df535feda0e003768f0
-          path: conduit-extension
       - name: Install pnpm
         uses: pnpm/action-setup@b0f76dfb45f55f8421693e4803ac7bb65143bd34 # v6
       - name: Set up Node
@@ -43,14 +37,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Verify release version
-        run: |
-          version="$(node scripts/release-check.js "$RELEASE_TAG")"
-          extension_version="$(node -p "require('./conduit-extension/package.json').version")"
-          test "$extension_version" = "$version"
+        run: node scripts/release-check.js "$RELEASE_TAG"
       - name: Install backend dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Install extension dependencies
-        working-directory: conduit-extension
         run: pnpm install --frozen-lockfile
       - name: Validate backend
         run: |
@@ -60,23 +48,13 @@ jobs:
           pnpm test
           pnpm build
           pnpm distribution:test
-      - name: Validate and build extension
-        working-directory: conduit-extension
-        run: |
-          pnpm format:check
-          pnpm lint
-          pnpm typecheck
-          pnpm test
-          pnpm build
       - name: Build release assets
         run: |
           pnpm distribution:pack
           version="$(node scripts/release-check.js "$RELEASE_TAG")"
-          (cd conduit-extension/apps/extension/dist && zip -qr "$GITHUB_WORKSPACE/artifacts/conduit-extension-$version.zip" .)
           cp scripts/install.sh scripts/install.ps1 artifacts/
           node scripts/write-checksums.js artifacts/SHA256SUMS \
             artifacts/conduit-browser-$version.tgz \
-            artifacts/conduit-extension-$version.zip \
             artifacts/install.sh \
             artifacts/install.ps1
       - name: Upload immutable build artifacts
