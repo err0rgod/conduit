@@ -1,6 +1,6 @@
 import { BrowserRequestEnvelope, Permission, RiskLevel } from '@conduit/protocol';
 
-export type DomainPolicyMode = 'allowlist' | 'blocklist' | 'ask';
+export type DomainPolicyMode = 'allowlist' | 'blocklist' | 'ask' | 'allow-all';
 
 export interface SecurityPolicyOptions {
   permissions?: Permission[];
@@ -136,6 +136,9 @@ export class SecurityPolicy {
     }
     if (this.domainMode === 'ask') {
       return { outcome: 'confirm', domain, reason: `Domain ${domain} requires approval.` };
+    }
+    if (this.domainMode === 'blocklist' || this.domainMode === 'allow-all') {
+      return { outcome: 'allow', domain };
     }
     return { outcome: 'allow', domain };
   }

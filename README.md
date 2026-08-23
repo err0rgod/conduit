@@ -170,6 +170,8 @@ conduit restart
 
 Localhost and private-network access have separate opt-ins. Uploads require an allowlist, `browser.upload`, and one-time confirmation.
 
+For an explicitly local-only setup, `conduit config set security.domainMode '"allow-all"'` allows public HTTP and HTTPS domains that are not blocked. It does not override blocked domains, protocol restrictions, localhost policy, or private-network policy, and it cannot be combined with remote mode. Run `conduit restart` after changing the mode; configuration is not hot-reloaded.
+
 ## Remote pairing
 
 Remote mode is off by default. Pairing establishes a revocable public-key device identity; it does not expose the daemon automatically.

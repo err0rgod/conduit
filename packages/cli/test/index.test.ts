@@ -47,6 +47,20 @@ describe('Conduit CLI', () => {
     expect(output).toContain('allowedDomains');
   });
 
+  it('sets the opt-in allow-all domain mode through validated config', async () => {
+    await program().parseAsync([
+      'node',
+      'conduit',
+      '--json',
+      'config',
+      'set',
+      'security.domainMode',
+      '"allow-all"',
+    ]);
+    expect(configStore.load().security.domainMode).toBe('allow-all');
+    expect(JSON.parse(output)).toMatchObject({ security: { domainMode: 'allow-all' } });
+  });
+
   it('parses browser targets and sends a validated action', async () => {
     let requestBody: unknown;
     const client = new ConduitClient({

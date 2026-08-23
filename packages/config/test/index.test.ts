@@ -47,6 +47,18 @@ describe('Conduit configuration', () => {
     ).not.toThrow();
   });
 
+  it('allows explicit local allow-all mode but rejects it with remote access', () => {
+    expect(store.save({ security: { domainMode: 'allow-all' } }).security.domainMode).toBe(
+      'allow-all',
+    );
+    expect(() =>
+      store.save({
+        remote: { enabled: true, tlsKeyPath: 'key.pem', tlsCertificatePath: 'cert.pem' },
+        security: { domainMode: 'allow-all' },
+      }),
+    ).toThrowError(ConfigError);
+  });
+
   it('updates known values and validates their resulting types', () => {
     store.save({});
     expect(store.update('daemon.port', '9444').daemon.port).toBe(9444);
