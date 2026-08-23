@@ -38,6 +38,8 @@ Untrusted:
 - local random token and authenticated extension connection;
 - runtime validation at protocol/config boundaries;
 - deny-by-default capability and domain checks;
+- per-site Chromium host grants by default, with broad host access available only through an explicit popup click;
+- local-only `security.domainMode: "allow-all"` is rejected with remote mode and does not bypass blocked domains or network guards;
 - expiring one-time high-risk confirmations;
 - bounded messages, queues, timeouts, replay windows, sessions, and auth attempts;
 - TLS-gated non-loopback bind;
@@ -47,7 +49,13 @@ Untrusted:
 
 ## Prompt injection
 
-Page content is data, not trusted agent instruction. Conduit prevents webpage text from changing permissions or confirmation state, but cannot guarantee that an AI agent will interpret malicious content safely. Operators should use narrow grants and require human review for consequential actions.
+Page content is data, not trusted agent instruction. Conduit prevents webpage text from changing permissions or confirmation state, but cannot guarantee that an AI agent will interpret malicious content safely. Webpages also cannot trigger the extension's broad host request or enable daemon `allow-all`; those remain explicit operator actions. Operators should use narrow grants and require human review for consequential actions.
+
+## Opt-in access expansion
+
+The extension and daemon expose separate authority gates. The extension's **Allow all sites** control requests exactly `http://*/*` and `https://*/*` from a popup click and Chromium's native prompt. Conduit does not persist a parallel flag, and the background service worker never requests those origins. The control can be revoked with **Revoke all sites**.
+
+The backend's `security.domainMode: "allow-all"` is intentionally local-only and never the default. It requires `conduit restart` after configuration changes and cannot be combined with `remote.enabled: true`. Even when enabled, invalid URLs, non-HTTP(S) protocols, blocked domains, localhost without its opt-in, and private networks without their opt-in remain denied.
 
 ## Secret handling
 

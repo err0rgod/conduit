@@ -13,6 +13,8 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Extension confirmation review controls showing the risk, operation, domain, summary, and expiry with explicit approve-once or deny decisions.
 - Bounded, runtime-validated recent audit-event access over the authenticated extension connection.
 - A scrollable extension audit viewer limited to event type, outcome, operation/domain scope, and time.
+- The backend accepts the opt-in local-only `security.domainMode: "allow-all"` setting. The default remains `ask`, remote mode rejects this setting, and hard URL/domain/network guards remain non-overridable.
+- Documentation now distinguishes the extension's explicit all-sites Chromium host grant from the daemon's independent domain policy.
 
 ### Security
 

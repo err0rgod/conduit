@@ -2096,7 +2096,7 @@ Begin by inspecting the environment, Git status, GitHub authentication, and exis
 Update this section whenever a milestone is merged so a new agent session can
 resume without reconstructing project history.
 
-Last updated: 2026-08-20.
+Last updated: 2026-08-23.
 
 ## Repository decision
 
@@ -2125,6 +2125,7 @@ Last updated: 2026-08-20.
 - Backend PR #38 pinned the confirmation-review extension and validated high-risk review, one-time consumption, independent Chromium permission enforcement, and emergency controls in real Chromium.
 - Backend PR #39 added bounded runtime-validated access to recent redacted audit events over the authenticated extension WebSocket.
 - Backend PR #40 pinned the audit-viewer extension and verified real-browser event visibility plus sensitive path/content omission.
+- Backend PR #41 added the opt-in local-only `security.domainMode: "allow-all"` mode while preserving blocked-domain precedence, protocol restrictions, localhost/private-network guards, the `ask` default, and the remote-mode incompatibility.
 - Extension PR #3 removed required broad host access, added popup Allow/Revoke controls, and enforced origin grants before scripting or screenshots.
 - Extension PR #4 prepared the versioned `0.1.1` release build.
 - Extension PR #5 added a persistent emergency disconnect/resume control, a red paused-state badge, and privacy-safe current action/target status in the popup.
@@ -2133,18 +2134,21 @@ Last updated: 2026-08-20.
 - Extension PR #8 hardened the daemon authentication boundary, added current-session and
   optional Chromium permission controls, and introduced deterministic checksummed `0.1.2`
   packaging plus store-submission documentation.
+- Extension PR #9 added explicit popup-only **Allow all sites** and **Revoke all sites** controls for the optional `http://*/*` and `https://*/*` host patterns without changing per-site defaults or background enforcement.
+- Extension PR #10 published the checksummed `v0.1.2` extension release.
 - Documentation PRs #1-#5 created the complete 22-section site, hardened/updated Pages actions, migrated the default branch to `main`, and aligned deployment environment policy.
 - Public release: `https://github.com/err0rgod/conduit/releases/tag/v0.1.1`.
+- Public extension release: `https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.2`.
 - Public documentation: `https://err0rgod.github.io/conduit-web/`.
 
 ## Current verified state
 
-- Backend `main`: `2f3ba6a81de111476b81be7d2521eae111ee3ac6` before the audit-viewer E2E milestone branch.
-- Extension `main`: `385cb787e7224f0ef7e135cd1e13599277cd7e80`.
+- Backend `main`: `ceedf67` after the allow-all domain-policy milestone.
+- Extension `main`: `20af4cc` after the `v0.1.2` release milestone.
 - Documentation `main`: `9aa12a3305a83c580d3823a0a6d82eb6bc3e9fcd`.
 - All three working trees were clean at the start of this milestone.
-- Backend: 68 unit, 24 integration, 30 security, 5 Node release/docs tests after the audit-transport milestone, plus real Chromium E2E.
-- Extension: 33 tests plus build, typecheck, lint, formatting, deterministic package validation,
+- Backend: 71 unit, 24 integration, 32 security, 5 Node release/docs tests, plus real Chromium E2E.
+- Extension: 37 tests plus build, typecheck, lint, formatting, deterministic package validation,
   real Chromium integration, and three-OS CI.
 - Documentation: route/content integrity tests, formatting, lint, typecheck, production build, desktop/mobile visual inspection, and live HTTPS/asset/route checks.
 - `v0.1.1` assets were downloaded from the public release. All SHA-256 values matched; the tarball and extension manifest reported `0.1.1`; the extension contained optional HTTP/HTTPS origins and no required `host_permissions`.
@@ -2163,8 +2167,9 @@ Last updated: 2026-08-20.
 6. Finish scheduled audit retention and screenshot/download persistence behavior or remove premature configuration fields.
 7. Verify the private browser-store item preserves extension ID
    `jkdlmcpkgkooilffjegfjmkanoelbmbl`, then configure ownership and update behavior before
-   public promotion. GitHub `v0.1.1` remains the current published distribution until a
-   coordinated backend release consumes the extension's checksummed `0.1.2` artifact.
+   public promotion. Backend `v0.1.1` remains the current bundled installer release; extension
+   `v0.1.2` is also available as a separately checksummed extension release until a coordinated
+   backend release consumes it.
 8. Define the pre-1.0 compatibility/support policy before declaring a stable release.
 
 ## Workspace safety and validation
@@ -2173,5 +2178,5 @@ Last updated: 2026-08-20.
 - Preserve user changes and never force-push or rewrite public history.
 - Before each stable commit run format, lint, typecheck, relevant tests, build, and clean distribution install. Push a feature branch, open a PR, wait for every required GitHub check, then merge into `main`.
 - Backend CI and releases must pin extension/docs repositories to immutable commits, never moving branch names.
-- Production extension manifests must not regain required broad host access.
+- Production extension manifests must not regain required broad host access. Optional broad HTTP/HTTPS origins may be requested only from an explicit popup click and must remain independent from daemon policy.
 - The current machine may still contain an older permissive user configuration; clean-install defaults do not silently rewrite existing user policy. Inspect or migrate it explicitly before manual sensitive testing.
