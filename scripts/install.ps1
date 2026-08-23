@@ -1,11 +1,15 @@
 [CmdletBinding()]
 param(
     [string]$Version,
+    [string]$ExtensionVersion,
     [switch]$NoSetup
 )
 
 $ErrorActionPreference = 'Stop'
 $conduitRepository = 'err0rgod/conduit'
+$extensionRepository = 'err0rgod/conduit-extension'
+$skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit'
+$skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
 
 function Assert-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -22,42 +26,53 @@ function Assert-Checksum([string]$FilePath, [string]$ChecksumsPath) {
     if ($actual -ne $expected) { throw "Checksum verification failed for $fileName." }
 }
 
+function Resolve-ReleaseTag([string]$Repository, [string]$RequestedVersion, [string]$ComponentName) {
+    if (-not $RequestedVersion) {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest" -Headers @{ 'User-Agent' = 'Conduit-Installer' }
+        $tag = [string]$release.tag_name
+    } else {
+        $tag = if ($RequestedVersion.StartsWith('v')) { $RequestedVersion } else { "v$RequestedVersion" }
+    }
+    if ($tag -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+        throw "Invalid $ComponentName release tag: $tag"
+    }
+    return $tag
+}
+
 Assert-Command 'node'
 Assert-Command 'npm'
 $nodeMajor = [int]((node --version).TrimStart('v').Split('.')[0])
 if ($nodeMajor -lt 22) { throw "Conduit requires Node.js 22 or newer; found $(node --version)." }
 
-if (-not $Version) {
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$conduitRepository/releases/latest" -Headers @{ 'User-Agent' = 'Conduit-Installer' }
-    $releaseTag = [string]$release.tag_name
-} else {
-    $releaseTag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
-}
-if ($releaseTag -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-    throw "Invalid Conduit release tag: $releaseTag"
-}
+$releaseTag = Resolve-ReleaseTag $conduitRepository $Version 'Conduit'
+$extensionReleaseTag = Resolve-ReleaseTag $extensionRepository $ExtensionVersion 'Conduit extension'
 $releaseVersion = $releaseTag.Substring(1)
+$resolvedExtensionVersion = $extensionReleaseTag.Substring(1)
 $releaseBase = "https://github.com/$conduitRepository/releases/download/$releaseTag"
+$extensionReleaseBase = "https://github.com/$extensionRepository/releases/download/$extensionReleaseTag"
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) "conduit-install-$([guid]::NewGuid().ToString('N'))"
 $packageName = "conduit-browser-$releaseVersion.tgz"
-$extensionName = "conduit-extension-$releaseVersion.zip"
+$extensionName = "conduit-extension-$extensionReleaseTag.zip"
+$extensionChecksumName = "$extensionName.sha256"
 $packagePath = Join-Path $temporaryRoot $packageName
 $extensionArchive = Join-Path $temporaryRoot $extensionName
-$checksumsPath = Join-Path $temporaryRoot 'SHA256SUMS'
+$backendChecksumsPath = Join-Path $temporaryRoot 'SHA256SUMS'
+$extensionChecksumPath = Join-Path $temporaryRoot $extensionChecksumName
 
 try {
     New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-    Write-Host "Downloading Conduit $releaseTag..." -ForegroundColor Cyan
+    Write-Host "Downloading Conduit backend $releaseTag and extension $extensionReleaseTag..." -ForegroundColor Cyan
     Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$packageName" -OutFile $packagePath
-    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$extensionName" -OutFile $extensionArchive
-    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS" -OutFile $checksumsPath
-    Assert-Checksum $packagePath $checksumsPath
-    Assert-Checksum $extensionArchive $checksumsPath
+    Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS" -OutFile $backendChecksumsPath
+    Invoke-WebRequest -UseBasicParsing -Uri "$extensionReleaseBase/$extensionName" -OutFile $extensionArchive
+    Invoke-WebRequest -UseBasicParsing -Uri "$extensionReleaseBase/$extensionChecksumName" -OutFile $extensionChecksumPath
+    Assert-Checksum $packagePath $backendChecksumsPath
+    Assert-Checksum $extensionArchive $extensionChecksumPath
 
     $conduitDataRoot = Join-Path $env:LOCALAPPDATA 'Conduit'
     $npmRoot = Join-Path $conduitDataRoot 'App'
     $binRoot = Join-Path $conduitDataRoot 'bin'
-    $extensionRoot = Join-Path $conduitDataRoot "Extension\$releaseVersion"
+    $extensionRoot = Join-Path $conduitDataRoot "Extension\$resolvedExtensionVersion"
     New-Item -ItemType Directory -Force -Path $npmRoot, $binRoot, $extensionRoot | Out-Null
 
     & npm install --prefix $npmRoot --omit=dev --no-audit --no-fund $packagePath
@@ -82,9 +97,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Conduit was installed, but conduit setup failed.' }
     }
 
-    Write-Host "Conduit $releaseTag installed without administrator access." -ForegroundColor Green
+    Write-Host "Conduit backend $releaseTag installed without administrator access." -ForegroundColor Green
+    Write-Host "Conduit Extension $extensionReleaseTag installed." -ForegroundColor Green
     Write-Host "Extension folder: $extensionRoot" -ForegroundColor Magenta
     Write-Host 'Load that folder from chrome://extensions or edge://extensions using Developer mode.'
+    Write-Host "Agent Skill directory: $skillDirectoryUrl" -ForegroundColor Cyan
+    Write-Host "Agent Skill entry: $skillEntryUrl" -ForegroundColor Cyan
+    Write-Host 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'
     if ($NoSetup) { Write-Host 'Run conduit setup before loading the extension.' }
 } finally {
     if (Test-Path -LiteralPath $temporaryRoot) {
