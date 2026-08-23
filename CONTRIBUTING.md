@@ -24,7 +24,7 @@ git clone https://github.com/err0rgod/conduit-extension.git
 git clone https://github.com/err0rgod/conduit-web.git
 ```
 
-Build `conduit-extension`, then load its `apps/extension/dist` directory as an unpacked extension for manual browser testing. Backend `pnpm docs:build` locates a sibling `conduit-web` checkout; set `CONDUIT_DOCS_PATH` for a different layout.
+Build `conduit-extension`, then load its `apps/extension/dist` directory as an unpacked extension for manual Chromium testing. The same build also emits key-free Chromium store and Firefox archives. Backend `pnpm docs:build` locates a sibling `conduit-web` checkout; set `CONDUIT_DOCS_PATH` for a different layout.
 
 ## Standards
 

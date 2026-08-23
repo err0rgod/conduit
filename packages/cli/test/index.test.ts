@@ -97,13 +97,14 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
-  it('prints installer-provided extension and skill locations', async () => {
+  it('prints store-first extension and skill installation steps', async () => {
     await program().parseAsync(['node', 'conduit', '--json', 'extension', 'install-help']);
 
     expect(JSON.parse(output)).toMatchObject({
       steps: expect.arrayContaining([
-        'Use the exact extension directory printed by the Conduit installer.',
-        'Choose Load unpacked and select the printed extension directory.',
+        'Install the Conduit backend with the release script.',
+        'Install Conduit Extension from Chrome Web Store, Edge Add-ons, or Firefox Add-ons.',
+        'Install the Conduit Agent Skill in your AI harness.',
       ]),
       skill: {
         directory: 'https://github.com/err0rgod/skills/tree/main/conduit',
@@ -111,6 +112,19 @@ describe('Conduit CLI', () => {
       },
     });
     expect(output).not.toContain('Clone https://github.com/err0rgod/conduit-extension');
+  });
+
+  it('trusts a validated Chromium store identity and refreshes Native Messaging', async () => {
+    const extensionId = 'abcdefghijklmnopabcdefghijklmnop';
+    await program().parseAsync(['node', 'conduit', '--json', 'extension', 'trust', extensionId]);
+
+    expect(configStore.load().browser.chromiumExtensionIds).toContain(extensionId);
+    expect(JSON.parse(output)).toMatchObject({
+      trusted: true,
+      browser: 'chromium',
+      extensionId,
+      nativeHost: { installed: true },
+    });
   });
 
   function program(client = new ConduitClient({ token: 'unused' })) {
@@ -125,6 +139,7 @@ describe('Conduit CLI', () => {
       client,
       configStore,
       lifecycle,
+      nativeHostInstaller: { install: () => ({ installed: true }) },
       stdout: { write: (chunk) => ((output += String(chunk)), true) },
     });
   }

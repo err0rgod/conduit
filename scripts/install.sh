@@ -2,21 +2,18 @@
 set -euo pipefail
 
 conduit_repository='err0rgod/conduit'
-extension_repository='err0rgod/conduit-extension'
 skill_directory_url='https://github.com/err0rgod/skills/tree/main/conduit'
 skill_entry_url='https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
+chrome_store_url='https://chromewebstore.google.com/search/conduit'
+edge_store_url='https://microsoftedge.microsoft.com/addons/search/conduit'
+firefox_store_url='https://addons.mozilla.org/firefox/search/?q=Conduit'
 conduit_version=''
-extension_version=''
 run_setup=true
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
       conduit_version="${2:?--version requires a value}"
-      shift 2
-      ;;
-    --extension-version)
-      extension_version="${2:?--extension-version requires a value}"
       shift 2
       ;;
     --no-setup)
@@ -30,7 +27,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for conduit_command in node npm curl unzip; do
+for conduit_command in node npm curl; do
   if ! command -v "$conduit_command" >/dev/null 2>&1; then
     echo "$conduit_command is required. Install Node.js 22 or newer and retry." >&2
     exit 1
@@ -62,23 +59,15 @@ resolve_release_tag() {
 }
 
 release_tag="$(resolve_release_tag "$conduit_repository" "$conduit_version" 'Conduit')"
-extension_release_tag="$(resolve_release_tag "$extension_repository" "$extension_version" 'Conduit extension')"
-
 release_version="${release_tag#v}"
-resolved_extension_version="${extension_release_tag#v}"
 release_base="https://github.com/$conduit_repository/releases/download/$release_tag"
-extension_release_base="https://github.com/$extension_repository/releases/download/$extension_release_tag"
 temporary_root="$(mktemp -d "${TMPDIR:-/tmp}/conduit-install.XXXXXXXX")"
 trap 'rm -rf -- "$temporary_root"' EXIT
 package_name="conduit-browser-$release_version.tgz"
-extension_name="conduit-extension-$extension_release_tag.zip"
-extension_checksum_name="$extension_name.sha256"
 
-echo "Downloading Conduit backend $release_tag and extension $extension_release_tag..."
+echo "Downloading Conduit backend $release_tag..."
 curl -fsSL "$release_base/$package_name" -o "$temporary_root/$package_name"
 curl -fsSL "$release_base/SHA256SUMS" -o "$temporary_root/SHA256SUMS"
-curl -fsSL "$extension_release_base/$extension_name" -o "$temporary_root/$extension_name"
-curl -fsSL "$extension_release_base/$extension_checksum_name" -o "$temporary_root/$extension_checksum_name"
 
 verify_checksum() {
   local asset_name="$1"
@@ -96,15 +85,11 @@ verify_checksum() {
 }
 
 verify_checksum "$package_name" "$temporary_root/SHA256SUMS"
-verify_checksum "$extension_name" "$temporary_root/$extension_checksum_name"
-
 conduit_data_home="${XDG_DATA_HOME:-$HOME/.local/share}/conduit"
 npm_root="$conduit_data_home/app"
 bin_root="$HOME/.local/bin"
-extension_root="$conduit_data_home/extension/$resolved_extension_version"
-mkdir -p "$npm_root" "$bin_root" "$extension_root"
+mkdir -p "$npm_root" "$bin_root"
 npm install --prefix "$npm_root" --omit=dev --no-audit --no-fund "$temporary_root/$package_name"
-unzip -oq "$temporary_root/$extension_name" -d "$extension_root"
 
 cli_path="$npm_root/node_modules/conduit-browser/dist/cli.cjs"
 [[ -f "$cli_path" ]] || { echo 'The installed Conduit CLI is missing.' >&2; exit 1; }
@@ -126,12 +111,14 @@ if [[ "$run_setup" == true ]]; then
 fi
 
 echo "Conduit backend $release_tag installed without administrator access."
-echo "Conduit Extension $extension_release_tag installed."
-echo "Extension folder: $extension_root"
-echo 'Load that folder from chrome://extensions or edge://extensions using Developer mode.'
+echo 'Next: install Conduit Extension from your browser store.'
+echo "Chrome and Brave: $chrome_store_url"
+echo "Microsoft Edge: $edge_store_url"
+echo "Firefox: $firefox_store_url"
+echo 'For a new Chromium store listing, run conduit extension trust <extension-id> once.'
 echo "Agent Skill directory: $skill_directory_url"
 echo "Agent Skill entry: $skill_entry_url"
 echo 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'
 if [[ "$run_setup" == false ]]; then
-  echo 'Run conduit setup before loading the extension.'
+  echo 'Run conduit setup before installing the extension.'
 fi

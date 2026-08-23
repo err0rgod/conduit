@@ -10,6 +10,7 @@ import { resolveDistributionEntry } from './runtime-paths';
 import { SetupManager } from './setup';
 import { UserService } from './service';
 import { UpdateManager } from './update';
+import { NativeHostInstaller, extensionIdKind, nativeCallerFromArguments } from './native-host';
 
 interface TabOptions {
   tab?: string;
@@ -31,6 +32,7 @@ export interface CliServices {
   service: UserService;
   setupManager: SetupManager;
   updateManager: UpdateManager;
+  nativeHostInstaller: Pick<NativeHostInstaller, 'install'>;
   stdout?: Pick<NodeJS.WriteStream, 'write'>;
 }
 
@@ -41,6 +43,8 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   const setupManager =
     overrides.setupManager ?? new SetupManager({ configStore, lifecycle, service });
   const updateManager = overrides.updateManager ?? new UpdateManager();
+  const nativeHostInstaller =
+    overrides.nativeHostInstaller ?? new NativeHostInstaller({ configStore });
   const client =
     overrides.client ?? new ConduitClient({ baseUrl: daemonBaseUrl(configStore.load()) });
   const stdout = overrides.stdout ?? process.stdout;
@@ -49,7 +53,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   program
     .name('conduit')
     .description('Open-source, local-first browser control bridge for AI agents')
-    .version('0.1.0')
+    .version('0.1.2')
     .option('--json', 'Emit machine-readable JSON');
 
   program
@@ -57,7 +61,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .description('Configure Conduit, install its user service, and start the daemon')
     .option('--no-service', 'Do not install automatic startup for this user')
     .option('--no-start', 'Do not start the daemon now')
-    .option('--no-native-host', 'Do not register the Chromium native messaging host')
+    .option('--no-native-host', 'Do not register browser native messaging hosts')
     .action(async (options: { service: boolean; start: boolean; nativeHost: boolean }) =>
       output(
         await setupManager.setup({
@@ -202,25 +206,33 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
 
   const extension = program
     .command('extension')
-    .description('Manage the unpacked browser extension');
+    .description('Manage browser extension installation and trusted store identities');
 
   extension
     .command('install-help')
-    .description('Show Chromium unpacked-extension installation steps')
+    .description('Show browser-store extension installation steps')
     .action(() =>
       output({
         steps: [
-          'Use the exact extension directory printed by the Conduit installer.',
-          'Open chrome://extensions or edge://extensions.',
-          'Enable Developer mode.',
-          'Choose Load unpacked and select the printed extension directory.',
+          'Install the Conduit backend with the release script.',
+          'Install Conduit Extension from Chrome Web Store, Edge Add-ons, or Firefox Add-ons.',
+          'Chrome Web Store is also the Brave package.',
+          'For a Chromium store item, run conduit extension trust <store-extension-id> once.',
+          'Restart the browser so it reloads the Native Messaging registration.',
           'The extension will connect automatically.',
+          'Install the Conduit Agent Skill in your AI harness.',
         ],
         skill: {
           directory: 'https://github.com/err0rgod/skills/tree/main/conduit',
           entry: 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md',
         },
       }),
+    );
+  extension
+    .command('trust <extensionId>')
+    .description('Trust a Chrome/Edge/Brave store ID or Firefox add-on ID')
+    .action((extensionId: string) =>
+      output(trustExtension(configStore, nativeHostInstaller, extensionId)),
     );
   program
     .command('mcp')
@@ -233,18 +245,43 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
 
 export async function runCli(argv = process.argv): Promise<void> {
   if (argv.length >= 4 && argv[2] === 'extension' && argv[3] === 'native-host') {
-    let origin = '';
-    for (let i = 4; i < argv.length; i++) {
-      if (!argv[i].startsWith('--')) {
-        origin = argv[i];
-        break;
-      }
-    }
+    const caller = nativeCallerFromArguments(argv.slice(4));
     const { runNativeHost } = await import('./native-host');
-    return runNativeHost(origin);
+    return runNativeHost(caller);
   }
 
   await createProgram().parseAsync(argv);
+}
+
+function trustExtension(
+  configStore: ConfigStore,
+  nativeHostInstaller: Pick<NativeHostInstaller, 'install'>,
+  extensionId: string,
+): unknown {
+  const kind = extensionIdKind(extensionId);
+  if (!kind) {
+    throw new Error(
+      'Extension ID must be a 32-letter Chromium ID or a Firefox email/GUID add-on ID.',
+    );
+  }
+  const config = configStore.load();
+  const target =
+    kind === 'chromium' ? config.browser.chromiumExtensionIds : config.browser.firefoxExtensionIds;
+  if (!target.includes(extensionId)) target.push(extensionId);
+  configStore.save(config);
+  const nativeHost = nativeHostInstaller.install();
+  if (!nativeHost.installed) {
+    throw new Error(
+      nativeHost.message ?? 'The extension ID was saved, but Native Messaging setup failed.',
+    );
+  }
+  return {
+    trusted: true,
+    browser: kind,
+    extensionId,
+    nativeHost,
+    nextStep: 'Restart the browser, then open the Conduit extension.',
+  };
 }
 
 function addBrowserCommands(

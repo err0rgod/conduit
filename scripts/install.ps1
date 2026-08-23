@@ -1,15 +1,16 @@
 [CmdletBinding()]
 param(
     [string]$Version,
-    [string]$ExtensionVersion,
     [switch]$NoSetup
 )
 
 $ErrorActionPreference = 'Stop'
 $conduitRepository = 'err0rgod/conduit'
-$extensionRepository = 'err0rgod/conduit-extension'
 $skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit'
 $skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
+$chromeStoreUrl = 'https://chromewebstore.google.com/search/conduit'
+$edgeStoreUrl = 'https://microsoftedge.microsoft.com/addons/search/conduit'
+$firefoxStoreUrl = 'https://addons.mozilla.org/firefox/search/?q=Conduit'
 
 function Assert-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -45,40 +46,27 @@ $nodeMajor = [int]((node --version).TrimStart('v').Split('.')[0])
 if ($nodeMajor -lt 22) { throw "Conduit requires Node.js 22 or newer; found $(node --version)." }
 
 $releaseTag = Resolve-ReleaseTag $conduitRepository $Version 'Conduit'
-$extensionReleaseTag = Resolve-ReleaseTag $extensionRepository $ExtensionVersion 'Conduit extension'
 $releaseVersion = $releaseTag.Substring(1)
-$resolvedExtensionVersion = $extensionReleaseTag.Substring(1)
 $releaseBase = "https://github.com/$conduitRepository/releases/download/$releaseTag"
-$extensionReleaseBase = "https://github.com/$extensionRepository/releases/download/$extensionReleaseTag"
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) "conduit-install-$([guid]::NewGuid().ToString('N'))"
 $packageName = "conduit-browser-$releaseVersion.tgz"
-$extensionName = "conduit-extension-$extensionReleaseTag.zip"
-$extensionChecksumName = "$extensionName.sha256"
 $packagePath = Join-Path $temporaryRoot $packageName
-$extensionArchive = Join-Path $temporaryRoot $extensionName
 $backendChecksumsPath = Join-Path $temporaryRoot 'SHA256SUMS'
-$extensionChecksumPath = Join-Path $temporaryRoot $extensionChecksumName
 
 try {
     New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
-    Write-Host "Downloading Conduit backend $releaseTag and extension $extensionReleaseTag..." -ForegroundColor Cyan
+    Write-Host "Downloading Conduit backend $releaseTag..." -ForegroundColor Cyan
     Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/$packageName" -OutFile $packagePath
     Invoke-WebRequest -UseBasicParsing -Uri "$releaseBase/SHA256SUMS" -OutFile $backendChecksumsPath
-    Invoke-WebRequest -UseBasicParsing -Uri "$extensionReleaseBase/$extensionName" -OutFile $extensionArchive
-    Invoke-WebRequest -UseBasicParsing -Uri "$extensionReleaseBase/$extensionChecksumName" -OutFile $extensionChecksumPath
     Assert-Checksum $packagePath $backendChecksumsPath
-    Assert-Checksum $extensionArchive $extensionChecksumPath
 
     $conduitDataRoot = Join-Path $env:LOCALAPPDATA 'Conduit'
     $npmRoot = Join-Path $conduitDataRoot 'App'
     $binRoot = Join-Path $conduitDataRoot 'bin'
-    $extensionRoot = Join-Path $conduitDataRoot "Extension\$resolvedExtensionVersion"
-    New-Item -ItemType Directory -Force -Path $npmRoot, $binRoot, $extensionRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $npmRoot, $binRoot | Out-Null
 
     & npm install --prefix $npmRoot --omit=dev --no-audit --no-fund $packagePath
     if ($LASTEXITCODE -ne 0) { throw 'npm failed to install the Conduit backend package.' }
-    Expand-Archive -LiteralPath $extensionArchive -DestinationPath $extensionRoot -Force
-
     $cliPath = Join-Path $npmRoot 'node_modules\conduit-browser\dist\cli.cjs'
     if (-not (Test-Path -LiteralPath $cliPath)) { throw 'The installed Conduit CLI is missing.' }
     $nodePath = (Get-Command node).Source
@@ -98,13 +86,15 @@ try {
     }
 
     Write-Host "Conduit backend $releaseTag installed without administrator access." -ForegroundColor Green
-    Write-Host "Conduit Extension $extensionReleaseTag installed." -ForegroundColor Green
-    Write-Host "Extension folder: $extensionRoot" -ForegroundColor Magenta
-    Write-Host 'Load that folder from chrome://extensions or edge://extensions using Developer mode.'
+    Write-Host 'Next: install Conduit Extension from your browser store.' -ForegroundColor Magenta
+    Write-Host "Chrome and Brave: $chromeStoreUrl"
+    Write-Host "Microsoft Edge: $edgeStoreUrl"
+    Write-Host "Firefox: $firefoxStoreUrl"
+    Write-Host 'For a new Chromium store listing, run conduit extension trust <extension-id> once.'
     Write-Host "Agent Skill directory: $skillDirectoryUrl" -ForegroundColor Cyan
     Write-Host "Agent Skill entry: $skillEntryUrl" -ForegroundColor Cyan
     Write-Host 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'
-    if ($NoSetup) { Write-Host 'Run conduit setup before loading the extension.' }
+    if ($NoSetup) { Write-Host 'Run conduit setup before installing the extension.' }
 } finally {
     if (Test-Path -LiteralPath $temporaryRoot) {
         Remove-Item -LiteralPath $temporaryRoot -Recurse -Force

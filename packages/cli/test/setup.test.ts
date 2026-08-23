@@ -59,8 +59,8 @@ describe('SetupManager', () => {
       serviceInstalled: true,
       daemonStarted: true,
     });
-    expect(report.nextSteps.join(' ')).toContain('Load unpacked');
-    expect(report.nextSteps.join(' ')).toContain('versioned extension directory');
+    expect(report.nextSteps.join(' ')).toContain('Install the Conduit Extension from the store');
+    expect(report.nextSteps.join(' ')).toContain('conduit extension trust');
     expect(report.nextSteps.join(' ')).toContain(
       'https://github.com/err0rgod/skills/tree/main/conduit',
     );

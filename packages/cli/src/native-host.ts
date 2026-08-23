@@ -7,6 +7,7 @@ import { LocalAuth } from '@conduit/security';
 import { resolveDistributionEntry } from './runtime-paths';
 
 export const EXPECTED_EXTENSION_ORIGIN = 'chrome-extension://jkdlmcpkgkooilffjegfjmkanoelbmbl/';
+export const EXPECTED_FIREFOX_EXTENSION_ID = 'conduit@err0rgod.github.io';
 export const NATIVE_HOST_NAME = 'io.github.err0rgod.conduit';
 export const NATIVE_PROTOCOL_VERSION = 1;
 export const MAX_NATIVE_REQUEST_BYTES = 64 * 1024;
@@ -31,15 +32,15 @@ export interface NativeHostRuntimeOptions {
 }
 
 export async function runNativeHost(
-  origin: string,
+  caller: string,
   options: NativeHostRuntimeOptions = {},
 ): Promise<void> {
-  if (origin !== EXPECTED_EXTENSION_ORIGIN) {
-    throw new Error('Native messaging request came from an unauthorized extension origin.');
+  const config = (options.configStore ?? new ConfigStore()).load();
+  if (!isTrustedNativeCaller(caller, config.browser)) {
+    throw new Error('Native messaging request came from an unauthorized browser extension.');
   }
 
   parseNativeRequest(await readNativeMessage(options.input ?? process.stdin));
-  const config = (options.configStore ?? new ConfigStore()).load();
   const token = (options.auth ?? new LocalAuth()).ensureToken();
   const response: NativeConnectionResponse = {
     type: 'conduit.connection-settings',
@@ -99,7 +100,7 @@ export async function readNativeMessage(input: NodeJS.ReadableStream): Promise<u
 export function encodeNativeMessage(value: unknown): Buffer {
   const payload = Buffer.from(JSON.stringify(value), 'utf8');
   if (payload.length > 1024 * 1024) {
-    throw new Error("Native messaging response exceeds Chromium's one-megabyte limit.");
+    throw new Error("Native messaging response exceeds the browser's one-megabyte limit.");
   }
   const header = Buffer.alloc(4);
   header.writeUInt32LE(payload.length, 0);
@@ -137,19 +138,24 @@ export interface NativeHostInstallerOptions {
   cliEntryPath?: string;
   nodePath?: string;
   run?: (command: string, args: string[]) => NativeHostCommandResult;
+  configStore?: Pick<ConfigStore, 'load'>;
 }
 
-interface PlatformPaths {
+export interface PlatformPaths {
   manifestDirectory: string;
   manifestPaths: string[];
+  chromiumManifestPaths: string[];
+  firefoxManifestPaths: string[];
   wrapperPath: string;
 }
 
-const WINDOWS_REGISTRY_KEYS = [
+const WINDOWS_CHROMIUM_REGISTRY_KEYS = [
   `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`,
   `HKCU\\Software\\Microsoft\\Edge\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`,
+  `HKCU\\Software\\BraveSoftware\\Brave-Browser\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`,
   `HKCU\\Software\\Chromium\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`,
 ];
+const WINDOWS_FIREFOX_REGISTRY_KEY = `HKCU\\Software\\Mozilla\\NativeMessagingHosts\\${NATIVE_HOST_NAME}`;
 
 export class NativeHostInstaller {
   private readonly platform: NativeHostPlatform;
@@ -157,6 +163,7 @@ export class NativeHostInstaller {
   private readonly cliEntryPath: string;
   private readonly nodePath: string;
   private readonly runCommand: (command: string, args: string[]) => NativeHostCommandResult;
+  private readonly configStore: Pick<ConfigStore, 'load'>;
 
   public constructor(options: NativeHostInstallerOptions = {}) {
     this.platform = supportedPlatform(options.platform ?? process.platform);
@@ -164,18 +171,28 @@ export class NativeHostInstaller {
     this.cliEntryPath = resolveTargetPath(options.cliEntryPath ?? resolveCliEntry(), this.platform);
     this.nodePath = resolveTargetPath(options.nodePath ?? process.execPath, this.platform);
     this.runCommand = options.run ?? runCommand;
+    this.configStore = options.configStore ?? new ConfigStore();
   }
 
   public install(): NativeHostStatus {
     const paths = this.platformPaths();
     try {
       this.writeWrapper(paths.wrapperPath);
-      const manifest = this.manifest(paths.wrapperPath);
-      for (const manifestPath of paths.manifestPaths) {
+      const chromiumManifest = this.chromiumManifest(paths.wrapperPath);
+      const firefoxManifest = this.firefoxManifest(paths.wrapperPath);
+      for (const manifestPath of paths.chromiumManifestPaths) {
         fs.mkdirSync(path.dirname(manifestPath), { recursive: true, mode: 0o700 });
-        fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+        fs.writeFileSync(manifestPath, `${JSON.stringify(chromiumManifest, null, 2)}\n`, {
+          mode: 0o600,
+        });
       }
-      this.registerWindows(paths.manifestPaths[0]);
+      for (const manifestPath of paths.firefoxManifestPaths) {
+        fs.mkdirSync(path.dirname(manifestPath), { recursive: true, mode: 0o700 });
+        fs.writeFileSync(manifestPath, `${JSON.stringify(firefoxManifest, null, 2)}\n`, {
+          mode: 0o600,
+        });
+      }
+      this.registerWindows(paths);
       const status = this.status();
       if (!status.installed) throw new Error(status.message ?? 'Native host verification failed.');
       return status;
@@ -211,8 +228,14 @@ export class NativeHostInstaller {
     if (!fs.existsSync(paths.wrapperPath)) {
       return { installed: false, message: 'Native host launcher is missing.' };
     }
-    const expectedManifest = this.manifest(paths.wrapperPath);
-    for (const manifestPath of paths.manifestPaths) {
+    for (const [manifestPath, expectedManifest] of [
+      ...paths.chromiumManifestPaths.map(
+        (manifestPath) => [manifestPath, this.chromiumManifest(paths.wrapperPath)] as const,
+      ),
+      ...paths.firefoxManifestPaths.map(
+        (manifestPath) => [manifestPath, this.firefoxManifest(paths.wrapperPath)] as const,
+      ),
+    ]) {
       if (!manifestMatches(manifestPath, expectedManifest)) {
         return {
           installed: false,
@@ -221,13 +244,15 @@ export class NativeHostInstaller {
       }
     }
     if (this.platform === 'win32') {
-      for (const key of WINDOWS_REGISTRY_KEYS) {
+      const registrations = [
+        ...WINDOWS_CHROMIUM_REGISTRY_KEYS.map(
+          (key) => [key, paths.chromiumManifestPaths[0]] as const,
+        ),
+        [WINDOWS_FIREFOX_REGISTRY_KEY, paths.firefoxManifestPaths[0]] as const,
+      ];
+      for (const [key, manifestPath] of registrations) {
         const result = this.runCommand('reg.exe', ['QUERY', key, '/ve']);
-        if (
-          result.error ||
-          result.status !== 0 ||
-          !result.stdout.includes(paths.manifestPaths[0])
-        ) {
+        if (result.error || result.status !== 0 || !result.stdout.includes(manifestPath)) {
           return {
             installed: false,
             message: `Native host registry entry is missing or invalid: ${key}`,
@@ -248,9 +273,16 @@ export class NativeHostInstaller {
         'Conduit',
         'NativeHost',
       );
+      const chromiumManifestPath = path.join(
+        manifestDirectory,
+        `${NATIVE_HOST_NAME}.chromium.json`,
+      );
+      const firefoxManifestPath = path.join(manifestDirectory, `${NATIVE_HOST_NAME}.firefox.json`);
       return {
         manifestDirectory,
-        manifestPaths: [path.join(manifestDirectory, filename)],
+        manifestPaths: [chromiumManifestPath, firefoxManifestPath],
+        chromiumManifestPaths: [chromiumManifestPath],
+        firefoxManifestPaths: [firefoxManifestPath],
         wrapperPath: path.join(manifestDirectory, 'conduit-native-host.cmd'),
       };
     }
@@ -259,7 +291,7 @@ export class NativeHostInstaller {
       this.platform === 'darwin'
         ? path.join(this.homeDirectory, 'Library', 'Application Support', 'Conduit', 'NativeHost')
         : path.join(this.homeDirectory, '.config', 'conduit', 'native-host');
-    const browserDirectories =
+    const chromiumDirectories =
       this.platform === 'darwin'
         ? [
             ['Library', 'Application Support', 'Google', 'Chrome', 'NativeMessagingHosts'],
@@ -271,30 +303,57 @@ export class NativeHostInstaller {
               'NativeMessagingHosts',
             ],
             ['Library', 'Application Support', 'Microsoft Edge', 'NativeMessagingHosts'],
+            [
+              'Library',
+              'Application Support',
+              'BraveSoftware',
+              'Brave-Browser',
+              'NativeMessagingHosts',
+            ],
             ['Library', 'Application Support', 'Chromium', 'NativeMessagingHosts'],
           ]
         : [
             ['.config', 'google-chrome', 'NativeMessagingHosts'],
             ['.config', 'google-chrome-for-testing', 'NativeMessagingHosts'],
             ['.config', 'microsoft-edge', 'NativeMessagingHosts'],
+            ['.config', 'BraveSoftware', 'Brave-Browser', 'NativeMessagingHosts'],
             ['.config', 'chromium', 'NativeMessagingHosts'],
           ];
+    const firefoxDirectory =
+      this.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts']
+        : ['.mozilla', 'native-messaging-hosts'];
+    const chromiumManifestPaths = chromiumDirectories.map((segments) =>
+      path.join(this.homeDirectory, ...segments, filename),
+    );
+    const firefoxManifestPaths = [path.join(this.homeDirectory, ...firefoxDirectory, filename)];
     return {
       manifestDirectory,
-      manifestPaths: browserDirectories.map((segments) =>
-        path.join(this.homeDirectory, ...segments, filename),
-      ),
+      manifestPaths: [...chromiumManifestPaths, ...firefoxManifestPaths],
+      chromiumManifestPaths,
+      firefoxManifestPaths,
       wrapperPath: path.join(manifestDirectory, 'conduit-native-host.sh'),
     };
   }
 
-  private manifest(wrapperPath: string): Record<string, unknown> {
+  private chromiumManifest(wrapperPath: string): Record<string, unknown> {
+    const extensionIds = this.configStore.load().browser.chromiumExtensionIds;
     return {
       name: NATIVE_HOST_NAME,
       description: 'Conduit local browser bridge',
       path: wrapperPath,
       type: 'stdio',
-      allowed_origins: [EXPECTED_EXTENSION_ORIGIN],
+      allowed_origins: extensionIds.map((id) => chromiumExtensionOrigin(id)),
+    };
+  }
+
+  private firefoxManifest(wrapperPath: string): Record<string, unknown> {
+    return {
+      name: NATIVE_HOST_NAME,
+      description: 'Conduit local browser bridge',
+      path: wrapperPath,
+      type: 'stdio',
+      allowed_extensions: this.configStore.load().browser.firefoxExtensionIds,
     };
   }
 
@@ -317,16 +376,35 @@ export class NativeHostInstaller {
     );
   }
 
-  private registerWindows(manifestPath: string): void {
+  private registerWindows(paths: PlatformPaths): void {
     if (this.platform !== 'win32') return;
-    for (const key of WINDOWS_REGISTRY_KEYS) {
-      this.runChecked('reg.exe', ['ADD', key, '/ve', '/t', 'REG_SZ', '/d', manifestPath, '/f']);
+    for (const key of WINDOWS_CHROMIUM_REGISTRY_KEYS) {
+      this.runChecked('reg.exe', [
+        'ADD',
+        key,
+        '/ve',
+        '/t',
+        'REG_SZ',
+        '/d',
+        paths.chromiumManifestPaths[0],
+        '/f',
+      ]);
     }
+    this.runChecked('reg.exe', [
+      'ADD',
+      WINDOWS_FIREFOX_REGISTRY_KEY,
+      '/ve',
+      '/t',
+      'REG_SZ',
+      '/d',
+      paths.firefoxManifestPaths[0],
+      '/f',
+    ]);
   }
 
   private unregisterWindows(allowFailure: boolean): void {
     if (this.platform !== 'win32') return;
-    for (const key of WINDOWS_REGISTRY_KEYS) {
+    for (const key of [...WINDOWS_CHROMIUM_REGISTRY_KEYS, WINDOWS_FIREFOX_REGISTRY_KEY]) {
       const result = this.runCommand('reg.exe', ['DELETE', key, '/f']);
       if (!allowFailure && result.error) throw result.error;
       if (!allowFailure && result.status !== 0 && result.status !== 1) {
@@ -347,6 +425,43 @@ export class NativeHostInstaller {
     }
     if (fs.existsSync(paths.wrapperPath)) fs.rmSync(paths.wrapperPath);
   }
+}
+
+export function nativeCallerFromArguments(arguments_: string[]): string {
+  const chromiumOrigin = arguments_.find((value) =>
+    /^chrome-extension:\/\/[a-p]{32}\/?$/u.test(value),
+  );
+  if (chromiumOrigin) return canonicalChromiumOrigin(chromiumOrigin);
+  return arguments_.find((value) => isFirefoxExtensionId(value)) ?? '';
+}
+
+export function extensionIdKind(value: string): 'chromium' | 'firefox' | undefined {
+  if (/^[a-p]{32}$/u.test(value)) return 'chromium';
+  if (isFirefoxExtensionId(value)) return 'firefox';
+  return undefined;
+}
+
+function isTrustedNativeCaller(
+  caller: string,
+  browser: { chromiumExtensionIds: string[]; firefoxExtensionIds: string[] },
+): boolean {
+  const chromiumMatch = /^chrome-extension:\/\/([a-p]{32})\/?$/u.exec(caller);
+  if (chromiumMatch) return browser.chromiumExtensionIds.includes(chromiumMatch[1]);
+  return browser.firefoxExtensionIds.includes(caller);
+}
+
+function chromiumExtensionOrigin(id: string): string {
+  return `chrome-extension://${id}/`;
+}
+
+function canonicalChromiumOrigin(origin: string): string {
+  return origin.endsWith('/') ? origin : `${origin}/`;
+}
+
+function isFirefoxExtensionId(value: string): boolean {
+  return /^(?:[a-z0-9._-]+@[a-z0-9._-]+|\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\})$/iu.test(
+    value,
+  );
 }
 
 function supportedPlatform(platform: NodeJS.Platform): NativeHostPlatform {

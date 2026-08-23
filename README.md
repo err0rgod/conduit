@@ -50,7 +50,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ### The 1-Minute Setup
 
-Conduit provides release installers that download the prebuilt backend and newest standalone extension release, verify both against their published SHA-256 checksums, install them in user-owned directories, and run `conduit setup`. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
+Conduit provides release installers that download the prebuilt backend, verify its published SHA-256 checksum, install it in a user-owned directory, and run `conduit setup`. The extension is installed separately from the appropriate browser store. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
 
 **Windows (PowerShell):**
 
@@ -66,25 +66,24 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 
 **What the installer does:**
 
-1. Resolves the latest backend release and the latest standalone extension release independently.
-2. Downloads the `conduit-browser` backend tarball and standalone extension ZIP.
-3. Verifies the backend against its `SHA256SUMS` file and the extension against its own published SHA-256 file.
-4. Installs a user-local `conduit` command and runs `conduit setup`.
-5. Prints the exact versioned extension folder to load into Chromium.
-6. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links for compatible AI harnesses.
+1. Resolves and downloads the latest `conduit-browser` backend release.
+2. Verifies the backend against its `SHA256SUMS` file.
+3. Installs a user-local `conduit` command and runs `conduit setup`.
+4. Prints Chrome/Brave, Edge, and Firefox store locations.
+5. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links.
 
-By default, each release stream resolves to its newest published version. Pin both when reproducibility matters: `./install.sh --version v0.1.1 --extension-version v0.1.2` or `./install.ps1 -Version v0.1.1 -ExtensionVersion v0.1.2`. The scripts never install Node, Git, networking software, or system packages for you.
+Pin the backend when reproducibility matters: `./install.sh --version v0.1.2` or `./install.ps1 -Version v0.1.2`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
 
 ### Connect the Extension
 
-After the script finishes, simply open your browser and load the extension:
+After the script finishes, install the extension from the browser's store:
 
-1. Navigate to `chrome://extensions` or `edge://extensions`.
-2. Turn on **Developer mode** in the top right corner.
-3. Click **Load unpacked**.
-4. Paste the folder path provided by the installation script at the very end of the output.
+1. Chrome and Brave use the Chrome Web Store package.
+2. Microsoft Edge uses the same Chromium build through Microsoft Edge Add-ons.
+3. Firefox uses the Firefox Add-ons build.
+4. If a new Chromium store listing has not yet been added to the backend defaults, run `conduit extension trust <extension-id>` once, then restart the browser.
 
-The extension will instantly and automatically connect to the daemon using Native Messaging. No tokens or ports to configure!
+The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
 
 The installer also prints these stable skill locations for Agent Skills-compatible harnesses:
 
@@ -93,9 +92,9 @@ The installer also prints these stable skill locations for Agent Skills-compatib
 
 Prefer installing the complete skill directory so future sibling references remain available.
 
-Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. Chromium displays the native permission prompt. You can revoke the origin from the same popup at any time. Per-site access is the recommended default.
+Before an agent can inspect or operate a page, open the Conduit popup on that tab and choose **Allow this site**. The browser displays its native permission prompt. You can revoke the origin from the same popup at any time. Per-site access is the recommended default.
 
-For an explicitly broad local workflow, the popup's **Allow all sites** button requests exactly `http://*/*` and `https://*/*` during the user's click gesture. Chromium owns that permission state; Conduit does not persist a separate flag, and the background service worker never requests broad origins. **Revoke all sites** removes those two patterns. This browser grant is independent from daemon capabilities and domain policy, so it does not bypass blocked domains or other enforcement points.
+For an explicitly broad local workflow, the popup's **Allow all sites** button requests exactly `http://*/*` and `https://*/*` during the user's click gesture. The browser owns that permission state; Conduit does not persist a separate flag, and background code never requests broad origins. **Revoke all sites** removes those two patterns. This browser grant is independent from daemon capabilities and domain policy, so it does not bypass blocked domains or other enforcement points.
 
 ## Install from source (for contributors)
 
@@ -108,7 +107,7 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-Conduit is not yet published to npm or a browser extension store.
+Conduit is not yet published to npm. Browser-store packages are built in the standalone extension repository; listing publication and review are handled by each store.
 
 ### Test the consumer package locally
 
@@ -119,19 +118,16 @@ dependencies. The browser extension is built and released separately from
 
 ```bash
 pnpm distribution:pack
-npm install --global ./artifacts/conduit-browser-0.1.1.tgz
+npm install --global ./artifacts/conduit-browser-0.1.2.tgz
 conduit setup
 ```
 
 This exercises the same backend artifact intended for npm publication. The CI matrix
 also installs the tarball into a clean prefix and verifies setup and the daemon
-start/status/stop lifecycle. Browser E2E checks build the pinned standalone extension
-repository and verify automatic Native Messaging authentication in a fresh profile.
+start/status/stop lifecycle. Browser E2E checks build the standalone extension repository
+and verify automatic Native Messaging authentication in a fresh profile.
 
-`conduit setup` creates secure local configuration, registers current-user automatic startup for
-the current user without administrator rights, starts the daemon, and prints the
-extension path. Use `--no-service` or `--no-start` when managing those pieces
-yourself.
+`conduit setup` creates secure local configuration, registers current-user automatic startup and Native Messaging for Chrome, Edge, Brave, Chromium, and Firefox, starts the daemon, and prints the store-first next steps. Use `--no-service` or `--no-start` when managing those pieces yourself.
 
 ## Start and use
 
@@ -214,7 +210,8 @@ Build the sibling `conduit-extension` repository before running E2E. The suite l
 
 ## Known limitations
 
-- the extension is currently distributed as a checksummed unpacked ZIP rather than through a browser store;
+- browser-store listings may still be pending review even though store-ready Chromium and Firefox archives are published;
+- Firefox does not support Chromium's debugger API, so hover, physical key input, and approved file upload are unavailable there;
 - reliable interaction focuses on the main document; cross-origin nested frames remain limited;
 - remote-session management and broader daemon settings UI are not complete;
 - config fields for retention and screenshot persistence precede their full scheduled behavior;

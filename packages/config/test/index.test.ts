@@ -23,6 +23,8 @@ describe('Conduit configuration', () => {
     expect(config.remote.enabled).toBe(false);
     expect(config.security.permissions).toEqual(['browser.read']);
     expect(config.security.domainMode).toBe('ask');
+    expect(config.browser.chromiumExtensionIds).toEqual(['jkdlmcpkgkooilffjegfjmkanoelbmbl']);
+    expect(config.browser.firefoxExtensionIds).toEqual(['conduit@err0rgod.github.io']);
     expect(fs.existsSync(configPath)).toBe(false);
   });
 
@@ -67,6 +69,23 @@ describe('Conduit configuration', () => {
     ).toEqual(['example.com']);
     expect(() => store.update('daemon.port', 'invalid')).toThrowError(ConfigError);
     expect(() => store.update('unknown.value', '1')).toThrowError(ConfigError);
+  });
+
+  it('validates explicitly trusted browser-store extension identities', () => {
+    expect(
+      store.save({ browser: { chromiumExtensionIds: ['abcdefghijklmnopabcdefghijklmnop'] } })
+        .browser.chromiumExtensionIds,
+    ).toEqual(['abcdefghijklmnopabcdefghijklmnop']);
+    expect(
+      store.save({ browser: { firefoxExtensionIds: ['conduit@example.org'] } }).browser
+        .firefoxExtensionIds,
+    ).toEqual(['conduit@example.org']);
+    expect(() =>
+      store.save({ browser: { chromiumExtensionIds: ['not-an-extension-id'] } }),
+    ).toThrow(ConfigError);
+    expect(() => store.save({ browser: { firefoxExtensionIds: ['not an add-on id'] } })).toThrow(
+      ConfigError,
+    );
   });
 
   it('fails closed for malformed or unknown configuration', () => {

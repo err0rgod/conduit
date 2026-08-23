@@ -118,7 +118,7 @@ export async function runDoctor(
   }
 
   const { NativeHostInstaller } = require('./native-host');
-  const nativeHostStatus = new NativeHostInstaller().status();
+  const nativeHostStatus = new NativeHostInstaller({ configStore }).status();
   checks.push({
     name: 'native-host',
     status: nativeHostStatus.installed ? 'pass' : 'warn',
@@ -130,7 +130,9 @@ export async function runDoctor(
   checks.push({
     name: 'extension-identity',
     status: 'pass',
-    message: 'Expected extension identity is jkdlmcpkgkooilffjegfjmkanoelbmbl.',
+    message: config
+      ? `Trusted Chromium IDs: ${config.browser.chromiumExtensionIds.join(', ')}. Trusted Firefox IDs: ${config.browser.firefoxExtensionIds.join(', ')}.`
+      : 'Trusted extension identities could not be read because configuration is invalid.',
   });
 
   const mcpPath =

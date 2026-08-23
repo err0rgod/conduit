@@ -5,6 +5,8 @@ import { getAppDataDir } from '@conduit/security';
 import { z } from 'zod';
 
 export const CONFIG_VERSION = 1 as const;
+export const DEFAULT_CHROMIUM_EXTENSION_ID = 'jkdlmcpkgkooilffjegfjmkanoelbmbl';
+export const DEFAULT_FIREFOX_EXTENSION_ID = 'conduit@err0rgod.github.io';
 
 const DomainPatternSchema = z
   .string()
@@ -12,6 +14,11 @@ const DomainPatternSchema = z
   .min(1)
   .max(253)
   .regex(/^(?:\*\.)?(?:[a-z0-9-]+\.)*[a-z0-9-]+$/iu);
+
+const ChromiumExtensionIdSchema = z.string().regex(/^[a-p]{32}$/u);
+const FirefoxExtensionIdSchema = z
+  .string()
+  .regex(/^(?:[a-z0-9._-]+@[a-z0-9._-]+|\{[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\})$/iu);
 
 export const ConduitConfigSchema = z
   .object({
@@ -60,6 +67,14 @@ export const ConduitConfigSchema = z
       .object({
         screenshotDirectory: z.string().min(1).optional(),
         downloadBehavior: z.enum(['observe', 'allow', 'deny']).default('observe'),
+        chromiumExtensionIds: z
+          .array(ChromiumExtensionIdSchema)
+          .max(16)
+          .default([DEFAULT_CHROMIUM_EXTENSION_ID]),
+        firefoxExtensionIds: z
+          .array(FirefoxExtensionIdSchema)
+          .max(16)
+          .default([DEFAULT_FIREFOX_EXTENSION_ID]),
       })
       .strict()
       .default({}),

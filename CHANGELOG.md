@@ -4,6 +4,8 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-23
+
 ### Added
 
 - Compatible extension `0.1.2` adds strict pre-authentication request rejection, current
@@ -15,7 +17,9 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - A scrollable extension audit viewer limited to event type, outcome, operation/domain scope, and time.
 - The backend accepts the opt-in local-only `security.domainMode: "allow-all"` setting. The default remains `ask`, remote mode rejects this setting, and hard URL/domain/network guards remain non-overridable.
 - Documentation now distinguishes the extension's explicit all-sites Chromium host grant from the daemon's independent domain policy.
-- PowerShell and Bash installers now resolve the newest extension release independently from the backend, verify the extension's own checksum, install it into its versioned directory, support explicit extension-version pinning, and print portable Agent Skill links.
+- PowerShell and Bash installers now install only the checksummed backend, then direct users to the Chrome/Brave, Edge, and Firefox stores before printing portable Agent Skill links.
+- Native Messaging registration now covers Chrome, Edge, Brave, Chromium, and Firefox with separate, validated trusted identity lists.
+- `conduit extension trust <id>` registers a store-assigned Chromium ID or Firefox add-on ID without accepting arbitrary callers.
 
 ### Security
 
@@ -59,5 +63,6 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[0.1.2]: https://github.com/err0rgod/conduit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/err0rgod/conduit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/err0rgod/conduit/releases/tag/v0.1.0
