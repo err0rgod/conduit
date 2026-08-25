@@ -16,7 +16,7 @@
     "@conduit/mcp-server": "workspace:*",
     "@conduit/protocol": "workspace:*",
     "@conduit/security": "workspace:*",
-    "commander": "^12.0.0"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.7"
