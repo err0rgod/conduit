@@ -53,7 +53,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   program
     .name('conduit')
     .description('Open-source, local-first browser control bridge for AI agents')
-    .version('0.1.3')
+    .version('1.1.4')
     .option('--json', 'Emit machine-readable JSON');
 
   program

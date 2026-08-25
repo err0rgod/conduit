@@ -5,9 +5,10 @@ const path = require('node:path');
 const test = require('node:test');
 const { releaseVersion } = require('./release-check');
 const { checksumLines } = require('./write-checksums');
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 
 test('release tag must match the repository version', () => {
-  assert.equal(releaseVersion('v0.1.3'), '0.1.3');
+  assert.equal(releaseVersion(`v${packageJson.version}`), packageJson.version);
   assert.throws(() => releaseVersion('v0.2.0'), /does not match/u);
 });
 

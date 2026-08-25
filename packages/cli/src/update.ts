@@ -25,7 +25,7 @@ export class UpdateManager {
   private readonly runCommand: (command: string, args: string[]) => void;
 
   public constructor(options: UpdateManagerOptions = {}) {
-    this.currentVersion = options.currentVersion ?? '0.1.0';
+    this.currentVersion = options.currentVersion ?? '1.1.4';
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
     this.platform = options.platform ?? process.platform;
     this.runCommand = options.run ?? runChecked;

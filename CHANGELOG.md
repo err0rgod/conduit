@@ -4,6 +4,8 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+The next backend release line is `1.1.4`.
+
 ## [0.1.3] - 2026-08-25
 
 ### Added
