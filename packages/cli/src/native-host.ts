@@ -2,11 +2,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { ConfigStore } from '@conduit/config';
+import { CHROME_WEB_STORE_EXTENSION_ID, ConfigStore } from '@conduit/config';
 import { LocalAuth } from '@conduit/security';
 import { resolveDistributionEntry } from './runtime-paths';
 
 export const EXPECTED_EXTENSION_ORIGIN = 'chrome-extension://jkdlmcpkgkooilffjegfjmkanoelbmbl/';
+export const CHROME_WEB_STORE_EXTENSION_ORIGIN = `chrome-extension://${CHROME_WEB_STORE_EXTENSION_ID}/`;
 export const EXPECTED_FIREFOX_EXTENSION_ID = 'conduit@err0rgod.github.io';
 export const NATIVE_HOST_NAME = 'io.github.err0rgod.conduit';
 export const NATIVE_PROTOCOL_VERSION = 1;

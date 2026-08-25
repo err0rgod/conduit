@@ -4,6 +4,21 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-25
+
+### Added
+
+- The published Chrome Web Store identity `gjhipjgiapijcdnflldnoenafeegmfpc` is included in the trusted Chromium defaults alongside the deterministic unpacked-development identity.
+- Installers, CLI setup guidance, and documentation now link directly to the reviewed Chrome Web Store listing for Chrome and Brave.
+
+### Changed
+
+- `conduit setup` adds the official Chrome Web Store identity to existing development-only configurations before rewriting Native Messaging manifests.
+
+### Security
+
+- Native Messaging remains an explicit allowlist. The migration adds only Conduit's verified published Chrome identity; arbitrary and future store identities still require `conduit extension trust <id>`.
+
 ## [0.1.2] - 2026-08-23
 
 ### Added
@@ -63,6 +78,7 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[0.1.3]: https://github.com/err0rgod/conduit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/err0rgod/conduit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/err0rgod/conduit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/err0rgod/conduit/releases/tag/v0.1.0

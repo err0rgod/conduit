@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { ConfigStore } from '@conduit/config';
+import { ConfigStore, DEFAULT_CHROMIUM_EXTENSION_IDS } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
 import { getAppDataDir, LocalAuth } from '@conduit/security';
 import { DaemonLifecycle, LifecycleStatus, daemonBaseUrl } from './lifecycle';
@@ -35,6 +35,9 @@ export interface UninstallReport {
   packageRemovalCommand: string;
 }
 
+const CHROME_WEB_STORE_URL =
+  'https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc';
+
 export interface SetupManagerOptions {
   configStore?: ConfigStore;
   auth?: LocalAuth;
@@ -68,7 +71,13 @@ export class SetupManager {
     const installService = options.installService ?? true;
     const startDaemon = options.startDaemon ?? true;
     const installNativeHost = options.installNativeHost ?? true;
-    this.configStore.save(this.configStore.load());
+    const config = this.configStore.load();
+    for (const extensionId of DEFAULT_CHROMIUM_EXTENSION_IDS) {
+      if (!config.browser.chromiumExtensionIds.includes(extensionId)) {
+        config.browser.chromiumExtensionIds.push(extensionId);
+      }
+    }
+    this.configStore.save(config);
     this.auth.ensureToken();
 
     const service = installService ? this.service.install() : undefined;
@@ -83,8 +92,10 @@ export class SetupManager {
       ...(daemon ? { daemon } : {}),
       ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
-        'Install the Conduit Extension from the store for Chrome, Edge, Brave, or Firefox.',
-        'For a Chromium store item, run conduit extension trust <store-extension-id> once.',
+        `Install Conduit Extension for Chrome or Brave: ${CHROME_WEB_STORE_URL}`,
+        'Use Microsoft Edge Add-ons or Firefox Add-ons for those browsers.',
+        'The published Chrome Web Store identity is already trusted.',
+        'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',
         'Restart the browser after installing the extension or changing its trusted ID.',
         'The extension will connect automatically.',
         'Agent Skill: https://github.com/err0rgod/skills/tree/main/conduit',

@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 $conduitRepository = 'err0rgod/conduit'
 $skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit'
 $skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
-$chromeStoreUrl = 'https://chromewebstore.google.com/search/conduit'
+$chromeStoreUrl = 'https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc'
 $edgeStoreUrl = 'https://microsoftedge.microsoft.com/addons/search/conduit'
 $firefoxStoreUrl = 'https://addons.mozilla.org/firefox/search/?q=Conduit'
 
@@ -90,7 +90,8 @@ try {
     Write-Host "Chrome and Brave: $chromeStoreUrl"
     Write-Host "Microsoft Edge: $edgeStoreUrl"
     Write-Host "Firefox: $firefoxStoreUrl"
-    Write-Host 'For a new Chromium store listing, run conduit extension trust <extension-id> once.'
+    Write-Host 'The published Chrome Web Store extension ID is trusted by default.'
+    Write-Host 'For a future Edge or other Chromium listing, run conduit extension trust <extension-id> once.'
     Write-Host "Agent Skill directory: $skillDirectoryUrl" -ForegroundColor Cyan
     Write-Host "Agent Skill entry: $skillEntryUrl" -ForegroundColor Cyan
     Write-Host 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'

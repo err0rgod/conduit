@@ -6,6 +6,11 @@ import { z } from 'zod';
 
 export const CONFIG_VERSION = 1 as const;
 export const DEFAULT_CHROMIUM_EXTENSION_ID = 'jkdlmcpkgkooilffjegfjmkanoelbmbl';
+export const CHROME_WEB_STORE_EXTENSION_ID = 'gjhipjgiapijcdnflldnoenafeegmfpc';
+export const DEFAULT_CHROMIUM_EXTENSION_IDS = [
+  DEFAULT_CHROMIUM_EXTENSION_ID,
+  CHROME_WEB_STORE_EXTENSION_ID,
+] as const;
 export const DEFAULT_FIREFOX_EXTENSION_ID = 'conduit@err0rgod.github.io';
 
 const DomainPatternSchema = z
@@ -70,7 +75,7 @@ export const ConduitConfigSchema = z
         chromiumExtensionIds: z
           .array(ChromiumExtensionIdSchema)
           .max(16)
-          .default([DEFAULT_CHROMIUM_EXTENSION_ID]),
+          .default([...DEFAULT_CHROMIUM_EXTENSION_IDS]),
         firefoxExtensionIds: z
           .array(FirefoxExtensionIdSchema)
           .max(16)

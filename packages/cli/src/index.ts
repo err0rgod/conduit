@@ -53,7 +53,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   program
     .name('conduit')
     .description('Open-source, local-first browser control bridge for AI agents')
-    .version('0.1.2')
+    .version('0.1.3')
     .option('--json', 'Emit machine-readable JSON');
 
   program
@@ -215,9 +215,10 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
       output({
         steps: [
           'Install the Conduit backend with the release script.',
-          'Install Conduit Extension from Chrome Web Store, Edge Add-ons, or Firefox Add-ons.',
-          'Chrome Web Store is also the Brave package.',
-          'For a Chromium store item, run conduit extension trust <store-extension-id> once.',
+          'Chrome and Brave: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
+          'Install from Microsoft Edge Add-ons or Firefox Add-ons for those browsers.',
+          'The published Chrome Web Store ID gjhipjgiapijcdnflldnoenafeegmfpc is trusted by default.',
+          'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',
           'Restart the browser so it reloads the Native Messaging registration.',
           'The extension will connect automatically.',
           'Install the Conduit Agent Skill in your AI harness.',

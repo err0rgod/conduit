@@ -103,7 +103,8 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({
       steps: expect.arrayContaining([
         'Install the Conduit backend with the release script.',
-        'Install Conduit Extension from Chrome Web Store, Edge Add-ons, or Firefox Add-ons.',
+        'Chrome and Brave: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
+        'The published Chrome Web Store ID gjhipjgiapijcdnflldnoenafeegmfpc is trusted by default.',
         'Install the Conduit Agent Skill in your AI harness.',
       ]),
       skill: {

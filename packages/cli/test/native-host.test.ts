@@ -5,6 +5,7 @@ import { Readable, Writable } from 'node:stream';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ConduitConfigSchema } from '@conduit/config';
 import {
+  CHROME_WEB_STORE_EXTENSION_ORIGIN,
   EXPECTED_FIREFOX_EXTENSION_ID,
   EXPECTED_EXTENSION_ORIGIN,
   MAX_NATIVE_REQUEST_BYTES,
@@ -171,7 +172,10 @@ describe('NativeHostInstaller', () => {
         allowed_origins: string[];
         path: string;
       };
-      expect(manifest.allowed_origins).toEqual([EXPECTED_EXTENSION_ORIGIN]);
+      expect(manifest.allowed_origins).toEqual([
+        EXPECTED_EXTENSION_ORIGIN,
+        CHROME_WEB_STORE_EXTENSION_ORIGIN,
+      ]);
       expect(path.isAbsolute(manifest.path)).toBe(true);
     }
     for (const manifestPath of paths.firefoxManifestPaths) {

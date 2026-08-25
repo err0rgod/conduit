@@ -72,16 +72,16 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 4. Prints Chrome/Brave, Edge, and Firefox store locations.
 5. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links.
 
-Pin the backend when reproducibility matters: `./install.sh --version v0.1.2` or `./install.ps1 -Version v0.1.2`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
+Pin the backend when reproducibility matters: `./install.sh --version v0.1.3` or `./install.ps1 -Version v0.1.3`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
 
 ### Connect the Extension
 
 After the script finishes, install the extension from the browser's store:
 
-1. Chrome and Brave use the Chrome Web Store package.
+1. Chrome and Brave: <https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc>.
 2. Microsoft Edge uses the same Chromium build through Microsoft Edge Add-ons.
 3. Firefox uses the Firefox Add-ons build.
-4. If a new Chromium store listing has not yet been added to the backend defaults, run `conduit extension trust <extension-id>` once, then restart the browser.
+4. The published Chrome ID `gjhipjgiapijcdnflldnoenafeegmfpc` is trusted by default. For a future Edge or other Chromium listing, run `conduit extension trust <extension-id>` once, then restart the browser.
 
 The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
 
@@ -118,7 +118,7 @@ dependencies. The browser extension is built and released separately from
 
 ```bash
 pnpm distribution:pack
-npm install --global ./artifacts/conduit-browser-0.1.2.tgz
+npm install --global ./artifacts/conduit-browser-0.1.3.tgz
 conduit setup
 ```
 

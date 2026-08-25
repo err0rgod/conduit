@@ -9,12 +9,14 @@ const shell = fs.readFileSync(path.join(root, 'scripts', 'install.sh'), 'utf8');
 
 const skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit';
 const skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md';
+const chromeStoreId = 'gjhipjgiapijcdnflldnoenafeegmfpc';
 
 test('installers install only the backend and direct users to browser stores', () => {
   for (const installer of [powershell, shell]) {
     assert.doesNotMatch(installer, /err0rgod\/conduit-extension/u);
     assert.doesNotMatch(installer, /extension-version/iu);
     assert.match(installer, /chromewebstore\.google\.com/u);
+    assert.match(installer, new RegExp(chromeStoreId, 'u'));
     assert.match(installer, /microsoftedge\.microsoft\.com\/addons/u);
     assert.match(installer, /addons\.mozilla\.org/u);
     assert.match(installer, /conduit extension trust/u);

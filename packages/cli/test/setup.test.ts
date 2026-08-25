@@ -59,12 +59,38 @@ describe('SetupManager', () => {
       serviceInstalled: true,
       daemonStarted: true,
     });
-    expect(report.nextSteps.join(' ')).toContain('Install the Conduit Extension from the store');
-    expect(report.nextSteps.join(' ')).toContain('conduit extension trust');
+    expect(report.nextSteps.join(' ')).toContain('gjhipjgiapijcdnflldnoenafeegmfpc');
+    expect(report.nextSteps.join(' ')).toContain('future Edge');
     expect(report.nextSteps.join(' ')).toContain(
       'https://github.com/err0rgod/skills/tree/main/conduit',
     );
     expect(report.nativeHost?.installed).toBe(true);
+  });
+
+  it('adds the published Chrome identity to an existing development-only config', async () => {
+    const directory = temporaryDirectory();
+    const configStore = new ConfigStore({ configPath: path.join(directory, 'config.json') });
+    configStore.save({
+      browser: { chromiumExtensionIds: ['jkdlmcpkgkooilffjegfjmkanoelbmbl'] },
+    });
+    const manager = new SetupManager({
+      configStore,
+      auth: new LocalAuth({ configPath: path.join(directory, 'auth.json') }),
+      lifecycle: {
+        start: async () => ({ running: false, message: 'not started' }),
+        status: async () => ({ running: false, message: 'offline' }),
+        stop: async () => ({ running: false, message: 'stopped' }),
+      },
+      service: { install: () => serviceResult(false), uninstall: () => serviceResult(false) },
+      dataDirectory: directory,
+    });
+
+    await manager.setup({ installService: false, startDaemon: false, installNativeHost: false });
+
+    expect(configStore.load().browser.chromiumExtensionIds).toEqual([
+      'jkdlmcpkgkooilffjegfjmkanoelbmbl',
+      'gjhipjgiapijcdnflldnoenafeegmfpc',
+    ]);
   });
 
   it('preserves user data unless purge is explicitly requested', async () => {

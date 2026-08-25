@@ -23,7 +23,10 @@ describe('Conduit configuration', () => {
     expect(config.remote.enabled).toBe(false);
     expect(config.security.permissions).toEqual(['browser.read']);
     expect(config.security.domainMode).toBe('ask');
-    expect(config.browser.chromiumExtensionIds).toEqual(['jkdlmcpkgkooilffjegfjmkanoelbmbl']);
+    expect(config.browser.chromiumExtensionIds).toEqual([
+      'jkdlmcpkgkooilffjegfjmkanoelbmbl',
+      'gjhipjgiapijcdnflldnoenafeegmfpc',
+    ]);
     expect(config.browser.firefoxExtensionIds).toEqual(['conduit@err0rgod.github.io']);
     expect(fs.existsSync(configPath)).toBe(false);
   });

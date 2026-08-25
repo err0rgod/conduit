@@ -4,7 +4,7 @@ set -euo pipefail
 conduit_repository='err0rgod/conduit'
 skill_directory_url='https://github.com/err0rgod/skills/tree/main/conduit'
 skill_entry_url='https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
-chrome_store_url='https://chromewebstore.google.com/search/conduit'
+chrome_store_url='https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc'
 edge_store_url='https://microsoftedge.microsoft.com/addons/search/conduit'
 firefox_store_url='https://addons.mozilla.org/firefox/search/?q=Conduit'
 conduit_version=''
@@ -115,7 +115,8 @@ echo 'Next: install Conduit Extension from your browser store.'
 echo "Chrome and Brave: $chrome_store_url"
 echo "Microsoft Edge: $edge_store_url"
 echo "Firefox: $firefox_store_url"
-echo 'For a new Chromium store listing, run conduit extension trust <extension-id> once.'
+echo 'The published Chrome Web Store extension ID is trusted by default.'
+echo 'For a future Edge or other Chromium listing, run conduit extension trust <extension-id> once.'
 echo "Agent Skill directory: $skill_directory_url"
 echo "Agent Skill entry: $skill_entry_url"
 echo 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'
