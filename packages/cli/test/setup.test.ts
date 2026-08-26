@@ -59,8 +59,9 @@ describe('SetupManager', () => {
       serviceInstalled: true,
       daemonStarted: true,
     });
-    expect(report.nextSteps.join(' ')).toContain('gjhipjgiapijcdnflldnoenafeegmfpc');
-    expect(report.nextSteps.join(' ')).toContain('future Edge');
+    expect(report.nextSteps.join(' ')).toContain('conduit-extension-unpacked-v0.1.3.zip');
+    expect(report.nextSteps.join(' ')).toContain('chrome://extensions');
+    expect(report.nextSteps.join(' ')).toContain('future store item');
     expect(report.nextSteps.join(' ')).toContain(
       'https://github.com/err0rgod/skills/tree/main/conduit',
     );

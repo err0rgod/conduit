@@ -4,7 +4,8 @@ set -euo pipefail
 conduit_repository='err0rgod/conduit'
 skill_directory_url='https://github.com/err0rgod/skills/tree/main/conduit'
 skill_entry_url='https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
-chrome_store_url='https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc'
+extension_release_url='https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3'
+extension_archive_url='https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip'
 edge_store_url='https://microsoftedge.microsoft.com/addons/search/conduit'
 firefox_store_url='https://addons.mozilla.org/firefox/search/?q=Conduit'
 conduit_version=''
@@ -111,12 +112,14 @@ if [[ "$run_setup" == true ]]; then
 fi
 
 echo "Conduit backend $release_tag installed without administrator access."
-echo 'Next: install Conduit Extension from your browser store.'
-echo "Chrome and Brave: $chrome_store_url"
+echo 'Next: install Conduit Extension from the verified GitHub unpacked release.'
+echo "Chrome and Brave download: $extension_archive_url"
+echo "Release page: $extension_release_url"
+echo 'Extract the ZIP, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.'
 echo "Microsoft Edge: $edge_store_url"
 echo "Firefox: $firefox_store_url"
-echo 'The published Chrome Web Store extension ID is trusted by default.'
-echo 'For a future Edge or other Chromium listing, run conduit extension trust <extension-id> once.'
+echo 'The unpacked development extension ID is trusted by default.'
+echo 'For a future store listing, run conduit extension trust <extension-id> once.'
 echo "Agent Skill directory: $skill_directory_url"
 echo "Agent Skill entry: $skill_entry_url"
 echo 'Use the skill directory or SKILL.md URL with any Agent Skills-compatible AI harness.'

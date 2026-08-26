@@ -6,6 +6,10 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 The next backend release line is `1.1.4`.
 
+### Changed
+
+- Installers, `conduit setup`, and `conduit extension install-help` now direct Chrome and Brave users to the verified GitHub unpacked extension archive while the Chrome Web Store listing is temporarily unavailable.
+
 ## [0.1.3] - 2026-08-25
 
 ### Added

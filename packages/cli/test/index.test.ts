@@ -97,14 +97,16 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
-  it('prints store-first extension and skill installation steps', async () => {
+  it('prints GitHub fallback extension and skill installation steps', async () => {
     await program().parseAsync(['node', 'conduit', '--json', 'extension', 'install-help']);
 
     expect(JSON.parse(output)).toMatchObject({
       steps: expect.arrayContaining([
         'Install the Conduit backend with the release script.',
-        'Chrome and Brave: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
-        'The published Chrome Web Store ID gjhipjgiapijcdnflldnoenafeegmfpc is trusted by default.',
+        'Chrome Web Store listing is temporarily unavailable.',
+        'Download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
+        'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
+        'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',
         'Install the Conduit Agent Skill in your AI harness.',
       ]),
       skill: {

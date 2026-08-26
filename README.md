@@ -50,7 +50,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ### The 1-Minute Setup
 
-Conduit provides release installers that download the prebuilt backend, verify its published SHA-256 checksum, install it in a user-owned directory, and run `conduit setup`. The extension is installed separately from the appropriate browser store. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
+Conduit provides release installers that download the prebuilt backend, verify its published SHA-256 checksum, install it in a user-owned directory, and run `conduit setup`. The extension is installed separately. The Chrome Web Store listing is temporarily unavailable; use the verified unpacked GitHub release and Chrome Developer mode until it returns. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
 
 **Windows (PowerShell):**
 
@@ -69,19 +69,18 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 1. Resolves and downloads the latest `conduit-browser` backend release.
 2. Verifies the backend against its `SHA256SUMS` file.
 3. Installs a user-local `conduit` command and runs `conduit setup`.
-4. Prints Chrome/Brave, Edge, and Firefox store locations.
+4. Prints the verified GitHub extension archive and Chrome Developer Mode loading steps.
 5. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links.
 
 Pin the backend when reproducibility matters: `./install.sh --version v0.1.3` or `./install.ps1 -Version v0.1.3`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
 
 ### Connect the Extension
 
-After the script finishes, install the extension from the browser's store:
+After the script finishes, install the extension from the verified GitHub release while the Chrome Web Store listing is unavailable:
 
-1. Chrome and Brave: <https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc>.
-2. Microsoft Edge uses the same Chromium build through Microsoft Edge Add-ons.
-3. Firefox uses the Firefox Add-ons build.
-4. The published Chrome ID `gjhipjgiapijcdnflldnoenafeegmfpc` is trusted by default. For a future Edge or other Chromium listing, run `conduit extension trust <extension-id>` once, then restart the browser.
+1. Download <https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip>.
+2. Extract the ZIP, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
+3. Chrome and Brave use the deterministic development identity `jkdlmcpkgkooilffjegfjmkanoelbmbl`, which is trusted by default. For a future store listing, run `conduit extension trust <extension-id>` once, then restart the browser.
 
 The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
 
@@ -127,7 +126,7 @@ also installs the tarball into a clean prefix and verifies setup and the daemon
 start/status/stop lifecycle. Browser E2E checks build the standalone extension repository
 and verify automatic Native Messaging authentication in a fresh profile.
 
-`conduit setup` creates secure local configuration, registers current-user automatic startup and Native Messaging for Chrome, Edge, Brave, Chromium, and Firefox, starts the daemon, and prints the store-first next steps. Use `--no-service` or `--no-start` when managing those pieces yourself.
+`conduit setup` creates secure local configuration, registers current-user automatic startup and Native Messaging for Chrome, Edge, Brave, Chromium, and Firefox, starts the daemon, and prints the GitHub fallback and Chrome Developer Mode steps. Use `--no-service` or `--no-start` when managing those pieces yourself.
 
 ## Start and use
 

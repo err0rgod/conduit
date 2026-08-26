@@ -35,8 +35,8 @@ export interface UninstallReport {
   packageRemovalCommand: string;
 }
 
-const CHROME_WEB_STORE_URL =
-  'https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc';
+const EXTENSION_ARCHIVE_URL =
+  'https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip';
 
 export interface SetupManagerOptions {
   configStore?: ConfigStore;
@@ -92,10 +92,11 @@ export class SetupManager {
       ...(daemon ? { daemon } : {}),
       ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
-        `Install Conduit Extension for Chrome or Brave: ${CHROME_WEB_STORE_URL}`,
+        `Download the verified Chrome/Brave extension archive: ${EXTENSION_ARCHIVE_URL}`,
+        'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
         'Use Microsoft Edge Add-ons or Firefox Add-ons for those browsers.',
-        'The published Chrome Web Store identity is already trusted.',
-        'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',
+        'The unpacked development extension identity is already trusted.',
+        'For a future store item, run conduit extension trust <store-extension-id> once.',
         'Restart the browser after installing the extension or changing its trusted ID.',
         'The extension will connect automatically.',
         'Agent Skill: https://github.com/err0rgod/skills/tree/main/conduit',

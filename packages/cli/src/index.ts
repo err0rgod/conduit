@@ -210,14 +210,17 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
 
   extension
     .command('install-help')
-    .description('Show browser-store extension installation steps')
+    .description('Show browser extension installation steps')
     .action(() =>
       output({
         steps: [
           'Install the Conduit backend with the release script.',
-          'Chrome and Brave: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
+          'Chrome Web Store listing is temporarily unavailable.',
+          'Download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
+          'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
+          'Release page: https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3',
           'Install from Microsoft Edge Add-ons or Firefox Add-ons for those browsers.',
-          'The published Chrome Web Store ID gjhipjgiapijcdnflldnoenafeegmfpc is trusted by default.',
+          'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',
           'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',
           'Restart the browser so it reloads the Native Messaging registration.',
           'The extension will connect automatically.',
