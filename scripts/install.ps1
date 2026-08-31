@@ -10,8 +10,8 @@ $skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit'
 $skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
 $extensionReleaseUrl = 'https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3'
 $extensionArchiveUrl = 'https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip'
+$firefoxAddonUrl = 'https://addons.mozilla.org/en-US/firefox/addon/conduit/'
 $edgeStoreUrl = 'https://microsoftedge.microsoft.com/addons/search/conduit'
-$firefoxStoreUrl = 'https://addons.mozilla.org/firefox/search/?q=Conduit'
 
 function Assert-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -92,7 +92,7 @@ try {
     Write-Host "Release page: $extensionReleaseUrl"
     Write-Host 'Extract the ZIP, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.'
     Write-Host "Microsoft Edge: $edgeStoreUrl"
-    Write-Host "Firefox: $firefoxStoreUrl"
+    Write-Host "Firefox Add-ons (approved): $firefoxAddonUrl"
     Write-Host 'The unpacked development extension ID is trusted by default.'
     Write-Host 'For a future store listing, run conduit extension trust <extension-id> once.'
     Write-Host "Agent Skill directory: $skillDirectoryUrl" -ForegroundColor Cyan

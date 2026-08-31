@@ -16,6 +16,7 @@ test('installers install only the backend and direct users to the verified exten
     assert.match(installer, /conduit-extension-unpacked-v0\.1\.3\.zip/u);
     assert.match(installer, /chrome:\/\/extensions/u);
     assert.match(installer, /Developer mode/u);
+    assert.match(installer, /addons\.mozilla\.org\/en-US\/firefox\/addon\/conduit/u);
     assert.match(installer, /microsoftedge\.microsoft\.com\/addons/u);
     assert.match(installer, /addons\.mozilla\.org/u);
     assert.match(installer, /conduit extension trust/u);

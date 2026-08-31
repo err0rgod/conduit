@@ -94,7 +94,8 @@ export class SetupManager {
       nextSteps: [
         `Download the verified Chrome/Brave extension archive: ${EXTENSION_ARCHIVE_URL}`,
         'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
-        'Use Microsoft Edge Add-ons or Firefox Add-ons for those browsers.',
+        'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',
+        'Use Microsoft Edge Add-ons for Edge.',
         'The unpacked development extension identity is already trusted.',
         'For a future store item, run conduit extension trust <store-extension-id> once.',
         'Restart the browser after installing the extension or changing its trusted ID.',

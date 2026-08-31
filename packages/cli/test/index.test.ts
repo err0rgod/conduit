@@ -106,6 +106,7 @@ describe('Conduit CLI', () => {
         'Chrome Web Store listing is temporarily unavailable.',
         'Download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
         'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
+        'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',
         'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',
         'Install the Conduit Agent Skill in your AI harness.',
       ]),

@@ -81,6 +81,7 @@ After the script finishes, install the extension from the verified GitHub releas
 1. Download <https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip>.
 2. Extract the ZIP, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 3. Chrome and Brave use the deterministic development identity `jkdlmcpkgkooilffjegfjmkanoelbmbl`, which is trusted by default. For a future store listing, run `conduit extension trust <extension-id>` once, then restart the browser.
+4. Firefox users can install the approved add-on directly from <https://addons.mozilla.org/en-US/firefox/addon/conduit/>.
 
 The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
 
