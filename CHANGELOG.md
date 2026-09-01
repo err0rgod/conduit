@@ -8,14 +8,14 @@ The next backend release line is `1.1.4`.
 
 ### Changed
 
-- Installers, `conduit setup`, and `conduit extension install-help` now direct Chrome and Brave users to the verified GitHub unpacked extension archive while the Chrome Web Store listing is temporarily unavailable.
+- Installers, `conduit setup`, and `conduit extension install-help` now direct Chrome users to the live Chrome Web Store listing while retaining the verified GitHub unpacked archive for development and recovery.
 
 ## [0.1.3] - 2026-08-25
 
 ### Added
 
-- The published Chrome Web Store identity `gjhipjgiapijcdnflldnoenafeegmfpc` is included in the trusted Chromium defaults alongside the deterministic unpacked-development identity.
-- Installers, CLI setup guidance, and documentation now link directly to the reviewed Chrome Web Store listing for Chrome and Brave.
+- The live Chrome Web Store identity `gjhipjgiapijcdnflldnoenafeegmfpc` is included in the trusted Chromium defaults alongside the deterministic unpacked-development identity.
+- Installers, CLI setup guidance, and documentation link directly to the Chrome Web Store listing for Chrome and Brave.
 
 ### Changed
 

@@ -50,7 +50,7 @@ Cookie, clipboard, general JavaScript evaluation, and arbitrary filesystem/shell
 
 ### The 1-Minute Setup
 
-Conduit provides release installers that download the prebuilt backend, verify its published SHA-256 checksum, install it in a user-owned directory, and run `conduit setup`. The extension is installed separately. The Chrome Web Store listing is temporarily unavailable; use the verified unpacked GitHub release and Chrome Developer mode until it returns. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
+Conduit provides release installers that download the prebuilt backend, verify its published SHA-256 checksum, install it in a user-owned directory, and run `conduit setup`. The extension is installed separately from the browser store. Administrator access is not required. Node.js 22 or newer is the only runtime prerequisite.
 
 **Windows (PowerShell):**
 
@@ -76,12 +76,13 @@ Pin the backend when reproducibility matters: `./install.sh --version v0.1.3` or
 
 ### Connect the Extension
 
-After the script finishes, install the extension from the verified GitHub release while the Chrome Web Store listing is unavailable:
+After the script finishes, install the extension for your browser:
 
-1. Download <https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip>.
-2. Extract the ZIP, open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
-3. Chrome and Brave use the deterministic development identity `jkdlmcpkgkooilffjegfjmkanoelbmbl`, which is trusted by default. For a future store listing, run `conduit extension trust <extension-id>` once, then restart the browser.
-4. Firefox users can install the approved add-on directly from <https://addons.mozilla.org/en-US/firefox/addon/conduit/>.
+1. Chrome: install [Conduit Extension from the Chrome Web Store](https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc).
+2. Firefox: install the approved [Conduit add-on from Mozilla](https://addons.mozilla.org/en-US/firefox/addon/conduit/).
+3. Edge: install the Chromium build from Microsoft Edge Add-ons when available. Brave can use the Chrome Web Store listing.
+4. For development or recovery, download the [verified unpacked GitHub archive](https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip), extract it, open `chrome://extensions` (or `edge://extensions` / `brave://extensions`), enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
+5. The unpacked Chromium build uses the deterministic development identity `jkdlmcpkgkooilffjegfjmkanoelbmbl`, which is trusted by default. Store builds use their assigned IDs; run `conduit extension trust <extension-id>` for a store ID that is not already trusted, then restart the browser.
 
 The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
 
@@ -210,7 +211,7 @@ Build the sibling `conduit-extension` repository before running E2E. The suite l
 
 ## Known limitations
 
-- browser-store listings may still be pending review even though store-ready Chromium and Firefox archives are published;
+- the Chrome Web Store and Firefox Add-ons listings are available; the verified GitHub archives remain available for development and recovery;
 - Firefox does not support Chromium's debugger API, so hover, physical key input, and approved file upload are unavailable there;
 - reliable interaction focuses on the main document; cross-origin nested frames remain limited;
 - remote-session management and broader daemon settings UI are not complete;

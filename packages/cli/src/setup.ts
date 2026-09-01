@@ -92,6 +92,7 @@ export class SetupManager {
       ...(daemon ? { daemon } : {}),
       ...(nativeHost ? { nativeHost } : {}),
       nextSteps: [
+        'Install Chrome/Brave from the Chrome Web Store: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
         `Download the verified Chrome/Brave extension archive: ${EXTENSION_ARCHIVE_URL}`,
         'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
         'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',

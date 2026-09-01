@@ -4,6 +4,7 @@ set -euo pipefail
 conduit_repository='err0rgod/conduit'
 skill_directory_url='https://github.com/err0rgod/skills/tree/main/conduit'
 skill_entry_url='https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
+chrome_store_url='https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc'
 extension_release_url='https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3'
 extension_archive_url='https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip'
 firefox_addon_url='https://addons.mozilla.org/en-US/firefox/addon/conduit/'
@@ -112,8 +113,9 @@ if [[ "$run_setup" == true ]]; then
 fi
 
 echo "Conduit backend $release_tag installed without administrator access."
-echo 'Next: install Conduit Extension from the verified GitHub unpacked release.'
-echo "Chrome and Brave download: $extension_archive_url"
+echo 'Next: install Conduit Extension from the browser store.'
+echo "Chrome and Brave store: $chrome_store_url"
+echo "GitHub fallback for development or recovery: $extension_archive_url"
 echo "Release page: $extension_release_url"
 echo 'Extract the ZIP, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.'
 echo "Microsoft Edge: $edge_store_url"

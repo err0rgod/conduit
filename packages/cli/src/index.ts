@@ -215,11 +215,11 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
       output({
         steps: [
           'Install the Conduit backend with the release script.',
-          'Chrome Web Store listing is temporarily unavailable.',
-          'Download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
-          'Extract it, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
-          'Release page: https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3',
+          'Install Chrome/Brave from the Chrome Web Store: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
           'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',
+          'For development or recovery, download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
+          'Extract it, open chrome://extensions (or edge://extensions / brave://extensions), enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
+          'Release page: https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3',
           'Install from Microsoft Edge Add-ons for Edge.',
           'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',
           'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',

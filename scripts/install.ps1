@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $conduitRepository = 'err0rgod/conduit'
 $skillDirectoryUrl = 'https://github.com/err0rgod/skills/tree/main/conduit'
 $skillEntryUrl = 'https://raw.githubusercontent.com/err0rgod/skills/main/conduit/SKILL.md'
+$chromeStoreUrl = 'https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc'
 $extensionReleaseUrl = 'https://github.com/err0rgod/conduit-extension/releases/tag/v0.1.3'
 $extensionArchiveUrl = 'https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip'
 $firefoxAddonUrl = 'https://addons.mozilla.org/en-US/firefox/addon/conduit/'
@@ -87,8 +88,9 @@ try {
     }
 
     Write-Host "Conduit backend $releaseTag installed without administrator access." -ForegroundColor Green
-    Write-Host 'Next: install Conduit Extension from the verified GitHub unpacked release.' -ForegroundColor Magenta
-    Write-Host "Chrome and Brave download: $extensionArchiveUrl"
+    Write-Host 'Next: install Conduit Extension from the browser store.' -ForegroundColor Magenta
+    Write-Host "Chrome and Brave store: $chromeStoreUrl"
+    Write-Host "GitHub fallback for development or recovery: $extensionArchiveUrl"
     Write-Host "Release page: $extensionReleaseUrl"
     Write-Host 'Extract the ZIP, open chrome://extensions, enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.'
     Write-Host "Microsoft Edge: $edgeStoreUrl"
