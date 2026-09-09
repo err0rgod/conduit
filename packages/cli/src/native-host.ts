@@ -292,6 +292,9 @@ export class NativeHostInstaller {
       this.platform === 'darwin'
         ? path.join(this.homeDirectory, 'Library', 'Application Support', 'Conduit', 'NativeHost')
         : path.join(this.homeDirectory, '.config', 'conduit', 'native-host');
+    const linuxConfigHome = process.env.XDG_CONFIG_HOME
+      ? path.resolve(process.env.XDG_CONFIG_HOME)
+      : path.join(this.homeDirectory, '.config');
     const chromiumDirectories =
       this.platform === 'darwin'
         ? [
@@ -314,18 +317,20 @@ export class NativeHostInstaller {
             ['Library', 'Application Support', 'Chromium', 'NativeMessagingHosts'],
           ]
         : [
-            ['.config', 'google-chrome', 'NativeMessagingHosts'],
-            ['.config', 'google-chrome-for-testing', 'NativeMessagingHosts'],
-            ['.config', 'microsoft-edge', 'NativeMessagingHosts'],
-            ['.config', 'BraveSoftware', 'Brave-Browser', 'NativeMessagingHosts'],
-            ['.config', 'chromium', 'NativeMessagingHosts'],
+            [linuxConfigHome, 'google-chrome', 'NativeMessagingHosts'],
+            [linuxConfigHome, 'google-chrome-for-testing', 'NativeMessagingHosts'],
+            [linuxConfigHome, 'microsoft-edge', 'NativeMessagingHosts'],
+            [linuxConfigHome, 'BraveSoftware', 'Brave-Browser', 'NativeMessagingHosts'],
+            [linuxConfigHome, 'chromium', 'NativeMessagingHosts'],
           ];
     const firefoxDirectory =
       this.platform === 'darwin'
         ? ['Library', 'Application Support', 'Mozilla', 'NativeMessagingHosts']
         : ['.mozilla', 'native-messaging-hosts'];
     const chromiumManifestPaths = chromiumDirectories.map((segments) =>
-      path.join(this.homeDirectory, ...segments, filename),
+      this.platform === 'linux'
+        ? path.join(...segments, filename)
+        : path.join(this.homeDirectory, ...segments, filename),
     );
     const firefoxManifestPaths = [path.join(this.homeDirectory, ...firefoxDirectory, filename)];
     return {

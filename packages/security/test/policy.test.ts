@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { SecurityPolicy, isPrivateNetworkHost, matchesDomain } from '../src/policy';
 import { BrowserRequestEnvelopeSchema, createEnvelopeBase } from '@conduit/protocol';
 
-function request(type: 'browser.list_tabs' | 'browser.navigate', payload: unknown = {}) {
+function request(
+  type: 'browser.list_tabs' | 'browser.navigate' | 'browser.debug_evaluate',
+  payload: unknown = {},
+) {
   return BrowserRequestEnvelopeSchema.parse({ ...createEnvelopeBase(), type, payload });
 }
 
@@ -16,6 +19,22 @@ describe('SecurityPolicy', () => {
 
   it('allows explicitly granted read operations', () => {
     expect(new SecurityPolicy().authorize(request('browser.list_tabs')).outcome).toBe('allow');
+  });
+
+  it('requires the explicit browser.debug capability for diagnostics', () => {
+    const denied = new SecurityPolicy().authorize(
+      request('browser.debug_evaluate', { expression: 'document.title' }),
+      'https://example.com',
+    );
+    expect(denied.outcome).toBe('deny');
+    const allowed = new SecurityPolicy({
+      permissions: ['browser.debug'],
+      domainMode: 'allow-all',
+    }).authorize(
+      request('browser.debug_evaluate', { expression: 'document.title' }),
+      'https://example.com',
+    );
+    expect(allowed.outcome).toBe('confirm');
   });
 
   it('asks before first use of an unknown public domain', () => {

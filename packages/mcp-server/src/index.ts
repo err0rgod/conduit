@@ -185,6 +185,75 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
         'List recent downloads. Requires browser.download and optional downloads permission.',
         emptySchema,
       ),
+      tool(
+        'browser_debug_start',
+        'Start bounded console, exception, and network diagnostics. Requires browser.debug and optional debugger permission.',
+        {
+          type: 'object',
+          properties: {
+            ...optionalTabProperty,
+            includeNetwork: { type: 'boolean' },
+            includeConsole: { type: 'boolean' },
+            maxEvents: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+      ),
+      tool('browser_debug_stop', 'Stop diagnostics for a tab and detach the debugger.', {
+        type: 'object',
+        properties: optionalTabProperty,
+        additionalProperties: false,
+      }),
+      tool(
+        'browser_debug_events',
+        'Read redacted console, exception, network, and pause events captured for a tab.',
+        {
+          type: 'object',
+          properties: {
+            ...optionalTabProperty,
+            since: { type: 'number' },
+            limit: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+      ),
+      tool(
+        'browser_debug_evaluate',
+        'Evaluate JavaScript in a debug session. High-risk and confirmation protected.',
+        {
+          type: 'object',
+          properties: {
+            ...optionalTabProperty,
+            expression: { type: 'string' },
+            awaitPromise: { type: 'boolean' },
+          },
+          required: ['expression'],
+          additionalProperties: false,
+        },
+      ),
+      tool('browser_debug_pause', 'Pause JavaScript execution in a debug session.', {
+        type: 'object',
+        properties: optionalTabProperty,
+        additionalProperties: false,
+      }),
+      tool('browser_debug_resume', 'Resume JavaScript execution in a debug session.', {
+        type: 'object',
+        properties: optionalTabProperty,
+        additionalProperties: false,
+      }),
+      tool('browser_debug_trace_start', 'Start a bounded DevTools performance trace.', {
+        type: 'object',
+        properties: {
+          ...optionalTabProperty,
+          categories: { type: 'array', items: { type: 'string' } },
+        },
+        additionalProperties: false,
+      }),
+      tool('browser_debug_trace_stop', 'Stop a performance trace and return redacted trace data.', {
+        type: 'object',
+        properties: optionalTabProperty,
+        additionalProperties: false,
+      }),
     ],
   }));
 
@@ -303,6 +372,40 @@ export async function callBrowserTool(
       });
     case 'browser_get_downloads':
       return client.browser('browser.get_downloads');
+    case 'browser_debug_start':
+      return client.browser('browser.debug_start', {
+        ...(tabId === undefined ? {} : { tabId }),
+        includeNetwork: args.includeNetwork !== false,
+        includeConsole: args.includeConsole !== false,
+        maxEvents: optionalNumber(args, 'maxEvents') ?? 500,
+      });
+    case 'browser_debug_stop':
+      return client.browser('browser.debug_stop', tabId === undefined ? {} : { tabId });
+    case 'browser_debug_events':
+      return client.browser('browser.debug_events', {
+        ...(tabId === undefined ? {} : { tabId }),
+        ...(optionalNumber(args, 'since') === undefined
+          ? {}
+          : { since: optionalNumber(args, 'since') }),
+        limit: optionalNumber(args, 'limit') ?? 100,
+      });
+    case 'browser_debug_evaluate':
+      return client.browser('browser.debug_evaluate', {
+        ...(tabId === undefined ? {} : { tabId }),
+        expression: requiredString(args, 'expression'),
+        awaitPromise: args.awaitPromise !== false,
+      });
+    case 'browser_debug_pause':
+      return client.browser('browser.debug_pause', tabId === undefined ? {} : { tabId });
+    case 'browser_debug_resume':
+      return client.browser('browser.debug_resume', tabId === undefined ? {} : { tabId });
+    case 'browser_debug_trace_start':
+      return client.browser('browser.debug_trace_start', {
+        ...(tabId === undefined ? {} : { tabId }),
+        categories: optionalStrings(args, 'categories') ?? [],
+      });
+    case 'browser_debug_trace_stop':
+      return client.browser('browser.debug_trace_stop', tabId === undefined ? {} : { tabId });
     default:
       throw new Error(`Unknown Conduit tool: ${name}`);
   }

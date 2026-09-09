@@ -11,5 +11,5 @@ export function getAppDataDir(): string {
   if (platform === 'darwin') {
     return path.join(homedir, 'Library', 'Application Support', 'Conduit');
   }
-  return path.join(homedir, '.config', 'conduit');
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(homedir, '.config'), 'conduit');
 }

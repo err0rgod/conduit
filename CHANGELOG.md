@@ -10,6 +10,12 @@ The next backend release line is `1.1.4`.
 
 - Installers, `conduit setup`, and `conduit extension install-help` now direct Chrome users to the live Chrome Web Store listing while retaining the verified GitHub unpacked archive for development and recovery.
 
+### Debugging foundation
+
+- Added opt-in `browser.debug` authorization and typed debug operations for bounded console, exception, network metadata, pause/resume, runtime evaluation, and performance tracing.
+- Diagnostic events are in-memory, per-tab, sequence-addressable, and redact secret-like fields including bodies, cookies, authorization values, passwords, tokens, and secrets.
+- Unrestricted arbitrary Chrome DevTools Protocol access remains unavailable to normal agents; Firefox continues to use its reduced capability package.
+
 ## [0.1.3] - 2026-08-25
 
 ### Added

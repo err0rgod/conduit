@@ -77,6 +77,27 @@ describe('Protocol envelopes', () => {
     expect(result.success).toBe(true);
   });
 
+  it('validates opt-in debugging requests with bounded defaults', () => {
+    const result = BrowserRequestEnvelopeSchema.parse({
+      ...baseEnvelope,
+      type: 'browser.debug_start',
+      payload: { tabId: 7 },
+    });
+    expect(result.payload).toEqual({
+      tabId: 7,
+      includeNetwork: true,
+      includeConsole: true,
+      maxEvents: 500,
+    });
+    expect(
+      BrowserRequestEnvelopeSchema.safeParse({
+        ...baseEnvelope,
+        type: 'browser.debug_evaluate',
+        payload: { expression: 'document.title' },
+      }).success,
+    ).toBe(true);
+  });
+
   it('serializes success and error responses', () => {
     const success = createSuccessResponse({ ok: true }, baseEnvelope.id);
     const failure = createErrorResponse('PERMISSION_DENIED', 'Denied by policy', baseEnvelope.id);

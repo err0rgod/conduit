@@ -425,6 +425,72 @@ function addBrowserCommands(
     .description('List recent browser downloads')
     .action(() => run('browser.get_downloads'));
   browser
+    .command('debug-start')
+    .description('Start bounded console, exception, and network diagnostics')
+    .option('--tab <id>', 'Target tab ID')
+    .option('--no-network', 'Exclude network events')
+    .option('--no-console', 'Exclude console and exception events')
+    .option('--max-events <count>', 'Maximum buffered events', '500')
+    .action((options: TabOptions & { network: boolean; console: boolean; maxEvents: string }) =>
+      run('browser.debug_start', {
+        ...optionalTab(options),
+        includeNetwork: options.network,
+        includeConsole: options.console,
+        maxEvents: Number(options.maxEvents),
+      }),
+    );
+  browser
+    .command('debug-stop')
+    .description('Stop diagnostics for a tab')
+    .option('--tab <id>', 'Target tab ID')
+    .action((options: TabOptions) => run('browser.debug_stop', optionalTab(options)));
+  browser
+    .command('debug-events')
+    .description('Read captured diagnostics events')
+    .option('--tab <id>', 'Target tab ID')
+    .option('--since <sequence>', 'Read events after sequence', '0')
+    .option('--limit <count>', 'Maximum events', '100')
+    .action((options: TabOptions & { since: string; limit: string }) =>
+      run('browser.debug_events', {
+        ...optionalTab(options),
+        since: Number(options.since),
+        limit: Number(options.limit),
+      }),
+    );
+  browser
+    .command('debug-evaluate <expression>')
+    .description('Evaluate JavaScript in an active debug session')
+    .option('--tab <id>', 'Target tab ID')
+    .action((expression: string, options: TabOptions) =>
+      run('browser.debug_evaluate', { ...optionalTab(options), expression, awaitPromise: true }),
+    );
+  browser
+    .command('debug-pause')
+    .description('Pause JavaScript execution')
+    .option('--tab <id>', 'Target tab ID')
+    .action((options: TabOptions) => run('browser.debug_pause', optionalTab(options)));
+  browser
+    .command('debug-resume')
+    .description('Resume JavaScript execution')
+    .option('--tab <id>', 'Target tab ID')
+    .action((options: TabOptions) => run('browser.debug_resume', optionalTab(options)));
+  browser
+    .command('trace-start')
+    .description('Start a bounded performance trace')
+    .option('--tab <id>', 'Target tab ID')
+    .option('--category <category...>', 'Trace category')
+    .action((options: TabOptions & { category?: string[] }) =>
+      run('browser.debug_trace_start', {
+        ...optionalTab(options),
+        categories: options.category ?? [],
+      }),
+    );
+  browser
+    .command('trace-stop')
+    .description('Stop the performance trace')
+    .option('--tab <id>', 'Target tab ID')
+    .action((options: TabOptions) => run('browser.debug_trace_stop', optionalTab(options)));
+  browser
     .command('screenshot')
     .description('Capture the visible tab')
     .option('--tab <id>', 'Target tab ID')

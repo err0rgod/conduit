@@ -24,6 +24,9 @@ export const ErrorCodeSchema = z.enum([
   'DEVICE_REVOKED',
   'RATE_LIMITED',
   'PAYLOAD_TOO_LARGE',
+  'DEBUGGING_UNSUPPORTED',
+  'DEBUG_SESSION_NOT_FOUND',
+  'DEBUGGER_PAUSED',
   'INTERNAL_ERROR',
 ]);
 
@@ -92,6 +95,7 @@ export const PermissionSchema = z.enum([
   'browser.clipboard.read',
   'browser.clipboard.write',
   'browser.dangerous',
+  'browser.debug',
 ]);
 
 export const PairingCodeSchema = z.string().regex(/^[A-HJ-NP-Z2-9]{8}$/u);
@@ -231,6 +235,14 @@ export const BrowserOperationSchema = z.enum([
   'browser.screenshot',
   'browser.upload_file',
   'browser.get_downloads',
+  'browser.debug_start',
+  'browser.debug_stop',
+  'browser.debug_events',
+  'browser.debug_evaluate',
+  'browser.debug_pause',
+  'browser.debug_resume',
+  'browser.debug_trace_start',
+  'browser.debug_trace_stop',
 ]);
 
 export const BrowserTabSchema = z
@@ -420,6 +432,53 @@ export const BrowserScreenshotRequestSchema = EnvelopeBaseSchema.extend({
     .default({}),
 }).strict();
 
+export const BrowserDebugStartRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_start'),
+  payload: BrowserTargetSchema.extend({
+    includeNetwork: z.boolean().default(true),
+    includeConsole: z.boolean().default(true),
+    maxEvents: z.number().int().min(1).max(2_000).default(500),
+  }).strict(),
+}).strict();
+
+export const BrowserDebugStopRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_stop'),
+  payload: BrowserTargetSchema.strict(),
+}).strict();
+
+export const BrowserDebugEventsRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_events'),
+  payload: BrowserTargetSchema.extend({
+    since: z.number().int().nonnegative().optional(),
+    limit: z.number().int().min(1).max(500).default(100),
+  }).strict(),
+}).strict();
+
+export const BrowserDebugEvaluateRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_evaluate'),
+  payload: BrowserTargetSchema.extend({
+    expression: z.string().min(1).max(20_000),
+    awaitPromise: z.boolean().default(true),
+  }).strict(),
+}).strict();
+
+export const BrowserDebugControlRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.enum(['browser.debug_pause', 'browser.debug_resume']),
+  payload: BrowserTargetSchema.strict(),
+}).strict();
+
+export const BrowserDebugTraceStartRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_trace_start'),
+  payload: BrowserTargetSchema.extend({
+    categories: z.array(z.string().min(1).max(100)).max(50).default([]),
+  }).strict(),
+}).strict();
+
+export const BrowserDebugTraceStopRequestSchema = EnvelopeBaseSchema.extend({
+  type: z.literal('browser.debug_trace_stop'),
+  payload: BrowserTargetSchema.strict(),
+}).strict();
+
 export const BrowserRequestEnvelopeSchema = z.discriminatedUnion('type', [
   BrowserListTabsRequestSchema,
   BrowserGetActiveTabRequestSchema,
@@ -438,6 +497,13 @@ export const BrowserRequestEnvelopeSchema = z.discriminatedUnion('type', [
   BrowserUploadFileRequestSchema,
   BrowserGetDownloadsRequestSchema,
   BrowserScreenshotRequestSchema,
+  BrowserDebugStartRequestSchema,
+  BrowserDebugStopRequestSchema,
+  BrowserDebugEventsRequestSchema,
+  BrowserDebugEvaluateRequestSchema,
+  BrowserDebugControlRequestSchema,
+  BrowserDebugTraceStartRequestSchema,
+  BrowserDebugTraceStopRequestSchema,
 ]);
 
 export const BoundsSchema = z

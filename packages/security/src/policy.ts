@@ -53,6 +53,14 @@ const OPERATION_SECURITY: Record<
   'browser.screenshot': { permission: 'browser.read', risk: 'low' },
   'browser.upload_file': { permission: 'browser.upload', risk: 'high' },
   'browser.get_downloads': { permission: 'browser.download', risk: 'medium' },
+  'browser.debug_start': { permission: 'browser.debug', risk: 'medium' },
+  'browser.debug_stop': { permission: 'browser.debug', risk: 'medium' },
+  'browser.debug_events': { permission: 'browser.debug', risk: 'low' },
+  'browser.debug_evaluate': { permission: 'browser.debug', risk: 'high' },
+  'browser.debug_pause': { permission: 'browser.debug', risk: 'medium' },
+  'browser.debug_resume': { permission: 'browser.debug', risk: 'medium' },
+  'browser.debug_trace_start': { permission: 'browser.debug', risk: 'medium' },
+  'browser.debug_trace_stop': { permission: 'browser.debug', risk: 'medium' },
 };
 
 export class SecurityPolicy {
