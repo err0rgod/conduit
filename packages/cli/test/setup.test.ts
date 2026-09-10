@@ -59,7 +59,7 @@ describe('SetupManager', () => {
       serviceInstalled: true,
       daemonStarted: true,
     });
-    expect(report.nextSteps.join(' ')).toContain('conduit-extension-unpacked-v0.1.3.zip');
+    expect(report.nextSteps.join(' ')).toContain('conduit-extension-unpacked-v1.1.4.zip');
     expect(report.nextSteps.join(' ')).toContain('chrome://extensions');
     expect(report.nextSteps.join(' ')).toContain('future store item');
     expect(report.nextSteps.join(' ')).toContain(

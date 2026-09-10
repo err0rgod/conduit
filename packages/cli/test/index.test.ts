@@ -104,7 +104,7 @@ describe('Conduit CLI', () => {
       steps: expect.arrayContaining([
         'Install the Conduit backend with the release script.',
         'Install Chrome/Brave from the Chrome Web Store: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
-        'For development or recovery, download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip',
+        'For development or recovery, download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v1.1.4/conduit-extension-unpacked-v1.1.4.zip',
         'Extract it, open chrome://extensions (or edge://extensions / brave://extensions), enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
         'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',
         'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',

@@ -4,7 +4,7 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
-The next backend release line is `1.1.4`.
+## [1.1.4] - 2026-09-10
 
 ### Changed
 
@@ -90,6 +90,7 @@ The next backend release line is `1.1.4`.
 - Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[1.1.4]: https://github.com/err0rgod/conduit/releases/tag/v1.1.4
 [0.1.3]: https://github.com/err0rgod/conduit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/err0rgod/conduit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/err0rgod/conduit/releases/tag/v0.1.1

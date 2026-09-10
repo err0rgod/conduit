@@ -72,7 +72,7 @@ curl -fsSL https://raw.githubusercontent.com/err0rgod/conduit/main/scripts/insta
 4. Prints the verified GitHub extension archive and Chrome Developer Mode loading steps.
 5. Prints the portable Conduit Agent Skill directory and raw `SKILL.md` links.
 
-Pin the backend when reproducibility matters: `./install.sh --version v0.1.3` or `./install.ps1 -Version v0.1.3`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
+Pin the backend when reproducibility matters: `./install.sh --version v1.1.4` or `./install.ps1 -Version v1.1.4`. The scripts never install Node, Git, a browser extension, networking software, or system packages for you.
 
 ### Connect the Extension
 
@@ -81,7 +81,7 @@ After the script finishes, install the extension for your browser:
 1. Chrome: install [Conduit Extension from the Chrome Web Store](https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc).
 2. Firefox: install the approved [Conduit add-on from Mozilla](https://addons.mozilla.org/en-US/firefox/addon/conduit/).
 3. Edge: install the Chromium build from Microsoft Edge Add-ons when available. Brave can use the Chrome Web Store listing.
-4. For development or recovery, download the [verified unpacked GitHub archive](https://github.com/err0rgod/conduit-extension/releases/download/v0.1.3/conduit-extension-unpacked-v0.1.3.zip), extract it, open `chrome://extensions` (or `edge://extensions` / `brave://extensions`), enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
+4. For development or recovery, download the [verified unpacked GitHub archive](https://github.com/err0rgod/conduit-extension/releases/download/v1.1.4/conduit-extension-unpacked-v1.1.4.zip), extract it, open `chrome://extensions` (or `edge://extensions` / `brave://extensions`), enable Developer mode, choose **Load unpacked**, and select the extracted folder containing `manifest.json`.
 5. The unpacked Chromium build uses the deterministic development identity `jkdlmcpkgkooilffjegfjmkanoelbmbl`, which is trusted by default. Store builds use their assigned IDs; run `conduit extension trust <extension-id>` for a store ID that is not already trusted, then restart the browser.
 
 The extension connects to the daemon using Native Messaging. Store-assigned IDs are accepted only after they are explicitly trusted; arbitrary extension origins remain rejected.
@@ -119,7 +119,7 @@ dependencies. The browser extension is built and released separately from
 
 ```bash
 pnpm distribution:pack
-npm install --global ./artifacts/conduit-browser-0.1.3.tgz
+npm install --global ./artifacts/conduit-browser-1.1.4.tgz
 conduit setup
 ```
 
