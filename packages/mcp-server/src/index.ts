@@ -115,7 +115,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
       }),
       tool(
         'browser_hover',
-        'Move the real pointer to an element. Requires browser.interact and optional debugger permission.',
+        'Move the real pointer to an element. Requires browser.interact and the Chromium build debugger permission.',
         targetSchema(),
       ),
       tool('browser_scroll', 'Scroll the page or a target. Requires browser.read.', {
@@ -128,7 +128,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
       }),
       tool(
         'browser_press_key',
-        'Press a real browser key. Requires browser.interact and optional debugger permission.',
+        'Press a real browser key. Requires browser.interact and the Chromium build debugger permission.',
         {
           type: 'object',
           properties: {
@@ -170,7 +170,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
       ),
       tool(
         'browser_upload_file',
-        'Upload allowlisted files. Requires browser.upload, confirmation, and optional debugger permission.',
+        'Upload allowlisted files. Requires browser.upload, confirmation, and the Chromium build debugger permission.',
         {
           ...targetSchema(),
           properties: {
@@ -187,7 +187,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
       ),
       tool(
         'browser_debug_start',
-        'Start bounded console, exception, and network diagnostics. Requires browser.debug and optional debugger permission.',
+        'Start bounded console, exception, and network diagnostics. Requires browser.debug and the Chromium build debugger permission.',
         {
           type: 'object',
           properties: {

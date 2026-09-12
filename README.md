@@ -28,7 +28,7 @@ Conduit daemon ── authentication / permissions / confirmations / audit
    │ authenticated WebSocket
    ▼
 Chromium extension
-   │ tabs / scripting / optional debugger
+   │ tabs / scripting / Chromium debugger
    ▼
 Browser tab
 ```
