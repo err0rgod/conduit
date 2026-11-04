@@ -27,10 +27,36 @@ export interface AuditLoggerOptions {
 const SENSITIVE_KEY =
   /token|password|passwd|secret|authorization|cookie|credential|private.?key|text|value/iu;
 const TOKEN_VALUE = /\b(?:bearer\s+)?[a-f0-9]{32,}\b/giu;
+// Credentials embedded in URLs: scheme://user:password@host
+const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]*@/giu;
+// Secret-looking query/fragment parameters. The name must be a whole word, optionally
+// prefixed with a separator-delimited qualifier (client_secret, x-amz-signature), so
+// ordinary parameters such as "keyboard" or "codec" are left alone.
+const SECRET_QUERY_PARAMETER =
+  /([?&;#](?:[\w.-]*[_-])?(?:token|access_token|refresh_token|id_token|key|api_key|apikey|sig|signature|code|password|passwd|pwd|session|sessionid|sid|auth|secret|credential)=)[^&#\s"'<>]*/giu;
+const AUTH_SCHEME_VALUE = /\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}/giu;
+const JWT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/gu;
+// Long base64 / base64url runs. Only redacted when they look random (upper, lower and
+// digit all present) so long slugs, identifiers and plain paths survive.
+const LONG_BASE64 = /(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{40,}={0,2}(?![A-Za-z0-9+/_=-])/gu;
+
+function looksRandom(candidate: string): boolean {
+  return /[A-Z]/u.test(candidate) && /[a-z]/u.test(candidate) && /\d/u.test(candidate);
+}
+
+export function redactString(value: string): string {
+  return value
+    .replace(URL_CREDENTIALS, '$1[redacted]@')
+    .replace(SECRET_QUERY_PARAMETER, '$1[redacted]')
+    .replace(TOKEN_VALUE, '[redacted]')
+    .replace(AUTH_SCHEME_VALUE, '$1 [redacted]')
+    .replace(JWT, '[redacted]')
+    .replace(LONG_BASE64, (match) => (looksRandom(match) ? '[redacted]' : match));
+}
 
 export function redact<T>(value: T, key = ''): T {
   if (SENSITIVE_KEY.test(key)) return '[redacted]' as T;
-  if (typeof value === 'string') return value.replace(TOKEN_VALUE, '[redacted]') as T;
+  if (typeof value === 'string') return redactString(value) as T;
   if (Array.isArray(value)) return value.map((item) => redact(item)) as T;
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
