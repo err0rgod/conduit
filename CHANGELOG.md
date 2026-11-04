@@ -4,6 +4,19 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+### Security
+
+- Split local authentication into two credentials. The agent token (`auth.json`) remains for MCP/CLI; a new extension credential (`extension-auth.json`) is the only secret handed to the browser extension through Native Messaging and `/api/extension/pair`.
+- The extension WebSocket now rejects the agent token (with an audit event), so an agent can no longer replace the real extension and intercept browser responses or confirmations.
+- Approving confirmations and remote-device pairings with the agent token is refused with `403 PERMISSION_DENIED`; denying remains allowed. `conduit pair approve` now requires an interactive terminal and a typed fingerprint prefix and uses the operator credential.
+- Added optional mutual authentication: an `auth` message may include a `nonce`, answered with `proof = HMAC-SHA256(extensionCredential, "conduit.daemon-proof.v1:" + nonce)`. Existing extensions that send no nonce are unaffected.
+- Malformed credential files are no longer replaced silently (warning plus audit event), and credential files are restricted to the current user with `icacls` on Windows.
+
+### Upgrade notes
+
+- Existing installs keep `auth.json` unchanged, so MCP and CLI configuration continues to work. The extension credential is generated on first daemon start.
+- An already-installed extension that cached the old token (stored as the agent token) receives one `AUTHENTICATION_FAILED` reply, clears its cached token, and re-fetches the extension credential from the native host automatically within its normal reconnect delay. No manual action is needed; if the extension still cannot connect, run `conduit setup` and reload the extension.
+
 ## [1.1.4] - 2026-09-10
 
 ### Changed
