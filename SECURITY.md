@@ -45,7 +45,11 @@ Untrusted:
 - TLS-gated non-loopback bind;
 - one-use pairing, P-256 proof-of-possession, short remote sessions, and revocation;
 - upload allowlists, canonical path containment, file checks, and size bounds;
-- audit redaction for token/password/cookie/text/value-like fields.
+- `Host` header validation on every HTTP request and WebSocket upgrade (DNS-rebinding defense): local mode accepts only `127.0.0.1`, `localhost`, and `[::1]` on the listening port; remote mode additionally accepts literal IPs, the bind address, and `remote.allowedHosts`;
+- WebSocket upgrades carrying a web (`http`/`https`) `Origin` are refused; only the extension origins (`chrome-extension://`, `moz-extension://`) and clients without an `Origin` are accepted;
+- per-device rate limit (120 actions/minute) on authenticated remote sessions, audited as `rate-limit.exceeded`;
+- audit redaction for token/password/cookie/text/value-like fields, plus JWTs, bearer/basic credentials, long random base64 strings, URL `user:pass@` credentials, and secret-looking URL query parameters inside strings (heuristic; do not rely on it to make secrets safe to log);
+- audit rotation with `logging.retentionDays` pruning of rotated files.
 
 ## Prompt injection
 

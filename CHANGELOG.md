@@ -4,6 +4,21 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+### Security
+
+- The daemon rejects requests whose `Host` header is not an expected loopback name (or, in remote mode, a literal IP, the bind address, or `remote.allowedHosts`), including `/health`, to defeat DNS rebinding. WebSocket upgrades with a web `Origin` are refused; extension (`chrome-extension://`, `moz-extension://`) and origin-less clients are accepted.
+- Authenticated remote devices are limited to 120 `/api/action` requests per minute each (`429 RATE_LIMITED` with `retryAfterMs`, audited). Local clients are not limited.
+- Audit redaction now also covers JWTs, bearer/basic credentials, long random base64 strings, URL credentials, and secret-looking query parameters inside strings.
+
+### Added
+
+- `remote.allowedHosts` configuration (default empty) for extra DNS names accepted in the `Host` header in remote mode.
+- `logging.retentionDays` is now enforced: rotated audit files (`audit.jsonl.<timestamp>`) older than the retention period are deleted at startup and on rotation. Rotation no longer discards the previous rotated file.
+
+### Documentation
+
+- `logging.level`, `browser.screenshotDirectory`, and `browser.downloadBehavior` are documented as reserved, not-yet-implemented configuration fields.
+
 ## [1.1.4] - 2026-09-10
 
 ### Changed

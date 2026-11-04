@@ -179,6 +179,10 @@ Localhost and private-network access have separate opt-ins. Uploads require an a
 
 For an explicitly local-only setup, `conduit config set security.domainMode '"allow-all"'` allows public HTTP and HTTPS domains that are not blocked. It does not override blocked domains, protocol restrictions, localhost policy, or private-network policy, and it cannot be combined with remote mode. Run `conduit restart` after changing the mode; configuration is not hot-reloaded.
 
+## Logging and retention
+
+The audit log (`audit.jsonl` in the Conduit data directory) is redacted JSONL. It rotates at `logging.maximumAuditBytes` into `audit.jsonl.<timestamp>` files, and rotated files older than `logging.retentionDays` (default 30) are deleted at daemon startup and on each rotation. The active file is never deleted by retention.
+
 ## Remote pairing
 
 Remote mode is off by default. Pairing establishes a revocable public-key device identity; it does not expose the daemon automatically.
@@ -189,7 +193,7 @@ conduit devices
 conduit revoke <device-id>
 ```
 
-Any non-loopback bind requires remote mode and TLS. Use a trusted private network such as Tailscale or WireGuard rather than a custom public relay.
+The daemon validates the HTTP `Host` header (DNS-rebinding defense); add DNS names clients use to `remote.allowedHosts` (literal IPs and the bind address are accepted automatically). Authenticated remote devices are limited to 120 actions per minute each. Any non-loopback bind requires remote mode and TLS. Use a trusted private network such as Tailscale or WireGuard rather than a custom public relay.
 
 ## Security warning
 
@@ -215,7 +219,7 @@ Build the sibling `conduit-extension` repository before running E2E. The suite l
 - Firefox does not support Chromium's debugger API, so hover, physical key input, and approved file upload are unavailable there;
 - reliable interaction focuses on the main document; cross-origin nested frames remain limited;
 - remote-session management and broader daemon settings UI are not complete;
-- config fields for retention and screenshot persistence precede their full scheduled behavior;
+- `logging.level`, `browser.screenshotDirectory`, and `browser.downloadBehavior` are reserved configuration fields: they are validated but not yet consumed (screenshots are returned to the caller, never saved by the daemon);
 - remote networking must be supplied and secured by the operator;
 - no stable release or compatibility guarantee yet.
 
