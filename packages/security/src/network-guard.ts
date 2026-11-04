@@ -61,17 +61,23 @@ export function isPrivateOrLocalHost(hostname: string): boolean {
 function canonicalHost(hostname: string): string {
   let host = hostname.trim().toLowerCase();
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
-  host = host.replace(/\.+$/u, '');
+  host = stripTrailingDots(host);
   if (host === '' || isIP(host) !== 0) return host;
   // Raw input such as `2130706433` or `0x7f.1`: let the URL parser canonicalise.
   try {
     const parsed = new URL(`http://${host}`).hostname.toLowerCase();
     const unbracketed =
       parsed.startsWith('[') && parsed.endsWith(']') ? parsed.slice(1, -1) : parsed;
-    return unbracketed.replace(/\.+$/u, '');
+    return stripTrailingDots(unbracketed);
   } catch {
     return host;
   }
+}
+
+function stripTrailingDots(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 46) end -= 1;
+  return value.slice(0, end);
 }
 
 function classifyV4(address: string): HostClass {
@@ -106,13 +112,15 @@ function classifyV6(address: string): HostClass {
 
 function expandIPv6(address: string): number[] | null {
   let text = address.split('%')[0] ?? address;
-  const dotted = /(\d+\.\d+\.\d+\.\d+)$/u.exec(text);
-  if (dotted?.[1]) {
-    const octets = dotted[1].split('.').map(Number);
-    if (octets.some((octet) => octet > 255)) return null;
+  // An embedded dotted IPv4 tail looks like `...:a.b.c.d`; split on the last colon.
+  const lastColon = text.lastIndexOf(':');
+  const v4Tail = text.slice(lastColon + 1);
+  if (v4Tail.includes('.')) {
+    const octets = v4Tail.split('.').map((part) => (/^\d{1,3}$/u.test(part) ? Number(part) : NaN));
+    if (octets.length !== 4 || octets.some((octet) => !(octet <= 255))) return null;
     const hi = ((octets[0] ?? 0) << 8) | (octets[1] ?? 0);
     const lo = ((octets[2] ?? 0) << 8) | (octets[3] ?? 0);
-    text = `${text.slice(0, -dotted[1].length)}${hi.toString(16)}:${lo.toString(16)}`;
+    text = `${text.slice(0, lastColon + 1)}${hi.toString(16)}:${lo.toString(16)}`;
   }
   const halves = text.split('::');
   if (halves.length > 2) return null;
