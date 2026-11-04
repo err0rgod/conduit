@@ -97,6 +97,55 @@ describe('Conduit CLI', () => {
     expect(JSON.parse(output)).toMatchObject({ success: true });
   });
 
+  it('forwards --confirmation and explains that only the human can approve', async () => {
+    const headers: Array<Record<string, string>> = [];
+    const stderr: string[] = [];
+    const originalExit = process.exitCode;
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk: string | Uint8Array) => (
+      stderr.push(String(chunk)),
+      true
+    )) as typeof process.stderr.write;
+    const client = new ConduitClient({
+      token: 'test-token',
+      fetch: async (_input, init) => {
+        headers.push(init?.headers as Record<string, string>);
+        const first = headers.length === 1;
+        const request = JSON.parse(String(init?.body)) as { id: string };
+        const base = {
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+          version: '1.0',
+          correlationId: request.id,
+        };
+        const body = first
+          ? {
+              ...base,
+              success: false,
+              error: { code: 'USER_CONFIRMATION_REQUIRED', message: 'Needs approval.' },
+            }
+          : { ...base, success: true, payload: {} };
+        return new Response(JSON.stringify(body), { status: first ? 409 : 200 });
+      },
+    });
+    const navigate = ['node', 'conduit', '--json', 'browser', 'navigate', 'https://example.com'];
+    try {
+      await program(client).parseAsync(navigate);
+      expect(process.exitCode).toBe(2);
+      expect(headers[0]).not.toHaveProperty('X-Conduit-Confirmation');
+      expect(stderr.join('')).toContain('Conduit extension popup');
+      expect(stderr.join('')).toContain('--confirmation');
+
+      process.exitCode = undefined;
+      await program(client).parseAsync([...navigate, '--confirmation', 'approved-id']);
+      expect(headers[1]).toMatchObject({ 'X-Conduit-Confirmation': 'approved-id' });
+      expect(process.exitCode).toBeUndefined();
+    } finally {
+      process.stderr.write = originalWrite;
+      process.exitCode = originalExit;
+    }
+  });
+
   it('prints store, GitHub fallback, and skill installation steps', async () => {
     await program().parseAsync(['node', 'conduit', '--json', 'extension', 'install-help']);
 
