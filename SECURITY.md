@@ -40,7 +40,7 @@ Untrusted:
 - deny-by-default capability and domain checks;
 - per-site browser host grants by default, with broad host access available only through an explicit popup click;
 - local-only `security.domainMode: "allow-all"` is rejected with remote mode and does not bypass blocked domains or network guards;
-- expiring one-time high-risk confirmations;
+- expiring one-time high-risk confirmations, each bound to a SHA-256 fingerprint of the exact approved request (operation, target tab, evaluated page, and full payload), so an approval for one action cannot authorize a different one;
 - bounded messages, queues, timeouts, replay windows, sessions, and auth attempts;
 - TLS-gated non-loopback bind;
 - one-use pairing, P-256 proof-of-possession, short remote sessions, and revocation;

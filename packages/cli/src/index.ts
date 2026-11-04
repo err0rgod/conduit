@@ -351,11 +351,27 @@ function addBrowserCommands(
     type: Parameters<ConduitClient['browser']>[0],
     payload: unknown = {},
   ): Promise<void> => {
-    const response = await client.browser(type, payload);
+    const response = confirmationId
+      ? await client.browser(type, payload, { confirmationId })
+      : await client.browser(type, payload);
     output(response);
-    if (!response.success) process.exitCode = 2;
+    if (!response.success) {
+      process.exitCode = 2;
+      if (response.error.code === 'USER_CONFIRMATION_REQUIRED') {
+        process.stderr.write(`${CONFIRMATION_HINT}
+`);
+      }
+    }
   };
+  let confirmationId: string | undefined;
   const browser = program.command('browser').description('Control the connected Chromium browser');
+  // Every browser command may be confirmation-gated; the approved ID is passed
+  // with --confirmation on the retry. There is intentionally no approve command:
+  // only the human, in the extension popup, can approve.
+  browser.hook('preAction', (_parent, action) => {
+    const value: unknown = action.opts().confirmation;
+    confirmationId = typeof value === 'string' && value.length > 0 ? value : undefined;
+  });
   browser
     .command('tabs')
     .description('List browser tabs')
@@ -551,7 +567,16 @@ function addBrowserCommands(
     .action((options: TabOptions & { format: string }) =>
       run('browser.screenshot', { ...optionalTab(options), format: options.format }),
     );
+  for (const command of browser.commands) {
+    command.option(
+      '--confirmation <id>',
+      'Approved confirmation ID, to retry an action the user approved in the extension popup',
+    );
+  }
 }
+
+const CONFIRMATION_HINT =
+  'Confirmation required: ask the user to approve this action in the Conduit extension popup, then retry the same command with --confirmation <id> (the id is in error.details.confirmation.id). Approvals are one-time and only valid for the identical command.';
 
 function addTabCommand(
   run: (type: Parameters<ConduitClient['browser']>[0], payload?: unknown) => Promise<void>,

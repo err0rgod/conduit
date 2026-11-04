@@ -114,12 +114,70 @@ describe('daemon security boundaries', () => {
     expect(body.success).toBe(false);
     if (!body.success) expect(body.error.code).toBe('USER_CONFIRMATION_REQUIRED');
   });
+
+  it('binds a confirmation to the exact approved request', async () => {
+    const events: Array<{ type: string; outcome: string }> = [];
+    const daemon = new Daemon({
+      policy: new SecurityPolicy({ permissions: ['browser.navigate'], domainMode: 'ask' }),
+      audit: new AuditLogger({ sink: (event) => events.push(event) }),
+    });
+    daemons.push(daemon);
+    const port = await daemon.start(0);
+    const token = daemon.getToken();
+    const navigate = (url: string) => ({
+      ...createEnvelopeBase(),
+      type: 'browser.navigate',
+      payload: { url },
+    });
+
+    const pending = (await (
+      await postAction(port, token, navigate('https://example.com/a'))
+    ).json()) as ResponseEnvelope;
+    if (pending.success) throw new Error('Expected a confirmation request.');
+    const confirmationId = (pending.error.details?.confirmation as { id: string }).id;
+    const approval = await fetch(`http://127.0.0.1:${port}/api/confirmations/respond`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${daemon.getExtensionCredential()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirmationId, approved: true }),
+    });
+    expect(approval.status).toBe(200);
+
+    // A different URL of the same operation type must not spend the approval.
+    const hijack = await postAction(port, token, navigate('https://evil.example/'), confirmationId);
+    const hijackBody = (await hijack.json()) as ResponseEnvelope;
+    expect(hijack.status).toBe(409);
+    if (!hijackBody.success) expect(hijackBody.error.code).toBe('USER_CONFIRMATION_REQUIRED');
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'confirmation.consumed', outcome: 'denied' }),
+    );
+
+    // The exact request still passes the confirmation gate (no extension is
+    // connected, so it stops at EXTENSION_DISCONNECTED), but only once.
+    const exact = await postAction(port, token, navigate('https://example.com/a'), confirmationId);
+    const exactBody = (await exact.json()) as ResponseEnvelope;
+    expect(exact.status).toBe(503);
+    if (!exactBody.success) expect(exactBody.error.code).toBe('EXTENSION_DISCONNECTED');
+    const replay = await postAction(port, token, navigate('https://example.com/a'), confirmationId);
+    expect(replay.status).toBe(409);
+  });
 });
 
-function postAction(port: number, token: string, body: unknown): Promise<Response> {
+function postAction(
+  port: number,
+  token: string,
+  body: unknown,
+  confirmationId?: string,
+): Promise<Response> {
   return fetch(`http://127.0.0.1:${port}/api/action`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(confirmationId ? { 'X-Conduit-Confirmation': confirmationId } : {}),
+    },
     body: JSON.stringify(body),
   });
 }

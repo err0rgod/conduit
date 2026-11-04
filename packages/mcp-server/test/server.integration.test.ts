@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createSuccessResponse } from '@conduit/protocol';
+import { createErrorResponse, createSuccessResponse } from '@conduit/protocol';
 import { ConduitMcpClient, createConduitMcpServer } from '../src/index';
 
 describe('Conduit MCP server', () => {
@@ -79,5 +79,58 @@ describe('Conduit MCP server', () => {
       expect.objectContaining({ type: 'text', text: expect.stringContaining('url is required') }),
     );
     expect(browser).not.toHaveBeenCalled();
+  });
+
+  it('forwards confirmationId and tells the agent a human must approve', async () => {
+    const browser = vi.fn<ConduitMcpClient['browser']>();
+    const server = createConduitMcpServer({
+      health: async () => ({
+        status: 'ok',
+        extensionConnected: true,
+        instanceId: '123e4567-e89b-12d3-a456-426614174000',
+      }),
+      browser,
+    });
+    const client = new Client({ name: 'conduit-test', version: '1.0.0' }, { capabilities: {} });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    closeCallbacks.push(
+      () => client.close(),
+      () => server.close(),
+    );
+
+    const tools = await client.listTools();
+    const navigateTool = tools.tools.find((tool) => tool.name === 'browser_navigate');
+    expect(navigateTool?.inputSchema.properties).toHaveProperty('confirmationId');
+    expect(navigateTool?.description).toContain('confirmationId');
+    expect(tools.tools.map((tool) => tool.name).join(',')).not.toMatch(/approve/u);
+
+    browser.mockResolvedValueOnce(
+      createErrorResponse('USER_CONFIRMATION_REQUIRED', 'Needs approval.', undefined, {
+        confirmation: { id: '123e4567-e89b-12d3-a456-426614174111' },
+      }),
+    );
+    const pending = await client.callTool({
+      name: 'browser_navigate',
+      arguments: { url: 'https://example.com' },
+    });
+    expect(pending.isError).toBe(true);
+    const pendingText = pending.content[0].type === 'text' ? pending.content[0].text : '';
+    expect(pendingText).toContain('Conduit extension popup');
+    expect(pendingText).toContain('confirmationId');
+    expect(browser).toHaveBeenLastCalledWith('browser.navigate', { url: 'https://example.com' });
+
+    browser.mockResolvedValueOnce(createSuccessResponse({ ok: true }));
+    const retried = await client.callTool({
+      name: 'browser_navigate',
+      arguments: { url: 'https://example.com', confirmationId: 'approved-id' },
+    });
+    expect(retried.isError).not.toBe(true);
+    expect(browser).toHaveBeenLastCalledWith(
+      'browser.navigate',
+      { url: 'https://example.com' },
+      { confirmationId: 'approved-id' },
+    );
   });
 });

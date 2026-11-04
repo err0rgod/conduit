@@ -11,6 +11,11 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Approving confirmations and remote-device pairings with the agent token is refused with `403 PERMISSION_DENIED`; denying remains allowed. `conduit pair approve` now requires an interactive terminal and a typed fingerprint prefix and uses the operator credential.
 - Added optional mutual authentication: an `auth` message may include a `nonce`, answered with `proof = HMAC-SHA256(extensionCredential, "conduit.daemon-proof.v1:" + nonce)`. Existing extensions that send no nonce are unaffected.
 - Malformed credential files are no longer replaced silently (warning plus audit event), and credential files are restricted to the current user with `icacls` on Windows.
+- Confirmations are now bound to the exact approved request. A confirmation stores a SHA-256 fingerprint of the operation, resolved target tab, evaluated page URL, and full validated payload; `consume` requires an exact match, stays one-time and expiring, and a mismatch is audited as denied without spending the approval. Previously an approval for one navigation could authorize any later same-type action.
+
+### Fixed
+
+- MCP browser tools accept an optional `confirmationId` and the CLI `browser` commands accept `--confirmation <id>`, so confirmation-gated actions (uploads, debug evaluation, ask-mode navigation) can be completed after the human approves in the extension popup. `USER_CONFIRMATION_REQUIRED` results now tell the agent how to proceed; agents still cannot approve.
 
 ### Upgrade notes
 
