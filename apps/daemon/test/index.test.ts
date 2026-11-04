@@ -710,7 +710,11 @@ describe('Daemon remote action rate limiting', () => {
     const port = await remoteDaemon.start(0);
     const localToken = remoteDaemon.getToken();
     try {
-      const session = await pairRemoteDevice(port, localToken);
+      const session = await pairRemoteDevice(
+        port,
+        localToken,
+        remoteDaemon.getExtensionCredential(),
+      );
       const list = { ...createEnvelopeBase(), type: 'browser.list_tabs' };
       for (let attempt = 0; attempt < 2; attempt += 1) {
         expect((await postAction(port, session.token, list)).status).not.toBe(429);
@@ -738,6 +742,7 @@ describe('Daemon remote action rate limiting', () => {
 async function pairRemoteDevice(
   port: number,
   localToken: string,
+  approverCredential: string,
 ): Promise<{ token: string; deviceId: string }> {
   const identity = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   const publicKey = identity.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
@@ -756,7 +761,7 @@ async function pairRemoteDevice(
     requestedPermissions: ['browser.read'],
   });
   const pending = (await paired.json()) as { pairingId: string };
-  const approved = await daemonRequest(port, localToken, '/api/pairings/respond', {
+  const approved = await daemonRequest(port, approverCredential, '/api/pairings/respond', {
     pairingId: pending.pairingId,
     approved: true,
     grantedPermissions: ['browser.read'],
