@@ -175,7 +175,7 @@ conduit allow-domain example.com
 conduit restart
 ```
 
-Localhost and private-network access have separate opt-ins. Uploads require an allowlist, `browser.upload`, and one-time confirmation.
+Localhost and private-network access have separate opt-ins. Both guards recognize IPv6, IPv4-mapped, numeric, trailing-dot, `*.localhost`, link-local (including cloud metadata), and CGNAT forms. If the current page URL cannot be determined, page-content actions are denied until you list tabs or navigate. Uploads require an allowlist, `browser.upload`, and one-time confirmation.
 
 For an explicitly local-only setup, `conduit config set security.domainMode '"allow-all"'` allows public HTTP and HTTPS domains that are not blocked. It does not override blocked domains, protocol restrictions, localhost policy, or private-network policy, and it cannot be combined with remote mode. Run `conduit restart` after changing the mode; configuration is not hot-reloaded.
 

@@ -61,7 +61,7 @@ The extension and daemon expose separate authority gates. The extension's **Allo
 
 Native Messaging accepts only configured extension identities. The unpacked Chromium build, published Chrome Web Store build (`gjhipjgiapijcdnflldnoenafeegmfpc`), and Firefox build have trusted default IDs. Future Edge or other store IDs are explicitly added with `conduit extension trust <id>`; the native host never accepts arbitrary extension origins.
 
-The backend's `security.domainMode: "allow-all"` is intentionally local-only and never the default. It requires `conduit restart` after configuration changes and cannot be combined with `remote.enabled: true`. Even when enabled, invalid URLs, non-HTTP(S) protocols, blocked domains, localhost without its opt-in, and private networks without their opt-in remain denied.
+The backend's `security.domainMode: "allow-all"` is intentionally local-only and never the default. It requires `conduit restart` after configuration changes and cannot be combined with `remote.enabled: true`. Even when enabled, invalid URLs, non-HTTP(S) protocols, blocked domains, localhost without its opt-in, and private networks without their opt-in remain denied. Localhost and private-network detection covers IPv6 (including bracketed and IPv4-mapped forms), the whole `127.0.0.0/8` range, `*.localhost`, link-local and cloud-metadata addresses (`169.254.0.0/16`), CGNAT, unique-local IPv6, and numeric IPv4 encodings. Actions on page content fail closed when the current tab URL cannot be determined; the daemon re-reads the live URL from the extension before each such action.
 
 ## Secret handling
 

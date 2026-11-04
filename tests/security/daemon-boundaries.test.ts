@@ -96,7 +96,7 @@ describe('daemon security boundaries', () => {
     if (!body.success) expect(body.error.code).toBe('PERMISSION_DENIED');
   });
 
-  it('requires upload confirmation before inspecting an authorized path', async () => {
+  it('fails closed on upload when the page URL is unknown, before any path inspection', async () => {
     const daemon = new Daemon({
       policy: new SecurityPolicy({ permissions: ['browser.upload'] }),
       audit: quietAudit(),
@@ -110,9 +110,9 @@ describe('daemon security boundaries', () => {
     });
     const body = (await response.json()) as ResponseEnvelope;
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(403);
     expect(body.success).toBe(false);
-    if (!body.success) expect(body.error.code).toBe('USER_CONFIRMATION_REQUIRED');
+    if (!body.success) expect(body.error.code).toBe('DOMAIN_NOT_ALLOWED');
   });
 
   it('binds a confirmation to the exact approved request', async () => {

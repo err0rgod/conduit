@@ -1,4 +1,8 @@
 import { BrowserRequestEnvelope, Permission, RiskLevel } from '@conduit/protocol';
+import { classifyHost } from './network-guard';
+
+export { classifyHost, isLocalhostHost, isPrivateOrLocalHost } from './network-guard';
+export type { HostClass } from './network-guard';
 
 export type DomainPolicyMode = 'allowlist' | 'blocklist' | 'ask' | 'allow-all';
 
@@ -13,7 +17,17 @@ export interface SecurityPolicyOptions {
 
 export type AuthorizationDecision =
   | { outcome: 'allow'; permission: Permission; risk: RiskLevel; domain?: string }
-  | { outcome: 'deny'; permission: Permission; risk: RiskLevel; reason: string; domain?: string }
+  | {
+      outcome: 'deny';
+      permission: Permission;
+      risk: RiskLevel;
+      reason: string;
+      domain?: string;
+      /** True when denied only because the page URL could not be determined. */
+      urlUnknown?: boolean;
+      /** True when the denial came from URL/domain evaluation rather than a missing permission. */
+      domainRelated?: boolean;
+    }
   | {
       outcome: 'confirm';
       permission: Permission;
@@ -63,6 +77,40 @@ const OPERATION_SECURITY: Record<
   'browser.debug_trace_stop': { permission: 'browser.debug', risk: 'medium' },
 };
 
+/**
+ * Which URL a domain decision needs, per operation. Unknown URLs fail closed
+ * for everything that reads or acts on page content.
+ *
+ *   none        tab-level bookkeeping that touches no page content:
+ *               list_tabs, get_active_tab (they are also how the daemon learns
+ *               URLs), close_tab, focus_tab, get_downloads (browser-wide list).
+ *   destination the request carries the URL to load: navigate, open_tab with a
+ *               url. The current page is intentionally NOT checked, otherwise a
+ *               tab sitting on chrome://newtab or a disallowed page could never
+ *               be navigated away from. open_tab without a url opens a blank tab.
+ *   current     the operation reads or acts on the page that is loaded now
+ *               (snapshot, text, click, type, upload, debug_*, back/forward/
+ *               reload, ...). The live tab URL is required; if the daemon cannot
+ *               determine it the request is denied.
+ */
+type UrlRequirement = 'none' | 'destination' | 'current';
+
+const TAB_LEVEL_OPERATIONS: ReadonlySet<BrowserRequestEnvelope['type']> = new Set([
+  'browser.list_tabs',
+  'browser.get_active_tab',
+  'browser.close_tab',
+  'browser.focus_tab',
+  'browser.get_downloads',
+]);
+
+/** Exported so the daemon knows when it must resolve the live tab URL. */
+export function urlRequirementFor(request: BrowserRequestEnvelope): UrlRequirement {
+  if (TAB_LEVEL_OPERATIONS.has(request.type)) return 'none';
+  if (request.type === 'browser.navigate') return 'destination';
+  if (request.type === 'browser.open_tab') return request.payload.url ? 'destination' : 'none';
+  return 'current';
+}
+
 export class SecurityPolicy {
   private readonly permissions: Set<Permission>;
   private readonly domainMode: DomainPolicyMode;
@@ -90,11 +138,23 @@ export class SecurityPolicy {
       };
     }
 
-    const url = requestUrl(request) ?? currentUrl;
-    if (!url) {
+    const requirement = urlRequirementFor(request);
+    const url = requirement === 'destination' ? requestUrl(request) : currentUrl;
+    if (requirement === 'none') {
       return security.risk === 'high'
         ? { outcome: 'confirm', ...security, reason: `${request.type} is a high-risk operation.` }
         : { outcome: 'allow', ...security };
+    }
+    if (!url) {
+      return {
+        outcome: 'deny',
+        ...security,
+        urlUnknown: true,
+        domainRelated: true,
+        reason:
+          'The current page URL is unknown, so domain policy cannot be evaluated. ' +
+          'List tabs or navigate to a page first, then retry.',
+      };
     }
     const domainDecision = this.evaluateUrl(url);
     if (domainDecision.outcome === 'allow') {
@@ -108,7 +168,7 @@ export class SecurityPolicy {
         : { outcome: 'allow', ...security, domain: domainDecision.domain };
     }
     if (domainDecision.outcome === 'deny') {
-      return { ...security, ...domainDecision };
+      return { ...security, ...domainDecision, domainRelated: true };
     }
     return { ...security, ...domainDecision };
   }
@@ -129,10 +189,11 @@ export class SecurityPolicy {
     }
 
     const domain = parsed.hostname.toLowerCase();
-    if (isLocalhost(domain) && !this.allowLocalhost) {
+    const hostClass = classifyHost(domain);
+    if (hostClass === 'localhost' && !this.allowLocalhost) {
       return { outcome: 'deny', domain, reason: 'Localhost access is disabled by policy.' };
     }
-    if (isPrivateNetworkHost(domain) && !isLocalhost(domain) && !this.allowPrivateNetworks) {
+    if (hostClass === 'private' && !this.allowPrivateNetworks) {
       return { outcome: 'deny', domain, reason: 'Private-network access is disabled by policy.' };
     }
     if (matchesAnyDomain(domain, this.blockedDomains)) {
@@ -166,21 +227,9 @@ export function matchesDomain(hostname: string, pattern: string): boolean {
   return host === normalized;
 }
 
+/** Kept for API compatibility: true for private-network hosts, excluding loopback. */
 export function isPrivateNetworkHost(hostname: string): boolean {
-  const parts = hostname.split('.').map(Number);
-  if (
-    parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-  ) {
-    return hostname.endsWith('.local');
-  }
-  return (
-    parts[0] === 10 ||
-    parts[0] === 127 ||
-    (parts[0] === 169 && parts[1] === 254) ||
-    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-    (parts[0] === 192 && parts[1] === 168)
-  );
+  return classifyHost(hostname) === 'private';
 }
 
 function requestUrl(request: BrowserRequestEnvelope): string | undefined {
@@ -193,7 +242,4 @@ function normalizePatterns(patterns: string[]): string[] {
 }
 function matchesAnyDomain(hostname: string, patterns: string[]): boolean {
   return patterns.some((pattern) => matchesDomain(hostname, pattern));
-}
-function isLocalhost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 }
