@@ -695,3 +695,95 @@ function daemonRequest(
     body: JSON.stringify(body),
   });
 }
+
+describe('Daemon remote action rate limiting', () => {
+  it('limits each trusted remote device while leaving local clients unaffected', async () => {
+    const testDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-remote-limit-'));
+    const events: string[] = [];
+    const remoteDaemon = new Daemon({
+      remoteEnabled: true,
+      devices: new TrustedDeviceStore(path.join(testDirectory, 'devices.json')),
+      maximumRemoteActions: 2,
+      remoteActionWindowMs: 60_000,
+      audit: new AuditLogger({ sink: (event) => events.push(event.type) }),
+    });
+    const port = await remoteDaemon.start(0);
+    const localToken = remoteDaemon.getToken();
+    try {
+      const session = await pairRemoteDevice(
+        port,
+        localToken,
+        remoteDaemon.getExtensionCredential(),
+      );
+      const list = { ...createEnvelopeBase(), type: 'browser.list_tabs' };
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        expect((await postAction(port, session.token, list)).status).not.toBe(429);
+      }
+      const limited = await postAction(port, session.token, list);
+      const body = (await limited.json()) as ResponseEnvelope;
+      expect(limited.status).toBe(429);
+      expect(body.success).toBe(false);
+      if (!body.success) {
+        expect(body.error.code).toBe('RATE_LIMITED');
+        expect(JSON.stringify(body.error.details)).toContain('retryAfterMs');
+      }
+      expect(events).toContain('rate-limit.exceeded');
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        expect((await postAction(port, localToken, list)).status).not.toBe(429);
+      }
+    } finally {
+      await remoteDaemon.stop();
+      fs.rmSync(testDirectory, { recursive: true, force: true });
+    }
+  });
+});
+
+async function pairRemoteDevice(
+  port: number,
+  localToken: string,
+  approverCredential: string,
+): Promise<{ token: string; deviceId: string }> {
+  const identity = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const publicKey = identity.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
+  const post = (endpoint: string, body: unknown): Promise<Response> =>
+    fetch(`http://127.0.0.1:${port}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  const started = await daemonRequest(port, localToken, '/api/pairings/start', {});
+  const { code } = (await started.json()) as { code: string };
+  const paired = await post('/api/remote/pair', {
+    code,
+    publicKey,
+    deviceName: 'Rate limit laptop',
+    requestedPermissions: ['browser.read'],
+  });
+  const pending = (await paired.json()) as { pairingId: string };
+  const approved = await daemonRequest(port, approverCredential, '/api/pairings/respond', {
+    pairingId: pending.pairingId,
+    approved: true,
+    grantedPermissions: ['browser.read'],
+  });
+  const deviceId = ((await approved.json()) as { device: { id: string } }).device.id;
+  const requestDigest = digestRemoteRequest({ deviceId, purpose: 'conduit.remote.session.v1' });
+  const challengeResponse = await post('/api/remote/challenge', { deviceId, requestDigest });
+  const challenge = (await challengeResponse.json()) as { challengeId: string; nonce: string };
+  const signature = crypto
+    .sign(
+      'sha256',
+      Buffer.from(
+        createRemoteSignaturePayload(challenge.challengeId, challenge.nonce, requestDigest),
+      ),
+      identity.privateKey,
+    )
+    .toString('base64');
+  const authenticated = await post('/api/remote/authenticate', {
+    deviceId,
+    challengeId: challenge.challengeId,
+    requestDigest,
+    signature,
+  });
+  return { token: ((await authenticated.json()) as { token: string }).token, deviceId };
+}

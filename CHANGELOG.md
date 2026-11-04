@@ -6,12 +6,24 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ### Security
 
+- The daemon rejects requests whose `Host` header is not an expected loopback name (or, in remote mode, a literal IP, the bind address, or `remote.allowedHosts`), including `/health`, to defeat DNS rebinding. WebSocket upgrades with a web `Origin` are refused; extension (`chrome-extension://`, `moz-extension://`) and origin-less clients are accepted.
+- Authenticated remote devices are limited to 120 `/api/action` requests per minute each (`429 RATE_LIMITED` with `retryAfterMs`, audited). Local clients are not limited.
+- Audit redaction now also covers JWTs, bearer/basic credentials, long random base64 strings, URL credentials, and secret-looking query parameters inside strings.
 - Split local authentication into two credentials. The agent token (`auth.json`) remains for MCP/CLI; a new extension credential (`extension-auth.json`) is the only secret handed to the browser extension through Native Messaging and `/api/extension/pair`.
 - The extension WebSocket now rejects the agent token (with an audit event), so an agent can no longer replace the real extension and intercept browser responses or confirmations.
 - Approving confirmations and remote-device pairings with the agent token is refused with `403 PERMISSION_DENIED`; denying remains allowed. `conduit pair approve` now requires an interactive terminal and a typed fingerprint prefix and uses the operator credential.
 - Added optional mutual authentication: an `auth` message may include a `nonce`, answered with `proof = HMAC-SHA256(extensionCredential, "conduit.daemon-proof.v1:" + nonce)`. Existing extensions that send no nonce are unaffected.
 - Malformed credential files are no longer replaced silently (warning plus audit event), and credential files are restricted to the current user with `icacls` on Windows.
 - Confirmations are now bound to the exact approved request. A confirmation stores a SHA-256 fingerprint of the operation, resolved target tab, evaluated page URL, and full validated payload; `consume` requires an exact match, stays one-time and expiring, and a mismatch is audited as denied without spending the approval. Previously an approval for one navigation could authorize any later same-type action.
+
+### Added
+
+- `remote.allowedHosts` configuration (default empty) for extra DNS names accepted in the `Host` header in remote mode.
+- `logging.retentionDays` is now enforced: rotated audit files (`audit.jsonl.<timestamp>`) older than the retention period are deleted at startup and on rotation. Rotation no longer discards the previous rotated file.
+
+### Documentation
+
+- `logging.level`, `browser.screenshotDirectory`, and `browser.downloadBehavior` are documented as reserved, not-yet-implemented configuration fields.
 
 ### Fixed
 

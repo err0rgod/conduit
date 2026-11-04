@@ -38,6 +38,7 @@ import {
   validateUploadPaths,
 } from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
+import { isAllowedHost, isAllowedWebSocketOrigin } from './request-guard';
 
 export interface DaemonOptions {
   auth?: Authenticator;
@@ -67,6 +68,9 @@ export interface DaemonOptions {
   instanceId?: string;
   shutdownHandler?: () => void;
   localPairing?: LocalPairingManager;
+  allowedHosts?: string[];
+  maximumRemoteActions?: number;
+  remoteActionWindowMs?: number;
 }
 
 export interface Authenticator {
@@ -125,6 +129,8 @@ export class Daemon {
   private readonly remoteAuthenticator: RemoteDeviceAuthenticator;
   private readonly remoteSessionTimeoutMs: number;
   private readonly remoteRequestLimits: SlidingWindowRateLimiter;
+  private readonly remoteActionLimits: SlidingWindowRateLimiter;
+  private readonly allowedHosts: string[];
   private readonly instanceId: string;
   private readonly shutdownHandler?: () => void;
   private readonly localPairing: LocalPairingManager;
@@ -184,6 +190,13 @@ export class Daemon {
       options.maximumRemoteRequests ?? 120,
       options.remoteRequestWindowMs ?? 60_000,
     );
+    // Per trusted device: browser actions are far slower than 120/min in practice, so this
+    // only stops runaway or abusive clients. Local clients are not limited by this bucket.
+    this.remoteActionLimits = new SlidingWindowRateLimiter(
+      options.maximumRemoteActions ?? 120,
+      options.remoteActionWindowMs ?? 60_000,
+    );
+    this.allowedHosts = options.allowedHosts ?? [];
     this.instanceId = options.instanceId ?? crypto.randomUUID();
     this.shutdownHandler = options.shutdownHandler;
     this.localPairing = options.localPairing ?? new LocalPairingManager();
@@ -199,6 +212,20 @@ export class Daemon {
     this.auth.ensureToken();
     this.auth.ensureExtensionCredential();
     const requestHandler = (req: http.IncomingMessage, res: http.ServerResponse): void => {
+      // Host validation runs before any routing, including /health (DNS-rebinding defense).
+      if (!this.hostAllowed(req)) {
+        this.audit.log({
+          type: 'request.rejected',
+          outcome: 'denied',
+          details: { reason: 'host' },
+        });
+        this.writeJson(
+          res,
+          403,
+          createErrorResponse('PERMISSION_DENIED', 'Host header is not allowed.'),
+        );
+        return;
+      }
       void this.handleHttpRequest(req, res);
     };
     const server = this.tls
@@ -225,7 +252,22 @@ export class Daemon {
       };
       const handleListening = (): void => {
         server.off('error', handleStartupError);
-        this.wss = new WebSocketServer({ server, maxPayload: this.maxBodyBytes });
+        this.wss = new WebSocketServer({
+          server,
+          maxPayload: this.maxBodyBytes,
+          verifyClient: (info, done) => {
+            const allowed =
+              this.hostAllowed(info.req) && isAllowedWebSocketOrigin(info.req.headers.origin);
+            if (!allowed) {
+              this.audit.log({
+                type: 'request.rejected',
+                outcome: 'denied',
+                details: { reason: 'websocket-host-or-origin' },
+              });
+            }
+            done(allowed, 403, 'Forbidden');
+          },
+        });
         this.wss.on('connection', (ws, request) =>
           this.handleExtensionConnection(ws, request.socket.remoteAddress ?? 'unknown'),
         );
@@ -494,6 +536,28 @@ export class Daemon {
     if (isConfirmationResponse) {
       await this.handleConfirmationResponse(req, res, authorization);
       return;
+    }
+
+    if (authorization.kind === 'remote') {
+      const limit = this.remoteActionLimits.attempt(authorization.deviceId);
+      if (!limit.allowed) {
+        this.audit.log({
+          type: 'rate-limit.exceeded',
+          outcome: 'denied',
+          details: { deviceId: authorization.deviceId, scope: 'remote-action' },
+        });
+        this.writeJson(
+          res,
+          429,
+          createErrorResponse(
+            'RATE_LIMITED',
+            'Remote device action rate limit exceeded.',
+            undefined,
+            { retryAfterMs: limit.retryAfterMs },
+          ),
+        );
+        return;
+      }
     }
 
     const body = await this.readBody(req);
@@ -1225,6 +1289,15 @@ export class Daemon {
       createErrorResponse('PERMISSION_DENIED', 'Remote-device access is disabled.'),
     );
     return false;
+  }
+
+  private hostAllowed(req: http.IncomingMessage): boolean {
+    return isAllowedHost(req.headers.host, req.socket.localPort, {
+      secure: this.tls !== undefined,
+      bindAddress: this.bindAddress,
+      remoteEnabled: this.remoteEnabled,
+      allowedHosts: this.allowedHosts,
+    });
   }
 
   private allowRemoteRequest(req: http.IncomingMessage, res: http.ServerResponse): boolean {

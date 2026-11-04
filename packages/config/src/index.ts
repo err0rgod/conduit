@@ -43,6 +43,9 @@ export const ConduitConfigSchema = z
         enabled: z.boolean().default(false),
         tlsKeyPath: z.string().min(1).optional(),
         tlsCertificatePath: z.string().min(1).optional(),
+        // Extra DNS names accepted in the HTTP Host header (DNS-rebinding defense), e.g. a
+        // Tailscale MagicDNS name. Literal IPs and the bind address are always accepted.
+        allowedHosts: z.array(z.string().min(1).max(253)).max(32).default([]),
         sessionTimeoutMs: z.number().int().min(10_000).max(86_400_000).default(900_000),
       })
       .strict()
@@ -62,15 +65,20 @@ export const ConduitConfigSchema = z
       .default({}),
     logging: z
       .object({
+        // Reserved: accepted for forward compatibility but not yet consumed by the daemon.
         level: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
         maximumAuditBytes: z.number().int().min(65_536).max(1_073_741_824).default(5_242_880),
+        // Rotated audit files older than this many days are deleted at startup and rotation.
         retentionDays: z.number().int().min(1).max(365).default(30),
       })
       .strict()
       .default({}),
     browser: z
       .object({
+        // Reserved: accepted for forward compatibility but not yet consumed. Screenshots are
+        // returned to the caller and never written to disk by the daemon.
         screenshotDirectory: z.string().min(1).optional(),
+        // Reserved: accepted for forward compatibility but not yet consumed by the daemon.
         downloadBehavior: z.enum(['observe', 'allow', 'deny']).default('observe'),
         chromiumExtensionIds: z
           .array(ChromiumExtensionIdSchema)

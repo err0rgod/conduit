@@ -21,16 +21,44 @@ export interface StoredAuditEvent extends AuditEvent {
 export interface AuditLoggerOptions {
   filePath?: string;
   maxBytes?: number;
+  /** Rotated audit files older than this many days are deleted. Default: keep forever. */
+  retentionDays?: number;
   sink?: (event: StoredAuditEvent) => void;
 }
 
 const SENSITIVE_KEY =
   /token|password|passwd|secret|authorization|cookie|credential|private.?key|text|value/iu;
 const TOKEN_VALUE = /\b(?:bearer\s+)?[a-f0-9]{32,}\b/giu;
+// Credentials embedded in URLs: scheme://user:password@host
+const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]*@/giu;
+// Secret-looking query/fragment parameters. The name must be a whole word, optionally
+// prefixed with a separator-delimited qualifier (client_secret, x-amz-signature), so
+// ordinary parameters such as "keyboard" or "codec" are left alone.
+const SECRET_QUERY_PARAMETER =
+  /([?&;#](?:[\w.-]*[_-])?(?:token|access_token|refresh_token|id_token|key|api_key|apikey|sig|signature|code|password|passwd|pwd|session|sessionid|sid|auth|secret|credential)=)[^&#\s"'<>]*/giu;
+const AUTH_SCHEME_VALUE = /\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}/giu;
+const JWT = /\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?:\.[A-Za-z0-9_-]*)?/gu;
+// Long base64 / base64url runs. Only redacted when they look random (upper, lower and
+// digit all present) so long slugs, identifiers and plain paths survive.
+const LONG_BASE64 = /(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{40,}={0,2}(?![A-Za-z0-9+/_=-])/gu;
+
+function looksRandom(candidate: string): boolean {
+  return /[A-Z]/u.test(candidate) && /[a-z]/u.test(candidate) && /\d/u.test(candidate);
+}
+
+export function redactString(value: string): string {
+  return value
+    .replace(URL_CREDENTIALS, '$1[redacted]@')
+    .replace(SECRET_QUERY_PARAMETER, '$1[redacted]')
+    .replace(TOKEN_VALUE, '[redacted]')
+    .replace(AUTH_SCHEME_VALUE, '$1 [redacted]')
+    .replace(JWT, '[redacted]')
+    .replace(LONG_BASE64, (match) => (looksRandom(match) ? '[redacted]' : match));
+}
 
 export function redact<T>(value: T, key = ''): T {
   if (SENSITIVE_KEY.test(key)) return '[redacted]' as T;
-  if (typeof value === 'string') return value.replace(TOKEN_VALUE, '[redacted]') as T;
+  if (typeof value === 'string') return redactString(value) as T;
   if (Array.isArray(value)) return value.map((item) => redact(item)) as T;
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
@@ -46,14 +74,17 @@ export function redact<T>(value: T, key = ''): T {
 export class AuditLogger {
   private readonly filePath: string;
   private readonly maxBytes: number;
+  private readonly retentionDays: number | undefined;
   private readonly sink?: (event: StoredAuditEvent) => void;
   private readonly recentEvents: StoredAuditEvent[] | undefined;
 
   public constructor(options: AuditLoggerOptions = {}) {
     this.filePath = options.filePath ?? path.join(getAppDataDir(), 'audit.jsonl');
     this.maxBytes = options.maxBytes ?? 5 * 1024 * 1024;
+    this.retentionDays = options.retentionDays;
     this.sink = options.sink;
     this.recentEvents = options.sink ? [] : undefined;
+    if (!options.sink) this.pruneRotatedFiles();
   }
 
   public log(event: AuditEvent): StoredAuditEvent {
@@ -94,8 +125,29 @@ export class AuditLogger {
   private prepareFile(): void {
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true, mode: 0o700 });
     if (!fs.existsSync(this.filePath) || fs.statSync(this.filePath).size < this.maxBytes) return;
-    const rotated = `${this.filePath}.1`;
-    if (fs.existsSync(rotated)) fs.rmSync(rotated);
-    fs.renameSync(this.filePath, rotated);
+    // Rotated files are named <file>.<epoch-ms> so several can coexist until retention expires.
+    fs.renameSync(this.filePath, `${this.filePath}.${Date.now()}`);
+    this.pruneRotatedFiles();
+  }
+
+  /**
+   * Deletes rotated audit files (including the legacy `<file>.1`) whose last modification is
+   * older than the retention period. The active file is never deleted here.
+   */
+  private pruneRotatedFiles(now = Date.now()): void {
+    if (this.retentionDays === undefined) return;
+    const directory = path.dirname(this.filePath);
+    if (!fs.existsSync(directory)) return;
+    const prefix = `${path.basename(this.filePath)}.`;
+    const cutoff = now - this.retentionDays * 24 * 60 * 60 * 1000;
+    for (const name of fs.readdirSync(directory)) {
+      if (!name.startsWith(prefix) || !/^\d+$/u.test(name.slice(prefix.length))) continue;
+      const rotatedPath = path.join(directory, name);
+      try {
+        if (fs.statSync(rotatedPath).mtimeMs < cutoff) fs.rmSync(rotatedPath);
+      } catch {
+        // A concurrently removed file is already gone; retention is best-effort.
+      }
+    }
   }
 }
