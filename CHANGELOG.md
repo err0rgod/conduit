@@ -9,6 +9,7 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - The daemon rejects requests whose `Host` header is not an expected loopback name (or, in remote mode, a literal IP, the bind address, or `remote.allowedHosts`), including `/health`, to defeat DNS rebinding. WebSocket upgrades with a web `Origin` are refused; extension (`chrome-extension://`, `moz-extension://`) and origin-less clients are accepted.
 - Authenticated remote devices are limited to 120 `/api/action` requests per minute each (`429 RATE_LIMITED` with `retryAfterMs`, audited). Local clients are not limited.
 - Audit redaction now also covers JWTs, bearer/basic credentials, long random base64 strings, URL credentials, and secret-looking query parameters inside strings.
+- Confirmations are now bound to the exact approved request. A confirmation stores a SHA-256 fingerprint of the operation, resolved target tab, evaluated page URL, and full validated payload; `consume` requires an exact match, stays one-time and expiring, and a mismatch is audited as denied without spending the approval. Previously an approval for one navigation could authorize any later same-type action.
 
 ### Added
 
@@ -18,6 +19,10 @@ All notable changes to Conduit will be documented here. The project follows Keep
 ### Documentation
 
 - `logging.level`, `browser.screenshotDirectory`, and `browser.downloadBehavior` are documented as reserved, not-yet-implemented configuration fields.
+
+### Fixed
+
+- MCP browser tools accept an optional `confirmationId` and the CLI `browser` commands accept `--confirmation <id>`, so confirmation-gated actions (uploads, debug evaluation, ask-mode navigation) can be completed after the human approves in the extension popup. `USER_CONFIRMATION_REQUIRED` results now tell the agent how to proceed; agents still cannot approve.
 
 ## [1.1.4] - 2026-09-10
 

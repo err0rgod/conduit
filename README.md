@@ -163,7 +163,7 @@ Build first, then configure an MCP client to launch:
 }
 ```
 
-The daemon must be running and the extension connected. MCP tools do not bypass host permissions or confirmations.
+The daemon must be running and the extension connected. MCP tools do not bypass host permissions or confirmations. When an action needs confirmation, the result is `USER_CONFIRMATION_REQUIRED`; the human approves it in the extension popup (agents cannot approve), then the agent retries the identical call with `confirmationId` (MCP) or `--confirmation <id>` (CLI).
 
 ## Permissions and domains
 

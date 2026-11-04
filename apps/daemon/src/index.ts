@@ -22,6 +22,7 @@ import {
 import {
   AuditLogger,
   ConfirmationManager,
+  fingerprintRequest,
   FileAccessError,
   LocalAuth,
   LocalPairingManager,
@@ -582,12 +583,34 @@ export class Daemon {
     if (decision.outcome === 'confirm') {
       const header = req.headers['x-conduit-confirmation'];
       const confirmationId = typeof header === 'string' ? header : '';
-      if (!this.confirmations.consume(confirmationId, browserRequest.type)) {
+      const currentUrl = this.currentUrlFor(browserRequest);
+      const fingerprint = fingerprintRequest({
+        type: browserRequest.type,
+        payload: browserRequest.payload,
+        tabId: this.resolvedTabIdFor(browserRequest),
+        currentUrl,
+      });
+      const consumed = this.confirmations.consume(confirmationId, fingerprint);
+      if (consumed === 'mismatch') {
+        this.audit.log({
+          type: 'confirmation.consumed',
+          outcome: 'denied',
+          requestId: browserRequest.id,
+          operation: browserRequest.type,
+          domain: decision.domain,
+          details: {
+            confirmationId,
+            reason: 'Confirmation was approved for a different request.',
+          },
+        });
+      }
+      if (consumed !== 'consumed') {
         const confirmation = this.confirmations.create(
           browserRequest.id,
           browserRequest.type,
           decision.risk,
           decision.reason,
+          fingerprint,
           decision.domain,
         );
         this.audit.log({
@@ -1252,6 +1275,13 @@ export class Daemon {
       details: { confirmationId, approved },
     });
     return accepted;
+  }
+
+  private resolvedTabIdFor(
+    request: ReturnType<typeof BrowserRequestEnvelopeSchema.parse>,
+  ): number | undefined {
+    const payload = request.payload as { tabId?: number };
+    return payload.tabId ?? this.activeTabId ?? undefined;
   }
 
   private currentUrlFor(
