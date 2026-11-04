@@ -72,6 +72,12 @@ export const ResponseEnvelopeSchema = z.union([
 export const AuthRequestSchema = z
   .object({
     token: z.string().min(32).max(512),
+    /**
+     * Optional client-chosen nonce. When present the daemon proves it holds the extension
+     * credential by replying with HMAC-SHA256(credential, "conduit.daemon-proof.v1:" + nonce).
+     * Optional so already-deployed extensions that do not send it keep working.
+     */
+    nonce: z.string().min(16).max(128).optional(),
   })
   .strict();
 
