@@ -65,15 +65,20 @@ export const ConduitConfigSchema = z
       .default({}),
     logging: z
       .object({
+        // Reserved: accepted for forward compatibility but not yet consumed by the daemon.
         level: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
         maximumAuditBytes: z.number().int().min(65_536).max(1_073_741_824).default(5_242_880),
+        // Rotated audit files older than this many days are deleted at startup and rotation.
         retentionDays: z.number().int().min(1).max(365).default(30),
       })
       .strict()
       .default({}),
     browser: z
       .object({
+        // Reserved: accepted for forward compatibility but not yet consumed. Screenshots are
+        // returned to the caller and never written to disk by the daemon.
         screenshotDirectory: z.string().min(1).optional(),
+        // Reserved: accepted for forward compatibility but not yet consumed by the daemon.
         downloadBehavior: z.enum(['observe', 'allow', 'deny']).default('observe'),
         chromiumExtensionIds: z
           .array(ChromiumExtensionIdSchema)

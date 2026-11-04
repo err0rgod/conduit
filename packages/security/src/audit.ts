@@ -21,6 +21,8 @@ export interface StoredAuditEvent extends AuditEvent {
 export interface AuditLoggerOptions {
   filePath?: string;
   maxBytes?: number;
+  /** Rotated audit files older than this many days are deleted. Default: keep forever. */
+  retentionDays?: number;
   sink?: (event: StoredAuditEvent) => void;
 }
 
@@ -72,14 +74,17 @@ export function redact<T>(value: T, key = ''): T {
 export class AuditLogger {
   private readonly filePath: string;
   private readonly maxBytes: number;
+  private readonly retentionDays: number | undefined;
   private readonly sink?: (event: StoredAuditEvent) => void;
   private readonly recentEvents: StoredAuditEvent[] | undefined;
 
   public constructor(options: AuditLoggerOptions = {}) {
     this.filePath = options.filePath ?? path.join(getAppDataDir(), 'audit.jsonl');
     this.maxBytes = options.maxBytes ?? 5 * 1024 * 1024;
+    this.retentionDays = options.retentionDays;
     this.sink = options.sink;
     this.recentEvents = options.sink ? [] : undefined;
+    if (!options.sink) this.pruneRotatedFiles();
   }
 
   public log(event: AuditEvent): StoredAuditEvent {
@@ -120,8 +125,29 @@ export class AuditLogger {
   private prepareFile(): void {
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true, mode: 0o700 });
     if (!fs.existsSync(this.filePath) || fs.statSync(this.filePath).size < this.maxBytes) return;
-    const rotated = `${this.filePath}.1`;
-    if (fs.existsSync(rotated)) fs.rmSync(rotated);
-    fs.renameSync(this.filePath, rotated);
+    // Rotated files are named <file>.<epoch-ms> so several can coexist until retention expires.
+    fs.renameSync(this.filePath, `${this.filePath}.${Date.now()}`);
+    this.pruneRotatedFiles();
+  }
+
+  /**
+   * Deletes rotated audit files (including the legacy `<file>.1`) whose last modification is
+   * older than the retention period. The active file is never deleted here.
+   */
+  private pruneRotatedFiles(now = Date.now()): void {
+    if (this.retentionDays === undefined) return;
+    const directory = path.dirname(this.filePath);
+    if (!fs.existsSync(directory)) return;
+    const prefix = `${path.basename(this.filePath)}.`;
+    const cutoff = now - this.retentionDays * 24 * 60 * 60 * 1000;
+    for (const name of fs.readdirSync(directory)) {
+      if (!name.startsWith(prefix) || !/^\d+$/u.test(name.slice(prefix.length))) continue;
+      const rotatedPath = path.join(directory, name);
+      try {
+        if (fs.statSync(rotatedPath).mtimeMs < cutoff) fs.rmSync(rotatedPath);
+      } catch {
+        // A concurrently removed file is already gone; retention is best-effort.
+      }
+    }
   }
 }

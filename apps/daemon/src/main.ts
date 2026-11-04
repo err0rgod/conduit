@@ -35,6 +35,7 @@ export function daemonOptionsFromConfig(config: ConduitConfig, instanceId?: stri
     audit: new AuditLogger({
       filePath: path.join(getAppDataDir(), 'audit.jsonl'),
       maxBytes: config.logging.maximumAuditBytes,
+      retentionDays: config.logging.retentionDays,
     }),
   };
 }
