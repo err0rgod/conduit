@@ -61,7 +61,7 @@ describe('Daemon', () => {
   });
 
   it('accepts valid extension authentication', async () => {
-    const ws = await connectExtension(port, daemon.getToken());
+    const ws = await connectExtension(port, daemon.getExtensionCredential());
 
     expect(daemon.isExtensionConnected()).toBe(true);
     ws.close();
@@ -87,7 +87,7 @@ describe('Daemon', () => {
 
     const accepted = await redeem();
     expect(accepted.status).toBe(200);
-    expect(await accepted.json()).toEqual({ token: daemon.getToken() });
+    expect(await accepted.json()).toEqual({ token: daemon.getExtensionCredential() });
     expect((await redeem()).status).toBe(401);
   });
 
@@ -142,7 +142,7 @@ describe('Daemon', () => {
   });
 
   it('forwards validated browser requests to the authenticated extension', async () => {
-    const ws = await connectExtension(port, daemon.getToken());
+    const ws = await connectExtension(port, daemon.getExtensionCredential());
     const responsePromise = onceExtensionRequest(ws, 'browser.list_tabs');
 
     const fetchPromise = fetch(`http://127.0.0.1:${port}/api/action`, {
@@ -229,7 +229,10 @@ describe('Daemon authorization', () => {
 
       const approval = await fetch(`http://127.0.0.1:${securedPort}/api/confirmations/respond`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${secured.getExtensionCredential()}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ confirmationId: confirmation.id, approved: true }),
       });
       expect(approval.status).toBe(200);
@@ -280,7 +283,7 @@ describe('Daemon authorization', () => {
       const pending = await postAction(securedPort, secured.getToken(), action);
       expect(pending.status).toBe(409);
 
-      ws = await connectExtension(securedPort, secured.getToken());
+      ws = await connectExtension(securedPort, secured.getExtensionCredential());
       const listRequest = {
         ...createEnvelopeBase(),
         type: 'extension.confirmations.list',
@@ -407,7 +410,7 @@ describe('Daemon transport hardening', () => {
   it('bounds the action queue and rejects recently reused request IDs', async () => {
     const hardened = new Daemon({ maximumPendingRequests: 1, requestTimeoutMs: 1_000 });
     const hardenedPort = await hardened.start(0);
-    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    const ws = await connectExtension(hardenedPort, hardened.getExtensionCredential());
     const firstAction = { ...createEnvelopeBase(), type: 'browser.list_tabs' };
     try {
       const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
@@ -437,7 +440,7 @@ describe('Daemon transport hardening', () => {
   it('expires authenticated extension sessions', async () => {
     const hardened = new Daemon({ heartbeatIntervalMs: 10, sessionTimeoutMs: 30 });
     const hardenedPort = await hardened.start(0);
-    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    const ws = await connectExtension(hardenedPort, hardened.getExtensionCredential());
     try {
       const closeCode = await new Promise<number>((resolve) => {
         ws.on('close', (code) => resolve(code));
@@ -452,7 +455,7 @@ describe('Daemon transport hardening', () => {
   it('returns a structured error to in-flight actions during shutdown', async () => {
     const hardened = new Daemon({ requestTimeoutMs: 5_000 });
     const hardenedPort = await hardened.start(0);
-    const ws = await connectExtension(hardenedPort, hardened.getToken());
+    const ws = await connectExtension(hardenedPort, hardened.getExtensionCredential());
     const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
     const responsePromise = postAction(hardenedPort, hardened.getToken(), {
       ...createEnvelopeBase(),
@@ -538,11 +541,16 @@ describe('Daemon remote devices', () => {
       });
       expect(reusedCode.status).toBe(410);
 
-      const approval = await daemonRequest(remotePort, localToken, '/api/pairings/respond', {
-        pairingId: pending.pairingId,
-        approved: true,
-        grantedPermissions: ['browser.read'],
-      });
+      const approval = await daemonRequest(
+        remotePort,
+        remoteDaemon.getExtensionCredential(),
+        '/api/pairings/respond',
+        {
+          pairingId: pending.pairingId,
+          approved: true,
+          grantedPermissions: ['browser.read'],
+        },
+      );
       expect(approval.status).toBe(201);
       const approvalBody = (await approval.json()) as { device: { id: string } };
       const deviceId = approvalBody.device.id;
@@ -583,7 +591,7 @@ describe('Daemon remote devices', () => {
       expect(authentication.status).toBe(200);
       const remoteSession = (await authentication.json()) as { token: string };
 
-      ws = await connectExtension(remotePort, localToken);
+      ws = await connectExtension(remotePort, remoteDaemon.getExtensionCredential());
       const extensionRequestPromise = onceExtensionRequest(ws, 'browser.list_tabs');
       const remoteActionPromise = postAction(remotePort, remoteSession.token, {
         ...createEnvelopeBase(),

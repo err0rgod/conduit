@@ -12,7 +12,10 @@ import { PendingPairing, TrustedDevice } from '@conduit/security';
 
 export interface ConduitClientOptions {
   baseUrl?: string;
+  /** Agent token for actions and read-only management calls. */
   token?: string;
+  /** Operator credential used only to approve confirmations and pairings. */
+  approvalToken?: string;
   auth?: LocalAuth;
   fetch?: typeof fetch;
 }
@@ -38,12 +41,16 @@ export class ConduitClient {
   private readonly baseUrl: string;
   private readonly fetchImplementation: typeof fetch;
   private readonly getToken: () => string;
+  private readonly getApprovalToken: () => string;
 
   public constructor(options: ConduitClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? 'http://127.0.0.1:9222').replace(/\/$/u, '');
     this.fetchImplementation = options.fetch ?? fetch;
     const auth = options.auth ?? new LocalAuth();
     this.getToken = options.token ? () => options.token as string : () => auth.ensureToken();
+    this.getApprovalToken = options.approvalToken
+      ? () => options.approvalToken as string
+      : () => auth.ensureExtensionCredential();
   }
 
   public async health(): Promise<DaemonHealth> {
@@ -110,7 +117,7 @@ export class ConduitClient {
     const response = await this.fetchImplementation(`${this.baseUrl}/api/confirmations/respond`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.getToken()}`,
+        Authorization: `Bearer ${approved ? this.getApprovalToken() : this.getToken()}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ confirmationId, approved }),
@@ -149,10 +156,11 @@ export class ConduitClient {
     approved: boolean,
     grantedPermissions: string[] = [],
   ): Promise<unknown> {
-    return this.authorizedJson('/api/pairings/respond', {
-      method: 'POST',
-      body: JSON.stringify({ pairingId, approved, grantedPermissions }),
-    });
+    return this.authorizedJson(
+      '/api/pairings/respond',
+      { method: 'POST', body: JSON.stringify({ pairingId, approved, grantedPermissions }) },
+      approved ? this.getApprovalToken() : this.getToken(),
+    );
   }
 
   public async listDevices(): Promise<TrustedDevice[]> {
@@ -182,11 +190,12 @@ export class ConduitClient {
   private async authorizedJson<T>(
     endpoint: string,
     options: { method?: string; body?: string } = {},
+    bearer: string = this.getToken(),
   ): Promise<T> {
     const response = await this.fetchImplementation(`${this.baseUrl}${endpoint}`, {
       method: options.method ?? 'GET',
       headers: {
-        Authorization: `Bearer ${this.getToken()}`,
+        Authorization: `Bearer ${bearer}`,
         ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       },
       ...(options.body ? { body: options.body } : {}),

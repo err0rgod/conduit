@@ -32,6 +32,7 @@ import {
   SecurityPolicy,
   SlidingWindowRateLimiter,
   TrustedDeviceStore,
+  computeDaemonProof,
   digestRemoteRequest,
   requiredPermissionFor,
   validateUploadPaths,
@@ -73,8 +74,12 @@ export interface DaemonOptions {
 }
 
 export interface Authenticator {
+  /** Agent/client token used by MCP and CLI over HTTP. */
   ensureToken(): string;
   verifyToken(token: string): boolean;
+  /** Separate credential for the browser extension and operator-level approvals. */
+  ensureExtensionCredential(): string;
+  verifyExtensionCredential(credential: string): boolean;
 }
 
 interface PendingRequest {
@@ -83,7 +88,9 @@ interface PendingRequest {
 }
 
 type ClientAuthorization =
-  { kind: 'local' } | { kind: 'remote'; deviceId: string; permissions: Permission[] };
+  | { kind: 'local' }
+  | { kind: 'operator' }
+  | { kind: 'remote'; deviceId: string; permissions: Permission[] };
 
 interface RemoteSession {
   deviceId: string;
@@ -141,12 +148,22 @@ export class Daemon {
   private heartbeatTimer: NodeJS.Timeout | null = null;
 
   public constructor(options: DaemonOptions = {}) {
-    this.auth = options.auth ?? new LocalAuth();
+    this.audit = options.audit ?? new AuditLogger();
+    const audit = this.audit;
+    this.auth =
+      options.auth ??
+      new LocalAuth({
+        onWarning: (message, details) =>
+          audit.log({
+            type: 'credential.storage',
+            outcome: 'failure',
+            details: { message, ...details },
+          }),
+      });
     this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
     this.policy = options.policy ?? new SecurityPolicy();
     this.confirmations = options.confirmations ?? new ConfirmationManager();
-    this.audit = options.audit ?? new AuditLogger();
     this.uploadAllowlist = options.uploadAllowlist ?? [];
     this.maxUploadFileBytes = options.maxUploadFileBytes ?? 10 * 1024 * 1024;
     this.authenticationTimeoutMs =
@@ -191,6 +208,9 @@ export class Daemon {
     if (!isLoopbackAddress(this.bindAddress) && (!this.remoteEnabled || !this.tls)) {
       throw new Error('Non-loopback binding requires explicit remote mode and TLS configuration.');
     }
+    // Materialize both credentials up front so the native host and daemon never race to create them.
+    this.auth.ensureToken();
+    this.auth.ensureExtensionCredential();
     const requestHandler = (req: http.IncomingMessage, res: http.ServerResponse): void => {
       // Host validation runs before any routing, including /health (DNS-rebinding defense).
       if (!this.hostAllowed(req)) {
@@ -315,6 +335,10 @@ export class Daemon {
     return this.auth.ensureToken();
   }
 
+  public getExtensionCredential(): string {
+    return this.auth.ensureExtensionCredential();
+  }
+
   public isExtensionConnected(): boolean {
     return this.activeExtension?.readyState === WebSocket.OPEN;
   }
@@ -420,6 +444,33 @@ export class Daemon {
     }
     this.authenticationFailures.reset(clientKey);
 
+    // The operator (extension) credential may only review and approve; it cannot drive the browser.
+    if (
+      authorization.kind === 'operator' &&
+      !(
+        isConfirmationList ||
+        isConfirmationResponse ||
+        isPairingList ||
+        isPairingDecision ||
+        isDeviceList
+      )
+    ) {
+      this.audit.log({
+        type: 'client.authorization',
+        outcome: 'denied',
+        details: { credential: 'operator', reason: 'route-not-permitted' },
+      });
+      this.writeJson(
+        res,
+        403,
+        createErrorResponse(
+          'PERMISSION_DENIED',
+          'The extension credential cannot be used for this endpoint.',
+        ),
+      );
+      return;
+    }
+
     if (authorization.kind === 'remote' && !isAction) {
       this.writeJson(
         res,
@@ -463,7 +514,7 @@ export class Daemon {
     }
 
     if (isPairingDecision) {
-      await this.handlePairingDecision(req, res);
+      await this.handlePairingDecision(req, res, authorization);
       return;
     }
 
@@ -483,7 +534,7 @@ export class Daemon {
     }
 
     if (isConfirmationResponse) {
-      await this.handleConfirmationResponse(req, res);
+      await this.handleConfirmationResponse(req, res, authorization);
       return;
     }
 
@@ -750,7 +801,10 @@ export class Daemon {
 
       if (!authenticated) {
         const authMessage = AuthMessageSchema.safeParse(parsed.value);
-        if (authMessage.success && this.auth.verifyToken(authMessage.data.payload.token)) {
+        if (
+          authMessage.success &&
+          this.auth.verifyExtensionCredential(authMessage.data.payload.token)
+        ) {
           authenticated = true;
           clearTimeout(authenticationTimer);
           this.authenticationFailures.reset(clientKey);
@@ -759,11 +813,24 @@ export class Daemon {
             this.activeExtension.close(4002, 'Replaced by a newer authenticated extension');
           }
           this.activeExtension = ws;
-          ws.send(JSON.stringify({ type: 'auth_success' }));
+          const nonce = authMessage.data.payload.nonce;
+          ws.send(
+            JSON.stringify(
+              nonce === undefined
+                ? { type: 'auth_success' }
+                : {
+                    type: 'auth_success',
+                    proof: computeDaemonProof(this.auth.ensureExtensionCredential(), nonce),
+                  },
+            ),
+          );
           this.audit.log({ type: 'extension.authentication', outcome: 'success' });
           return;
         }
 
+        // A holder of the agent token must never occupy the extension slot; say so clearly.
+        const agentTokenPresented =
+          authMessage.success && this.auth.verifyToken(authMessage.data.payload.token);
         const rateLimit = this.authenticationFailures.attempt(clientKey);
         ws.send(
           JSON.stringify(
@@ -772,7 +839,9 @@ export class Daemon {
                   type: 'error',
                   error: {
                     code: 'AUTHENTICATION_FAILED',
-                    message: 'Extension authentication failed.',
+                    message: agentTokenPresented
+                      ? 'The agent token cannot authenticate as the extension. Use the extension credential from Native Messaging.'
+                      : 'Extension authentication failed.',
                   },
                 }
               : createErrorResponse(
@@ -782,7 +851,11 @@ export class Daemon {
           ),
         );
         ws.close();
-        this.audit.log({ type: 'extension.authentication', outcome: 'denied' });
+        this.audit.log({
+          type: 'extension.authentication',
+          outcome: 'denied',
+          ...(agentTokenPresented ? { details: { reason: 'agent-token-presented' } } : {}),
+        });
         return;
       }
 
@@ -914,7 +987,13 @@ export class Daemon {
     }
     this.localPairingAttempts.reset(clientKey);
     this.audit.log({ type: 'extension.pairing', outcome: 'success' });
-    this.writeJson(res, 200, { token: this.auth.ensureToken() }, extensionCorsHeaders(origin));
+    // Only the extension credential is handed out; the agent token never leaves auth.json.
+    this.writeJson(
+      res,
+      200,
+      { token: this.auth.ensureExtensionCredential() },
+      extensionCorsHeaders(origin),
+    );
   }
 
   private forwardToExtension(request: unknown): Promise<ResponseEnvelope> {
@@ -994,6 +1073,7 @@ export class Daemon {
 
     if (typeof token !== 'string') return null;
     if (this.auth.verifyToken(token)) return { kind: 'local' };
+    if (this.auth.verifyExtensionCredential(token)) return { kind: 'operator' };
     const tokenHash = hashRemoteSessionToken(token);
     const session = this.remoteSessions.get(tokenHash);
     if (!session) return null;
@@ -1135,6 +1215,7 @@ export class Daemon {
   private async handlePairingDecision(
     req: http.IncomingMessage,
     res: http.ServerResponse,
+    authorization: ClientAuthorization,
   ): Promise<void> {
     const body = await this.readBody(req);
     if (!body.ok) {
@@ -1144,6 +1225,9 @@ export class Daemon {
     const parsed = PairingDecisionSchema.safeParse(body.value);
     if (!parsed.success) {
       this.writeJson(res, 400, createErrorResponse('INVALID_REQUEST', 'Invalid pairing decision.'));
+      return;
+    }
+    if (parsed.data.approved && !this.requireOperatorForApproval(res, authorization, 'pairing')) {
       return;
     }
     try {
@@ -1248,6 +1332,7 @@ export class Daemon {
   private async handleConfirmationResponse(
     req: http.IncomingMessage,
     res: http.ServerResponse,
+    authorization: ClientAuthorization,
   ): Promise<void> {
     const body = await this.readBody(req);
     if (!body.ok) {
@@ -1263,8 +1348,43 @@ export class Daemon {
       );
       return;
     }
+    if (
+      parsed.data.approved &&
+      !this.requireOperatorForApproval(res, authorization, 'confirmation')
+    ) {
+      return;
+    }
     const accepted = this.respondToConfirmation(parsed.data.confirmationId, parsed.data.approved);
     this.writeJson(res, accepted ? 200 : 404, { accepted });
+  }
+
+  /**
+   * Approvals must come from the human-operated side (extension credential), never from the
+   * agent token: otherwise an agent could approve its own high-risk confirmations or admit
+   * remote devices. Denials reduce privilege and are accepted from either credential.
+   */
+  private requireOperatorForApproval(
+    res: http.ServerResponse,
+    authorization: ClientAuthorization,
+    subject: 'confirmation' | 'pairing',
+  ): boolean {
+    if (authorization.kind === 'operator') return true;
+    this.audit.log({
+      type: 'client.authorization',
+      outcome: 'denied',
+      details: { subject, reason: 'agent-token-cannot-approve' },
+    });
+    this.writeJson(
+      res,
+      403,
+      createErrorResponse(
+        'PERMISSION_DENIED',
+        'The agent token cannot approve a ' +
+          subject +
+          '. Approve it from the extension or with an operator command.',
+      ),
+    );
+    return false;
   }
 
   private respondToConfirmation(confirmationId: string, approved: boolean): boolean {

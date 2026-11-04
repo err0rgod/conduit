@@ -9,6 +9,11 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - The daemon rejects requests whose `Host` header is not an expected loopback name (or, in remote mode, a literal IP, the bind address, or `remote.allowedHosts`), including `/health`, to defeat DNS rebinding. WebSocket upgrades with a web `Origin` are refused; extension (`chrome-extension://`, `moz-extension://`) and origin-less clients are accepted.
 - Authenticated remote devices are limited to 120 `/api/action` requests per minute each (`429 RATE_LIMITED` with `retryAfterMs`, audited). Local clients are not limited.
 - Audit redaction now also covers JWTs, bearer/basic credentials, long random base64 strings, URL credentials, and secret-looking query parameters inside strings.
+- Split local authentication into two credentials. The agent token (`auth.json`) remains for MCP/CLI; a new extension credential (`extension-auth.json`) is the only secret handed to the browser extension through Native Messaging and `/api/extension/pair`.
+- The extension WebSocket now rejects the agent token (with an audit event), so an agent can no longer replace the real extension and intercept browser responses or confirmations.
+- Approving confirmations and remote-device pairings with the agent token is refused with `403 PERMISSION_DENIED`; denying remains allowed. `conduit pair approve` now requires an interactive terminal and a typed fingerprint prefix and uses the operator credential.
+- Added optional mutual authentication: an `auth` message may include a `nonce`, answered with `proof = HMAC-SHA256(extensionCredential, "conduit.daemon-proof.v1:" + nonce)`. Existing extensions that send no nonce are unaffected.
+- Malformed credential files are no longer replaced silently (warning plus audit event), and credential files are restricted to the current user with `icacls` on Windows.
 - Confirmations are now bound to the exact approved request. A confirmation stores a SHA-256 fingerprint of the operation, resolved target tab, evaluated page URL, and full validated payload; `consume` requires an exact match, stays one-time and expiring, and a mismatch is audited as denied without spending the approval. Previously an approval for one navigation could authorize any later same-type action.
 
 ### Added
@@ -23,6 +28,11 @@ All notable changes to Conduit will be documented here. The project follows Keep
 ### Fixed
 
 - MCP browser tools accept an optional `confirmationId` and the CLI `browser` commands accept `--confirmation <id>`, so confirmation-gated actions (uploads, debug evaluation, ask-mode navigation) can be completed after the human approves in the extension popup. `USER_CONFIRMATION_REQUIRED` results now tell the agent how to proceed; agents still cannot approve.
+
+### Upgrade notes
+
+- Existing installs keep `auth.json` unchanged, so MCP and CLI configuration continues to work. The extension credential is generated on first daemon start.
+- An already-installed extension that cached the old token (stored as the agent token) receives one `AUTHENTICATION_FAILED` reply, clears its cached token, and re-fetches the extension credential from the native host automatically within its normal reconnect delay. No manual action is needed; if the extension still cannot connect, run `conduit setup` and reload the extension.
 
 ## [1.1.4] - 2026-09-10
 

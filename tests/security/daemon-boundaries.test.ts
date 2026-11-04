@@ -137,7 +137,10 @@ describe('daemon security boundaries', () => {
     const confirmationId = (pending.error.details?.confirmation as { id: string }).id;
     const approval = await fetch(`http://127.0.0.1:${port}/api/confirmations/respond`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${daemon.getExtensionCredential()}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ confirmationId, approved: true }),
     });
     expect(approval.status).toBe(200);

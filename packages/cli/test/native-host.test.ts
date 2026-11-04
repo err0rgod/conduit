@@ -83,7 +83,7 @@ describe('native messaging protocol', () => {
       ]),
       output,
       configStore: { load: () => ConduitConfigSchema.parse({ daemon: { port: 9_333 } }) },
-      auth: { ensureToken: () => 'a'.repeat(64) },
+      auth: { ensureExtensionCredential: () => 'a'.repeat(64) },
     });
 
     const response = (await readNativeMessage(Readable.from(outputChunks))) as Record<
@@ -132,7 +132,7 @@ describe('native messaging protocol', () => {
           load: () =>
             ConduitConfigSchema.parse({ browser: { chromiumExtensionIds: [chromiumId] } }),
         },
-        auth: { ensureToken: () => 'b'.repeat(64) },
+        auth: { ensureExtensionCredential: () => 'b'.repeat(64) },
       });
       await expect(readNativeMessage(Readable.from(outputChunks))).resolves.toMatchObject({
         daemonToken: 'b'.repeat(64),
