@@ -18,6 +18,7 @@ export function daemonOptionsFromConfig(config: ConduitConfig, instanceId?: stri
     sessionTimeoutMs: config.daemon.sessionTimeoutMs,
     bindAddress: config.daemon.bindAddress,
     remoteEnabled: config.remote.enabled,
+    allowedHosts: config.remote.allowedHosts,
     remoteSessionTimeoutMs: config.remote.sessionTimeoutMs,
     ...(tls ? { tls } : {}),
     ...(instanceId ? { instanceId } : {}),

@@ -43,6 +43,9 @@ export const ConduitConfigSchema = z
         enabled: z.boolean().default(false),
         tlsKeyPath: z.string().min(1).optional(),
         tlsCertificatePath: z.string().min(1).optional(),
+        // Extra DNS names accepted in the HTTP Host header (DNS-rebinding defense), e.g. a
+        // Tailscale MagicDNS name. Literal IPs and the bind address are always accepted.
+        allowedHosts: z.array(z.string().min(1).max(253)).max(32).default([]),
         sessionTimeoutMs: z.number().int().min(10_000).max(86_400_000).default(900_000),
       })
       .strict()
