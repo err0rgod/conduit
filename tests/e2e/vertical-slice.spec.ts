@@ -12,6 +12,7 @@ import { SecurityPolicy } from '../../packages/security/src/policy';
 import { AuditLogger, StoredAuditEvent } from '../../packages/security/src/audit';
 
 const token = 'e'.repeat(64);
+const extensionCredential = 'd'.repeat(64);
 let daemon: Daemon;
 let daemonPort: number;
 let fixtureServer: Server;
@@ -48,6 +49,8 @@ test.beforeAll(async () => {
     auth: {
       ensureToken: () => token,
       verifyToken: (candidate) => candidate === token,
+      ensureExtensionCredential: () => extensionCredential,
+      verifyExtensionCredential: (candidate) => candidate === extensionCredential,
     },
     policy: new SecurityPolicy({
       permissions: [
@@ -75,6 +78,12 @@ test.beforeAll(async () => {
   await writeFile(path.join(dataPath, 'auth.json'), `${JSON.stringify({ token }, null, 2)}\n`, {
     mode: 0o600,
   });
+  // The native host hands the extension this credential; the daemon accepts only it on the WS.
+  await writeFile(
+    path.join(dataPath, 'extension-auth.json'),
+    `${JSON.stringify({ token: extensionCredential }, null, 2)}\n`,
+    { mode: 0o600 },
+  );
   new ConfigStore({ configPath }).save({
     daemon: { port: daemonPort },
     security: {

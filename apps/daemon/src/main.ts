@@ -18,6 +18,7 @@ export function daemonOptionsFromConfig(config: ConduitConfig, instanceId?: stri
     sessionTimeoutMs: config.daemon.sessionTimeoutMs,
     bindAddress: config.daemon.bindAddress,
     remoteEnabled: config.remote.enabled,
+    allowedHosts: config.remote.allowedHosts,
     remoteSessionTimeoutMs: config.remote.sessionTimeoutMs,
     ...(tls ? { tls } : {}),
     ...(instanceId ? { instanceId } : {}),
@@ -34,6 +35,7 @@ export function daemonOptionsFromConfig(config: ConduitConfig, instanceId?: stri
     audit: new AuditLogger({
       filePath: path.join(getAppDataDir(), 'audit.jsonl'),
       maxBytes: config.logging.maximumAuditBytes,
+      retentionDays: config.logging.retentionDays,
     }),
   };
 }

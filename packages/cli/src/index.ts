@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
+import * as readline from 'node:readline/promises';
 import { Command } from 'commander';
 import { ConfigStore } from '@conduit/config';
 import { ConduitClient } from '@conduit/daemon-client';
@@ -34,6 +35,42 @@ export interface CliServices {
   updateManager: UpdateManager;
   nativeHostInstaller: Pick<NativeHostInstaller, 'install'>;
   stdout?: Pick<NodeJS.WriteStream, 'write'>;
+  /** Terminal input for interactive operator confirmations; defaults to process.stdin. */
+  stdin?: NodeJS.ReadableStream & { isTTY?: boolean };
+}
+
+const FINGERPRINT_CONFIRMATION_LENGTH = 8;
+
+/**
+ * Requires an interactive terminal and a typed fingerprint prefix. Throws otherwise.
+ * This is defense in depth against unattended approval, not a boundary against a malicious
+ * process running as the same OS user (which could read the credential files directly).
+ */
+export async function confirmFingerprint(options: {
+  input: NodeJS.ReadableStream & { isTTY?: boolean };
+  stdout: Pick<NodeJS.WriteStream, 'write'>;
+  fingerprint: string;
+  summary: string[];
+}): Promise<void> {
+  if (!options.input.isTTY) {
+    throw new Error(
+      'Approval requires an interactive terminal. Run this command yourself in a terminal; it cannot be approved from a script or pipe.',
+    );
+  }
+  const normalize = (value: string): string => value.replace(/[^a-z0-9]/giu, '').toLowerCase();
+  const expected = normalize(options.fingerprint).slice(0, FINGERPRINT_CONFIRMATION_LENGTH);
+  options.stdout.write(`${options.summary.join('\n')}\n`);
+  const rl = readline.createInterface({ input: options.input, output: process.stderr });
+  try {
+    const answer = await rl.question(
+      `Type the first ${FINGERPRINT_CONFIRMATION_LENGTH} characters of the fingerprint to approve, or press Enter to cancel: `,
+    );
+    if (normalize(answer) !== expected || expected.length === 0) {
+      throw new Error('Fingerprint confirmation did not match. The pairing was not approved.');
+    }
+  } finally {
+    rl.close();
+  }
 }
 
 export function createProgram(overrides: Partial<CliServices> = {}): Command {
@@ -162,9 +199,25 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
     .command('approve <pairingId>')
     .description('Approve a pairing with an explicit permission subset')
     .option('--permission <permission...>', 'Permission grants', ['browser.read'])
-    .action(async (pairingId: string, options: { permission: string[] }) =>
-      output(await client.respondToPairing(pairingId, true, options.permission)),
-    );
+    .action(async (pairingId: string, options: { permission: string[] }) => {
+      // Human operator command: requires a real terminal and a typed fingerprint prefix, so a
+      // script or an agent that merely holds a token cannot approve a device unattended.
+      const pending = (await client.listPairings()).find((item) => item.id === pairingId);
+      if (!pending) throw new Error('No pending pairing matches that identifier.');
+      await confirmFingerprint({
+        input: overrides.stdin ?? process.stdin,
+        stdout,
+        fingerprint: pending.fingerprint,
+        summary: [
+          `Device name: ${pending.deviceName}`,
+          `Fingerprint: ${pending.fingerprint}`,
+          `Requested permissions: ${pending.requestedPermissions.join(', ') || '(none)'}`,
+          `Granting: ${options.permission.join(', ')}`,
+          `Expires: ${new Date(pending.expiresAt).toISOString()}`,
+        ],
+      });
+      output(await client.respondToPairing(pairingId, true, options.permission));
+    });
   pair
     .command('deny <pairingId>')
     .description('Deny a pending pairing')
@@ -298,11 +351,27 @@ function addBrowserCommands(
     type: Parameters<ConduitClient['browser']>[0],
     payload: unknown = {},
   ): Promise<void> => {
-    const response = await client.browser(type, payload);
+    const response = confirmationId
+      ? await client.browser(type, payload, { confirmationId })
+      : await client.browser(type, payload);
     output(response);
-    if (!response.success) process.exitCode = 2;
+    if (!response.success) {
+      process.exitCode = 2;
+      if (response.error.code === 'USER_CONFIRMATION_REQUIRED') {
+        process.stderr.write(`${CONFIRMATION_HINT}
+`);
+      }
+    }
   };
+  let confirmationId: string | undefined;
   const browser = program.command('browser').description('Control the connected Chromium browser');
+  // Every browser command may be confirmation-gated; the approved ID is passed
+  // with --confirmation on the retry. There is intentionally no approve command:
+  // only the human, in the extension popup, can approve.
+  browser.hook('preAction', (_parent, action) => {
+    const value: unknown = action.opts().confirmation;
+    confirmationId = typeof value === 'string' && value.length > 0 ? value : undefined;
+  });
   browser
     .command('tabs')
     .description('List browser tabs')
@@ -498,7 +567,16 @@ function addBrowserCommands(
     .action((options: TabOptions & { format: string }) =>
       run('browser.screenshot', { ...optionalTab(options), format: options.format }),
     );
+  for (const command of browser.commands) {
+    command.option(
+      '--confirmation <id>',
+      'Approved confirmation ID, to retry an action the user approved in the extension popup',
+    );
+  }
 }
+
+const CONFIRMATION_HINT =
+  'Confirmation required: ask the user to approve this action in the Conduit extension popup, then retry the same command with --confirmation <id> (the id is in error.details.confirmation.id). Approvals are one-time and only valid for the identical command.';
 
 function addTabCommand(
   run: (type: Parameters<ConduitClient['browser']>[0], payload?: unknown) => Promise<void>,

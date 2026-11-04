@@ -79,6 +79,7 @@ export class SetupManager {
     }
     this.configStore.save(config);
     this.auth.ensureToken();
+    this.auth.ensureExtensionCredential();
 
     const service = installService ? this.service.install() : undefined;
     const daemon = startDaemon ? await this.lifecycle.start() : undefined;

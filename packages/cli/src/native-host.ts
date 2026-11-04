@@ -29,7 +29,7 @@ export interface NativeHostRuntimeOptions {
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
   configStore?: Pick<ConfigStore, 'load'>;
-  auth?: Pick<LocalAuth, 'ensureToken'>;
+  auth?: Pick<LocalAuth, 'ensureExtensionCredential'>;
 }
 
 export async function runNativeHost(
@@ -42,7 +42,8 @@ export async function runNativeHost(
   }
 
   parseNativeRequest(await readNativeMessage(options.input ?? process.stdin));
-  const token = (options.auth ?? new LocalAuth()).ensureToken();
+  // Only the extension credential is disclosed; the agent token stays out of the browser.
+  const token = (options.auth ?? new LocalAuth()).ensureExtensionCredential();
   const response: NativeConnectionResponse = {
     type: 'conduit.connection-settings',
     protocolVersion: NATIVE_PROTOCOL_VERSION,

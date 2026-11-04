@@ -8,6 +8,7 @@ export interface ConduitMcpClient {
   browser(
     type: Parameters<ConduitClient['browser']>[0],
     payload?: Parameters<ConduitClient['browser']>[1],
+    options?: Parameters<ConduitClient['browser']>[2],
   ): ReturnType<ConduitClient['browser']>;
 }
 
@@ -35,7 +36,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: [
+    tools: withConfirmationInput([
       tool(
         'conduit_status',
         'Check daemon and extension connectivity. No browser permission required.',
@@ -254,7 +255,7 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
         properties: optionalTabProperty,
         additionalProperties: false,
       }),
-    ],
+    ]),
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -262,6 +263,9 @@ export function createConduitMcpServer(client: ConduitMcpClient = new ConduitCli
       const args = asRecord(request.params.arguments);
       if (request.params.name === 'conduit_status') return content(await client.health());
       const response = await callBrowserTool(client, request.params.name, args);
+      if (!response.success && response.error.code === 'USER_CONFIRMATION_REQUIRED') {
+        return content({ ...response, agentGuidance: CONFIRMATION_GUIDANCE }, true);
+      }
       return content(response, !response.success);
     } catch (error: unknown) {
       return content(
@@ -279,110 +283,115 @@ export async function callBrowserTool(
   name: string,
   args: Record<string, unknown>,
 ): Promise<ResponseEnvelope> {
+  const confirmationId = optionalString(args, 'confirmationId');
+  const call: ConduitMcpClient['browser'] = (type, ...rest) =>
+    confirmationId
+      ? client.browser(type, rest[0], { confirmationId })
+      : client.browser(type, ...rest);
   const tabId = optionalNumber(args, 'tabId');
   const target = () => argumentTarget(args);
   switch (name) {
     case 'browser_list_tabs':
-      return client.browser('browser.list_tabs');
+      return call('browser.list_tabs');
     case 'browser_get_active_tab':
-      return client.browser('browser.get_active_tab');
+      return call('browser.get_active_tab');
     case 'browser_open_tab':
-      return client.browser(
+      return call(
         'browser.open_tab',
         optionalString(args, 'url') ? { url: optionalString(args, 'url') } : {},
       );
     case 'browser_close_tab':
-      return client.browser('browser.close_tab', { tabId: requiredNumber(args, 'tabId') });
+      return call('browser.close_tab', { tabId: requiredNumber(args, 'tabId') });
     case 'browser_focus_tab':
-      return client.browser('browser.focus_tab', { tabId: requiredNumber(args, 'tabId') });
+      return call('browser.focus_tab', { tabId: requiredNumber(args, 'tabId') });
     case 'browser_navigate':
-      return client.browser('browser.navigate', {
+      return call('browser.navigate', {
         ...(tabId === undefined ? {} : { tabId }),
         url: requiredString(args, 'url'),
       });
     case 'browser_go_back':
-      return client.browser('browser.go_back', { tabId: requiredNumber(args, 'tabId') });
+      return call('browser.go_back', { tabId: requiredNumber(args, 'tabId') });
     case 'browser_go_forward':
-      return client.browser('browser.go_forward', { tabId: requiredNumber(args, 'tabId') });
+      return call('browser.go_forward', { tabId: requiredNumber(args, 'tabId') });
     case 'browser_reload':
-      return client.browser('browser.reload', { tabId: requiredNumber(args, 'tabId') });
+      return call('browser.reload', { tabId: requiredNumber(args, 'tabId') });
     case 'browser_snapshot':
-      return client.browser('browser.snapshot', {
+      return call('browser.snapshot', {
         ...(tabId === undefined ? {} : { tabId }),
         mode: optionalString(args, 'mode') ?? 'compact',
       });
     case 'browser_get_visible_text':
-      return client.browser('browser.get_visible_text', tabId === undefined ? {} : { tabId });
+      return call('browser.get_visible_text', tabId === undefined ? {} : { tabId });
     case 'browser_click':
-      return client.browser('browser.click', {
+      return call('browser.click', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
       });
     case 'browser_type':
-      return client.browser('browser.type', {
+      return call('browser.type', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
         text: requiredString(args, 'value'),
       });
     case 'browser_clear':
-      return client.browser('browser.clear', {
+      return call('browser.clear', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
       });
     case 'browser_select':
-      return client.browser('browser.select', {
+      return call('browser.select', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
         values: requiredStrings(args, 'values'),
       });
     case 'browser_hover':
-      return client.browser('browser.hover', {
+      return call('browser.hover', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
       });
     case 'browser_scroll':
-      return client.browser('browser.scroll', {
+      return call('browser.scroll', {
         ...(tabId === undefined ? {} : { tabId }),
         ...(hasTarget(args) ? { target: target() } : {}),
         deltaX: optionalNumber(args, 'deltaX') ?? 0,
         deltaY: optionalNumber(args, 'deltaY') ?? 0,
       });
     case 'browser_press_key':
-      return client.browser('browser.press_key', {
+      return call('browser.press_key', {
         ...(tabId === undefined ? {} : { tabId }),
         key: requiredString(args, 'key'),
         modifiers: optionalStrings(args, 'modifiers') ?? [],
       });
     case 'browser_wait_for':
-      return client.browser('browser.wait_for', {
+      return call('browser.wait_for', {
         ...(tabId === undefined ? {} : { tabId }),
         ...copyOptional(args, ['selector', 'text', 'url', 'state']),
         timeoutMs: optionalNumber(args, 'timeoutMs') ?? 15_000,
       });
     case 'browser_screenshot':
-      return client.browser('browser.screenshot', {
+      return call('browser.screenshot', {
         ...(tabId === undefined ? {} : { tabId }),
         format: optionalString(args, 'format') ?? 'png',
       });
     case 'browser_upload_file':
-      return client.browser('browser.upload_file', {
+      return call('browser.upload_file', {
         ...(tabId === undefined ? {} : { tabId }),
         target: target(),
         files: requiredStrings(args, 'files'),
       });
     case 'browser_get_downloads':
-      return client.browser('browser.get_downloads');
+      return call('browser.get_downloads');
     case 'browser_debug_start':
-      return client.browser('browser.debug_start', {
+      return call('browser.debug_start', {
         ...(tabId === undefined ? {} : { tabId }),
         includeNetwork: args.includeNetwork !== false,
         includeConsole: args.includeConsole !== false,
         maxEvents: optionalNumber(args, 'maxEvents') ?? 500,
       });
     case 'browser_debug_stop':
-      return client.browser('browser.debug_stop', tabId === undefined ? {} : { tabId });
+      return call('browser.debug_stop', tabId === undefined ? {} : { tabId });
     case 'browser_debug_events':
-      return client.browser('browser.debug_events', {
+      return call('browser.debug_events', {
         ...(tabId === undefined ? {} : { tabId }),
         ...(optionalNumber(args, 'since') === undefined
           ? {}
@@ -390,25 +399,54 @@ export async function callBrowserTool(
         limit: optionalNumber(args, 'limit') ?? 100,
       });
     case 'browser_debug_evaluate':
-      return client.browser('browser.debug_evaluate', {
+      return call('browser.debug_evaluate', {
         ...(tabId === undefined ? {} : { tabId }),
         expression: requiredString(args, 'expression'),
         awaitPromise: args.awaitPromise !== false,
       });
     case 'browser_debug_pause':
-      return client.browser('browser.debug_pause', tabId === undefined ? {} : { tabId });
+      return call('browser.debug_pause', tabId === undefined ? {} : { tabId });
     case 'browser_debug_resume':
-      return client.browser('browser.debug_resume', tabId === undefined ? {} : { tabId });
+      return call('browser.debug_resume', tabId === undefined ? {} : { tabId });
     case 'browser_debug_trace_start':
-      return client.browser('browser.debug_trace_start', {
+      return call('browser.debug_trace_start', {
         ...(tabId === undefined ? {} : { tabId }),
         categories: optionalStrings(args, 'categories') ?? [],
       });
     case 'browser_debug_trace_stop':
-      return client.browser('browser.debug_trace_stop', tabId === undefined ? {} : { tabId });
+      return call('browser.debug_trace_stop', tabId === undefined ? {} : { tabId });
     default:
       throw new Error(`Unknown Conduit tool: ${name}`);
   }
+}
+
+const CONFIRMATION_GUIDANCE =
+  'This action needs human approval. Ask the user to approve it in the Conduit extension popup (agents cannot approve). Then retry the SAME call with identical arguments plus confirmationId set to the confirmation id from error.details.confirmation.id. An approval is one-time, expires, and is only valid for the exact request that was shown.';
+
+const CONFIRMATION_NOTE =
+  ' If the result is USER_CONFIRMATION_REQUIRED, the user must approve it in the Conduit extension popup; then retry the identical call with confirmationId.';
+
+/** Every browser action may be confirmation-gated, so each accepts confirmationId. */
+function withConfirmationInput(tools: Array<ReturnType<typeof tool>>) {
+  return tools.map((entry) => {
+    if (!entry.name.startsWith('browser_')) return entry;
+    const schema = entry.inputSchema as { properties?: Record<string, unknown> };
+    return {
+      ...entry,
+      description: entry.description + CONFIRMATION_NOTE,
+      inputSchema: {
+        ...schema,
+        properties: {
+          ...(schema.properties ?? {}),
+          confirmationId: {
+            type: 'string',
+            description:
+              'Approved confirmation id from a previous USER_CONFIRMATION_REQUIRED result for this exact call. Optional; one-time use.',
+          },
+        },
+      },
+    };
+  });
 }
 
 function tool(name: string, description: string, inputSchema: Record<string, unknown>) {

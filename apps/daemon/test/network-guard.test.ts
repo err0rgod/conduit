@@ -87,7 +87,7 @@ describe('daemon fails closed on unknown or stale page URLs', () => {
       tabs: [{ id: 1, url: '', title: '', active: true }],
       received: [],
     };
-    await connectFakeExtension(port, daemon.getToken(), state);
+    await connectFakeExtension(port, daemon.getExtensionCredential(), state);
     const result = await act(port, daemon.getToken(), 'browser.click', {
       target: { elementId: 'e1' },
     });
@@ -102,7 +102,7 @@ describe('daemon fails closed on unknown or stale page URLs', () => {
       tabs: [{ id: 1, url: 'https://example.com/', title: 'ok', active: true }],
       received: [],
     };
-    await connectFakeExtension(port, daemon.getToken(), state);
+    await connectFakeExtension(port, daemon.getExtensionCredential(), state);
 
     const allowed = await act(port, daemon.getToken(), 'browser.snapshot');
     expect(allowed.status).toBe(200);
@@ -135,7 +135,7 @@ describe('daemon fails closed on unknown or stale page URLs', () => {
       tabs: [{ id: 1, url: 'https://example.com/', title: 'ok', active: true }],
       received: [],
     };
-    await connectFakeExtension(port, daemon.getToken(), state);
+    await connectFakeExtension(port, daemon.getExtensionCredential(), state);
     const result = await act(port, daemon.getToken(), 'browser.upload_file', {
       target: { elementId: 'e1' },
       files: ['C:\\missing-private.txt'],
@@ -145,10 +145,71 @@ describe('daemon fails closed on unknown or stale page URLs', () => {
     expect(state.received).toEqual(['browser.list_tabs']);
   });
 
+  it('binds approval to the live URL: a retry matches, a moved page needs re-approval', async () => {
+    const daemon = new Daemon({
+      policy: new SecurityPolicy({
+        permissions: ['browser.upload'],
+        domainMode: 'allowlist',
+        allowedDomains: ['example.com', 'example.org'],
+      }),
+      audit: new AuditLogger({ sink: () => undefined }),
+    });
+    daemons.push(daemon);
+    const port = await daemon.start(0);
+    const state: FakeExtension = {
+      tabs: [{ id: 1, url: 'https://example.com/a', title: 'a', active: true }],
+      received: [],
+    };
+    await connectFakeExtension(port, daemon.getExtensionCredential(), state);
+    const payload = { target: { elementId: 'e1' }, files: ['C:\\missing-private.txt'] };
+    const send = async (confirmationId?: string) => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/action`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${daemon.getToken()}`,
+          'Content-Type': 'application/json',
+          ...(confirmationId ? { 'X-Conduit-Confirmation': confirmationId } : {}),
+        },
+        body: JSON.stringify({ ...createEnvelopeBase(), type: 'browser.upload_file', payload }),
+      });
+      return { status: response.status, body: (await response.json()) as ResponseEnvelope };
+    };
+    const approve = async (id: string) => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/confirmations/respond`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${daemon.getExtensionCredential()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ confirmationId: id, approved: true }),
+      });
+      expect(response.status).toBe(200);
+    };
+    const pendingId = (body: ResponseEnvelope): string => {
+      if (body.success) throw new Error('expected a confirmation');
+      return (body.error.details?.confirmation as { id: string }).id;
+    };
+
+    const first = await send();
+    expect(first.status).toBe(409);
+    await approve(pendingId(first.body));
+    // Same page: the retry matches the fingerprint and is consumed (it then fails
+    // path validation, which only runs after confirmation succeeds).
+    const retry = await send(pendingId(first.body));
+    expect(errorCode(retry.body)).toBe('FILE_ACCESS_DENIED');
+
+    const second = await send();
+    await approve(pendingId(second.body));
+    state.tabs = [{ id: 1, url: 'https://example.org/b', title: 'b', active: true }];
+    const moved = await send(pendingId(second.body));
+    expect(moved.status).toBe(409);
+    expect(errorCode(moved.body)).toBe('USER_CONFIRMATION_REQUIRED');
+  });
+
   it('keeps list_tabs available without a known URL', async () => {
     const { daemon, port } = await startDaemon();
     const state: FakeExtension = { tabs: [], received: [] };
-    await connectFakeExtension(port, daemon.getToken(), state);
+    await connectFakeExtension(port, daemon.getExtensionCredential(), state);
     const result = await act(port, daemon.getToken(), 'browser.list_tabs');
     expect(result.status).toBe(200);
   });
@@ -170,7 +231,7 @@ describe('daemon rejects non-http(s) navigation in every domain mode', () => {
         daemons.push(daemon);
         const port = await daemon.start(0);
         const state: FakeExtension = { tabs: [], received: [] };
-        await connectFakeExtension(port, daemon.getToken(), state);
+        await connectFakeExtension(port, daemon.getExtensionCredential(), state);
         for (const type of ['browser.navigate', 'browser.open_tab']) {
           const result = await act(port, daemon.getToken(), type, { url });
           expect(result.status).toBe(403);
