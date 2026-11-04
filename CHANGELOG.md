@@ -4,6 +4,11 @@ All notable changes to Conduit will be documented here. The project follows Keep
 
 ## [Unreleased]
 
+### Security
+
+- Hardened the localhost/private-network guard: it now classifies hosts with `node:net` (`BlockList`/`isIP`) and covers bracketed IPv6 (`[::1]`), `0.0.0.0/8`, all of `127/8`, `*.localhost`, trailing-dot forms, IPv4-mapped/compatible, NAT64 and 6to4 IPv6, `fc00::/7`, `fe80::/10`, `169.254/16` (cloud metadata), `100.64/10`, `.local`/`.internal` names and single-label hosts. Numeric IPv4 encodings are canonicalised by the WHATWG URL parser before classification.
+- Domain policy now fails closed: operations that read or act on page content are denied with `DOMAIN_NOT_ALLOWED` when the current page URL is unknown, and the daemon refreshes the live tab URL from the extension before evaluating policy instead of trusting a stale cache. Tab-level operations (`list_tabs`, `get_active_tab`, `focus_tab`, `close_tab`, `get_downloads`) and `open_tab` without a URL remain available. Non-HTTP(S) navigation targets (`file:`, `javascript:`, `data:`, `chrome:`, `view-source:`) are rejected in every domain mode.
+
 ## [1.1.4] - 2026-09-10
 
 ### Changed

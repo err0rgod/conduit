@@ -16,6 +16,7 @@ import {
   RemoteChallengeRequestSchema,
   ResponseEnvelope,
   ResponseEnvelopeSchema,
+  createEnvelopeBase,
   createErrorResponse,
   createSuccessResponse,
 } from '@conduit/protocol';
@@ -33,6 +34,7 @@ import {
   TrustedDeviceStore,
   digestRemoteRequest,
   requiredPermissionFor,
+  urlRequirementFor,
   validateUploadPaths,
 } from '@conduit/security';
 import { WebSocket, WebSocketServer } from 'ws';
@@ -493,7 +495,10 @@ export class Daemon {
       );
       return;
     }
-    const decision = this.policy.authorize(browserRequest, this.currentUrlFor(browserRequest));
+    const decision = this.policy.authorize(
+      browserRequest,
+      await this.resolveCurrentUrl(browserRequest),
+    );
     if (decision.outcome === 'deny') {
       this.audit.log({
         type: 'permission.decision',
@@ -507,7 +512,7 @@ export class Daemon {
         res,
         403,
         createErrorResponse(
-          decision.domain ? 'DOMAIN_NOT_ALLOWED' : 'PERMISSION_DENIED',
+          decision.domain || decision.domainRelated ? 'DOMAIN_NOT_ALLOWED' : 'PERMISSION_DENIED',
           decision.reason,
           browserRequest.id,
         ),
@@ -1179,6 +1184,31 @@ export class Daemon {
       details: { confirmationId, approved },
     });
     return accepted;
+  }
+
+  /**
+   * Domain policy must be evaluated against the page as it is now, not against
+   * whatever URL the daemon last saw: pages redirect, navigate themselves, and
+   * the user can browse in the same tab. For operations that act on page
+   * content the daemon therefore asks the extension for the live tab list and
+   * refreshes its cache before the policy runs. If the lookup fails the URL is
+   * reported as unknown and the policy fails closed.
+   */
+  private async resolveCurrentUrl(
+    request: ReturnType<typeof BrowserRequestEnvelopeSchema.parse>,
+  ): Promise<string | undefined> {
+    if (urlRequirementFor(request) !== 'current') return undefined;
+    if (this.isExtensionConnected() && this.activeExtension) {
+      const listRequest = BrowserRequestEnvelopeSchema.parse({
+        ...createEnvelopeBase(),
+        type: 'browser.list_tabs',
+        payload: {},
+      });
+      const response = await this.forwardToExtension(listRequest);
+      if (!response.success) return undefined;
+      this.recordBrowserState(listRequest, response);
+    }
+    return this.currentUrlFor(request);
   }
 
   private currentUrlFor(
