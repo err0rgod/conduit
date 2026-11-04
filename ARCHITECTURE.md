@@ -41,7 +41,7 @@ The public React/Vite documentation site is maintained in [`conduit-web`](https:
 ## Data flow
 
 1. A client creates a versioned request envelope.
-2. The daemon authenticates the local token or remote session.
+2. The daemon authenticates the agent token or remote session (the extension WebSocket uses a separate extension credential; see below).
 3. Zod validates the full operation and payload.
 4. Remote device grants, daemon capability/domain policy, and the independent Chromium host grant are evaluated.
 5. A required confirmation is created or consumed.
@@ -49,6 +49,24 @@ The public React/Vite documentation site is maintained in [`conduit-web`](https:
 7. The request is placed in a bounded pending map and sent to the authenticated extension.
 8. The extension executes the browser operation and returns a correlated response.
 9. The daemon updates minimal tab state, writes a redacted audit event, and returns a structured result.
+
+## Local authentication
+
+`LocalAuth` (`packages/security`) owns two credentials: the **agent token** (`auth.json`) for MCP/CLI over HTTP, and the **extension credential** (`extension-auth.json`) that only the native host and `/api/extension/pair` disclose to the browser extension. The daemon authorizes each HTTP request as `local` (agent token), `operator` (extension credential), or `remote` (device session):
+
+| Route                                                             | Agent token | Extension credential | Remote session |
+| ----------------------------------------------------------------- | ----------- | -------------------- | -------------- |
+| `POST /api/action`                                                | yes         | no                   | yes (grants)   |
+| `GET /api/confirmations`, `GET /api/pairings`, `GET /api/devices` | yes         | yes                  | no             |
+| `POST /api/confirmations/respond` (approve)                       | **no**      | yes                  | no             |
+| `POST /api/confirmations/respond` (deny)                          | yes         | yes                  | no             |
+| `POST /api/pairings/respond` (approve)                            | **no**      | yes                  | no             |
+| `POST /api/pairings/respond` (deny)                               | yes         | yes                  | no             |
+| `POST /api/pairings/start`, `/api/extension/pairings/start`       | yes         | no                   | no             |
+| `POST /api/devices/revoke`, `POST /api/shutdown`                  | yes         | no                   | no             |
+| Extension WebSocket                                               | **no**      | yes                  | no             |
+
+The extension WebSocket also carries confirmation review/approval for the popup. An optional client nonce in the `auth` message yields an HMAC-SHA256 proof (`conduit.daemon-proof.v1:` domain separation) so an extension can authenticate the daemon in return. This is defense in depth; same-OS-user processes can read both files (see SECURITY.md).
 
 ## Independent authorization gates
 

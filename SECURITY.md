@@ -35,7 +35,7 @@ Untrusted:
 ## Security properties
 
 - loopback-only binding and remote-disabled defaults;
-- local random token and authenticated extension connection;
+- two separate local credentials (agent token and extension credential) with split authority, see "Local credentials";
 - runtime validation at protocol/config boundaries;
 - deny-by-default capability and domain checks;
 - per-site browser host grants by default, with broad host access available only through an explicit popup click;
@@ -61,7 +61,25 @@ The backend's `security.domainMode: "allow-all"` is intentionally local-only and
 
 ## Secret handling
 
-Never commit or share local tokens, remote private keys, TLS private keys, browser profiles, cookies, audit logs, or screenshots containing user data. Conduit does not need raw browser passwords. The explicit `conduit extension token` command is intended only for local extension setup.
+Never commit or share local tokens, remote private keys, TLS private keys, browser profiles, cookies, audit logs, or screenshots containing user data. Conduit does not need raw browser passwords.
+
+## Local credentials
+
+Conduit keeps two independent random 256-bit credentials in the user's application-data directory:
+
+| Credential           | File                  | Given to                                 | Authority                                                                                                                 |
+| -------------------- | --------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Agent token          | `auth.json`           | MCP server, CLI, other agent clients     | `/api/action`, list endpoints, device revoke, shutdown, pairing start, and _denying_ confirmations/pairings               |
+| Extension credential | `extension-auth.json` | The browser extension (Native Messaging) | The extension WebSocket slot, approving confirmations and pairings (HTTP, operator commands), and listing pending reviews |
+
+- Native Messaging and the legacy `/api/extension/pair` flow hand out only the extension credential. The agent token is never sent to the browser.
+- The extension WebSocket accepts only the extension credential. A connection that presents the agent token is rejected with `AUTHENTICATION_FAILED`, an explanatory message, and a `extension.authentication` audit event (`reason: agent-token-presented`). It cannot displace a connected extension.
+- Approving a confirmation or a remote-device pairing with the agent token returns `403 PERMISSION_DENIED`. Denying is allowed with either credential because it only reduces privilege. The extension credential cannot call `/api/action`, shut the daemon down, or start pairings.
+- `conduit pair approve` is a human operator command: it reads the extension credential from disk, refuses to run when stdin is not an interactive terminal, shows the device name, fingerprint, requested permissions, and expiry, and requires the operator to type the first characters of the fingerprint.
+- Optionally, an extension may send a random `nonce` in its `auth` message. The daemon then replies `{"type":"auth_success","proof":"<hex>"}` where `proof = HMAC-SHA256(extensionCredential, "conduit.daemon-proof.v1:" + nonce)`. An extension can verify this to confirm it is talking to a daemon that holds the credential from its native host. The nonce is optional for backward compatibility; the current extension does not yet require it.
+- Credential files are created with mode `0600` (directory `0700`) on POSIX and restricted with `icacls` to the current user on Windows. Failures to restrict permissions, and malformed credential files that get regenerated, are reported (stderr and the audit log) rather than ignored.
+
+Honest limits: these files are readable by any process running as the same OS user. A malicious same-user process with shell access can read the extension credential and act as the operator, so this separation is defense in depth against MCP-only or prompt-injected agents and accidental token leakage, not a hard boundary against hostile local code. Use a separate OS account or sandbox for agents you do not trust with shell access.
 
 ## Out of scope assumptions
 
