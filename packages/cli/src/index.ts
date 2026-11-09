@@ -90,7 +90,7 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
   program
     .name('conduit')
     .description('Open-source, local-first browser control bridge for AI agents')
-    .version('1.1.4')
+    .version('1.1.5')
     .option('--json', 'Emit machine-readable JSON');
 
   program
@@ -270,9 +270,9 @@ export function createProgram(overrides: Partial<CliServices> = {}): Command {
           'Install the Conduit backend with the release script.',
           'Install Chrome/Brave from the Chrome Web Store: https://chromewebstore.google.com/detail/conduit-extension/gjhipjgiapijcdnflldnoenafeegmfpc',
           'Firefox Add-ons (approved): https://addons.mozilla.org/en-US/firefox/addon/conduit/',
-          'For development or recovery, download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v1.1.4/conduit-extension-unpacked-v1.1.4.zip',
+          'For development or recovery, download the verified unpacked build: https://github.com/err0rgod/conduit-extension/releases/download/v1.1.5/conduit-extension-unpacked-v1.1.5.zip',
           'Extract it, open chrome://extensions (or edge://extensions / brave://extensions), enable Developer mode, choose Load unpacked, and select the folder containing manifest.json.',
-          'Release page: https://github.com/err0rgod/conduit-extension/releases/tag/v1.1.4',
+          'Release page: https://github.com/err0rgod/conduit-extension/releases/tag/v1.1.5',
           'Install from Microsoft Edge Add-ons for Edge.',
           'The unpacked development extension ID jkdlmcpkgkooilffjegfjmkanoelbmbl is trusted by default.',
           'For a future Edge or other Chromium store item, run conduit extension trust <store-extension-id> once.',

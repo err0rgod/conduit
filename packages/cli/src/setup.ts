@@ -36,7 +36,7 @@ export interface UninstallReport {
 }
 
 const EXTENSION_ARCHIVE_URL =
-  'https://github.com/err0rgod/conduit-extension/releases/download/v1.1.4/conduit-extension-unpacked-v1.1.4.zip';
+  'https://github.com/err0rgod/conduit-extension/releases/download/v1.1.5/conduit-extension-unpacked-v1.1.5.zip';
 
 export interface SetupManagerOptions {
   configStore?: ConfigStore;

@@ -2,7 +2,7 @@
 
 All notable changes to Conduit will be documented here. The project follows Keep a Changelog concepts and will adopt Semantic Versioning when releases begin.
 
-## [Unreleased]
+## [1.1.5] - 2026-11-09
 
 ### Security
 
@@ -122,6 +122,7 @@ All notable changes to Conduit will be documented here. The project follows Keep
 - Native Messaging is pinned to the deterministic Conduit extension identity.
 
 [Unreleased]: https://github.com/err0rgod/conduit/commits/main
+[1.1.5]: https://github.com/err0rgod/conduit/releases/tag/v1.1.5
 [1.1.4]: https://github.com/err0rgod/conduit/releases/tag/v1.1.4
 [0.1.3]: https://github.com/err0rgod/conduit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/err0rgod/conduit/releases/tag/v0.1.2
